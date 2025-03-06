@@ -1,0 +1,74 @@
+services:
+  wordpress:
+    build: ./config/wordpress
+    expose:
+      - 80
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: user
+      WORDPRESS_DB_PASSWORD: password
+      WORDPRESS_DB_NAME: database
+      WORDPRESS_CONFIG_EXTRA: |
+        /* Multisite */
+        define('WP_REDIS_HOST', 'cache' );
+    volumes:
+      - ./www:/var/www/html
+      - ./config/wordpress/php.ini:/usr/local/etc/php/php.ini
+    depends_on:
+      - db
+      - cache
+
+  db:
+    image: mysql:innovation
+    environment:
+      MYSQL_DATABASE: database
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_RANDOM_ROOT_PASSWORD: '1'
+    volumes:
+      - db:/var/lib/mysql
+    ports:
+      - '3306:3306'
+
+  cache:
+    image: redis:alpine
+    ports:
+      - '6379:6379'
+    command: redis-server
+    volumes:
+      - cache:/data
+
+  nginx:
+    build: ./config/nginx
+    environment:
+      - DOMAINS=${DOMAINS}
+    ports:
+      - '80:80'
+      - '443:443/tcp'
+      - '443:443/udp'
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/nginx/conf.d/:/etc/nginx/conf.d/:ro
+      - ./config/nginx/sites-enabled/:/etc/nginx/sites-enabled/:ro
+      - ./config/nginx/cache:/var/cache/nginx:rw
+      - ./config/certs:/certs:ro
+    command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
+    depends_on:
+      - wordpress
+      - certs
+
+  certs:
+    image: stakater/ssl-certs-generator
+    environment:
+      - SSL_SUBJECT=${DOMAINS}
+    volumes:
+      - ./config/certs:/certs
+
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - 1025:1025 # smtp server
+      - 8025:8025 # web ui
+volumes:
+  db:
+  cache:
