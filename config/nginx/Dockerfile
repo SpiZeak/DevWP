@@ -2,9 +2,7 @@ FROM ubuntu:latest
 
 WORKDIR /src
 
-RUN apt update
-
-RUN apt-get update && apt-get install -y \
+RUN apt update && apt install -y \
     libpcre3 \
     libpcre3-dev \
     wget \
@@ -14,16 +12,12 @@ RUN apt-get update && apt-get install -y \
     libbrotli-dev \
     zlib1g-dev
 
-RUN wget https://nginx.org/download/nginx-1.27.2.tar.gz && tar -zxf nginx-1.27.2.tar.gz
-
-RUN git clone --recurse-submodules -j8 https://github.com/google/ngx_brotli.git
-
-RUN wget https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-3.9.2.tar.gz && tar -zxf libressl-3.9.2.tar.gz
-
-RUN rm -rf /etc/nginx
+RUN wget https://nginx.org/download/nginx-1.27.4.tar.gz && tar -zxf nginx-1.27.4.tar.gz && \
+    wget https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-4.0.0.tar.gz && tar -zxf libressl-4.0.0.tar.gz && \
+    git clone --recurse-submodules -j8 https://github.com/google/ngx_brotli.git
 
 # Configure and build Nginx with LibreSSL
-RUN cd nginx-1.27.2 && ./configure \
+RUN cd nginx-1.27.4 && ./configure \
     --add-dynamic-module=../ngx_brotli \
     --prefix=/usr/share/nginx \
     --conf-path=/etc/nginx/nginx.conf \
@@ -53,8 +47,8 @@ RUN cd nginx-1.27.2 && ./configure \
     --with-http_gunzip_module \
     --with-http_gzip_static_module \
     --with-http_sub_module \
-    --with-openssl=../libressl-3.9.2 \
-    && make -j8 && make install
+    --with-openssl=../libressl-4.0.0 && \
+    make -j8 && make install
 
 COPY ./dhparam2048.pem /etc/nginx
 

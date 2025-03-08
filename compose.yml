@@ -1,24 +1,15 @@
 services:
-  wordpress:
-    build: ./config/wordpress
+  php:
+    build: ./config/php
     expose:
-      - 80
-    environment:
-      WORDPRESS_DB_HOST: db
-      WORDPRESS_DB_USER: user
-      WORDPRESS_DB_PASSWORD: password
-      WORDPRESS_DB_NAME: database
-      WORDPRESS_CONFIG_EXTRA: |
-        /* Multisite */
-        define('WP_REDIS_HOST', 'cache' );
-    volumes:
-      - ./www:/var/www/html
-      - ./config/wordpress/php.ini:/usr/local/etc/php/php.ini
+      - 9000
     depends_on:
-      - db
+      - database
       - cache
+    ports:
+      - '9003:9003' # xdebug
 
-  db:
+  database:
     image: mysql:innovation
     environment:
       MYSQL_DATABASE: database
@@ -26,7 +17,7 @@ services:
       MYSQL_PASSWORD: password
       MYSQL_RANDOM_ROOT_PASSWORD: '1'
     volumes:
-      - db:/var/lib/mysql
+      - database:/var/lib/mysql
     ports:
       - '3306:3306'
 
@@ -38,7 +29,7 @@ services:
     volumes:
       - cache:/data
 
-  nginx:
+  web:
     build: ./config/nginx
     environment:
       - DOMAINS=${DOMAINS}
@@ -54,7 +45,7 @@ services:
       - ./config/certs:/certs:ro
     command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
     depends_on:
-      - wordpress
+      - php
       - certs
 
   certs:
@@ -70,5 +61,5 @@ services:
       - 1025:1025 # smtp server
       - 8025:8025 # web ui
 volumes:
-  db:
+  database:
   cache:
