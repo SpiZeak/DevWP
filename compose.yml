@@ -6,8 +6,9 @@ services:
     depends_on:
       - database
       - cache
-    ports:
-      - '9003:9003' # xdebug
+    volumes:
+      - ./www:/src/www
+      - ./config/php/php.ini:/usr/local/etc/php/php.ini:ro
 
   database:
     image: mysql:innovation

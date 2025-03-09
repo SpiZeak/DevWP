@@ -14,6 +14,14 @@ RUN apk update && \
     libsodium-dev \
     $PHPIZE_DEPS
 
+# Install Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+# Install WP-CLI
+RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
+    chmod +x wp-cli.phar && \
+    mv wp-cli.phar /usr/local/bin/wp
+
 # Install PHP extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp && \
     docker-php-ext-install -j$(nproc) \
@@ -34,10 +42,9 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp && \
 RUN pecl install xdebug && \
     docker-php-ext-enable xdebug && \
     { \
-        echo 'xdebug.mode=debug'; \
-        echo 'xdebug.client_host=host.docker.internal'; \
-        echo 'xdebug.client_port=9003'; \
-        echo 'xdebug.start_with_request=yes'; \
+    echo 'xdebug.mode=develop,debug'; \
+    echo 'xdebug.client_host=172.17.0.1'; \
+    echo 'xdebug.start_with_request=yes'; \
     } > /usr/local/etc/php/conf.d/xdebug.ini
 
 # Configure opcache
