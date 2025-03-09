@@ -1,4 +1,6 @@
 .env
+config/certs
+config/nginx/sites-enabled
 www/*
 certs/*
 !.gitkeep
