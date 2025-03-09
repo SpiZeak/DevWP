@@ -39,10 +39,12 @@ services:
       - '443:443/udp'
     volumes:
       - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/nginx/global/:/etc/nginx/global/:ro
       - ./config/nginx/conf.d/:/etc/nginx/conf.d/:ro
       - ./config/nginx/sites-enabled/:/etc/nginx/sites-enabled/:ro
       - ./config/nginx/cache:/var/cache/nginx:rw
       - ./config/certs:/certs:ro
+      - ./www:/src/www
     command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
     depends_on:
       - php
