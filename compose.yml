@@ -1,5 +1,6 @@
 services:
   php:
+    container_name: sites_php
     build: ./config/php
     expose:
       - 9000
@@ -11,6 +12,7 @@ services:
       - ./config/php/php.ini:/usr/local/etc/php/php.ini:ro
 
   database:
+    container_name: sites_database
     image: mysql:innovation
     environment:
       MYSQL_DATABASE: database
@@ -23,6 +25,7 @@ services:
       - '3306:3306'
 
   cache:
+    container_name: sites_cache
     image: redis:alpine
     ports:
       - '6379:6379'
@@ -31,6 +34,7 @@ services:
       - cache:/data
 
   web:
+    container_name: sites_web
     build: ./config/nginx
     environment:
       - DOMAINS=${DOMAINS}
@@ -53,6 +57,7 @@ services:
       - certs
 
   certs:
+    container_name: sites_certs
     image: stakater/ssl-certs-generator
     environment:
       - SSL_SUBJECT=${DOMAINS}
@@ -60,6 +65,7 @@ services:
       - ./config/certs:/certs
 
   mailhog:
+    container_name: sites_mailhog
     image: mailhog/mailhog
     ports:
       - 1025:1025 # smtp server
