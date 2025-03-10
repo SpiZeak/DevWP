@@ -53,7 +53,7 @@ function createWindow(): void {
   })
 
   // Add this new IPC handler for sites
-  ipcMain.handle('get-sites', async (event) => {
+  ipcMain.handle('get-sites', async () => {
     return new Promise((resolve, reject) => {
       // Read domains from environment variable or from the file system
       const domainsStr = process.env.DOMAINS || ''
@@ -74,7 +74,7 @@ function createWindow(): void {
 
         // Get directories from the output
         const dirRegex = /\s(\S+)$/gm
-        const dirs = []
+        const dirs: string[] = []
         let match
 
         const lines = stdout.split('\n')
@@ -93,7 +93,7 @@ function createWindow(): void {
 
         const sites = allDomains.map((domain) => ({
           name: domain,
-          path: `/src/www/${domain}`,
+          path: `www/${domain}`,
           url: `https://${domain}`,
           active: dirs.includes(domain)
         }))
@@ -101,6 +101,12 @@ function createWindow(): void {
         resolve(sites)
       })
     })
+  })
+
+  // Add this with your other IPC handlers
+  ipcMain.handle('open-external', async (_, url) => {
+    await shell.openExternal(url)
+    return true
   })
 
   mainWindow.on('ready-to-show', () => {

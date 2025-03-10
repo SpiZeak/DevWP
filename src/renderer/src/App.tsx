@@ -34,20 +34,14 @@ function App(): JSX.Element {
 
   // Handle opening URL in browser
   const openSiteUrl = (url: string): void => {
-    window.electron.shell.openExternal(url)
+    window.electron.ipcRenderer.invoke('open-external', url)
   }
 
   return (
     <>
       <img alt="logo" className="logo" src={electronLogo} />
+      <h1>DevWP</h1>
       <div className="creator">Powered by electron-vite</div>
-      <div className="actions">
-        <div className="action">
-          <a target="_blank" rel="noreferrer" onClick={ipcHandle}>
-            Get Docker Status
-          </a>
-        </div>
-      </div>
       <ul
         style={{
           width: '100%',

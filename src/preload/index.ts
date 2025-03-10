@@ -1,14 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
-// Define site interface for TypeScript
-interface Site {
-  name: string
-  path: string
-  url: string
-  active: boolean
-}
-
 contextBridge.exposeInMainWorld('dockerControl', {
   startService: (serviceName) => ipcRenderer.send('start-service', serviceName),
   stopService: (serviceName) => ipcRenderer.send('stop-service', serviceName),
@@ -21,7 +13,7 @@ const api = {
   onDockerStatusUpdate: (callback) => {
     const listener = (_event, data) => callback(data)
     ipcRenderer.on('docker-status-update', listener)
-    return () => {
+    return (): void => {
       ipcRenderer.removeListener('docker-status-update', listener)
     }
   }
