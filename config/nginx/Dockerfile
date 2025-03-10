@@ -1,57 +1,65 @@
-FROM ubuntu:latest
+FROM nginx:alpine AS builder
 
-WORKDIR /src
+# For latest build deps, see https://github.com/nginxinc/docker-nginx/blob/master/mainline/alpine/Dockerfile
+RUN apk add --no-cache --virtual .build-deps \
+	gcc \
+	libc-dev \
+	make \
+	openssl-dev \
+	pcre2-dev \
+	zlib-dev \
+	linux-headers \
+	libxslt-dev \
+	gd-dev \
+	geoip-dev \
+	libedit-dev \
+	bash \
+	alpine-sdk \
+	findutils \
+	curl \
+	git
 
-RUN apt update && apt install -y \
-    libpcre3 \
-    libpcre3-dev \
-    wget \
-    git \
-    gcc \
-    make \
-    libbrotli-dev \
-    zlib1g-dev
+# Create required directory
+RUN mkdir -p /usr/src
 
-RUN wget https://nginx.org/download/nginx-1.27.4.tar.gz && tar -zxf nginx-1.27.4.tar.gz && \
-    wget https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-4.0.0.tar.gz && tar -zxf libressl-4.0.0.tar.gz && \
-    git clone --recurse-submodules -j8 https://github.com/google/ngx_brotli.git
+# Download sources
+RUN wget "http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" -O nginx.tar.gz && \
+	tar -zxC /usr/src -f nginx.tar.gz && \
+	cd /usr/src && \
+	git clone --recurse-submodules -j$(nproc) https://github.com/google/ngx_brotli.git
 
-# Configure and build Nginx with LibreSSL
-RUN cd nginx-1.27.4 && ./configure \
-    --add-dynamic-module=../ngx_brotli \
-    --prefix=/usr/share/nginx \
-    --conf-path=/etc/nginx/nginx.conf \
-    --http-log-path=/var/log/nginx/access.log \
-    --error-log-path=/var/log/nginx/error.log \
-    --lock-path=/var/lock/nginx.lock \
-    --pid-path=/run/nginx.pid \
-    --modules-path=/usr/lib/nginx/modules \
-    --http-client-body-temp-path=/var/lib/nginx/body \
-    --http-fastcgi-temp-path=/var/lib/nginx/fastcgi \
-    --http-proxy-temp-path=/var/lib/nginx/proxy \
-    --http-scgi-temp-path=/var/lib/nginx/scgi \
-    --http-uwsgi-temp-path=/var/lib/nginx/uwsgi \
-    --with-debug \
-    --with-pcre-jit \
-    --with-http_ssl_module \
-    --with-http_stub_status_module \
-    --with-http_realip_module \
-    --with-http_auth_request_module \
-    --with-http_v2_module \
-    --with-http_v3_module \
-    --with-http_dav_module \
-    --with-http_slice_module \
-    --with-threads \
-    --with-file-aio \
-    --with-http_addition_module \
-    --with-http_gunzip_module \
-    --with-http_gzip_static_module \
-    --with-http_sub_module \
-    --with-openssl=../libressl-4.0.0 && \
-    make -j8 && make install
+# Use a simplified configure approach with hardcoded core options
+RUN cd /usr/src/nginx-$NGINX_VERSION && \
+	./configure \
+	--prefix=/etc/nginx \
+	--sbin-path=/usr/sbin/nginx \
+	--modules-path=/usr/lib/nginx/modules \
+	--conf-path=/etc/nginx/nginx.conf \
+	--error-log-path=/var/log/nginx/error.log \
+	--http-log-path=/var/log/nginx/access.log \
+	--pid-path=/var/run/nginx.pid \
+	--lock-path=/var/run/nginx.lock \
+	--with-threads \
+	--with-http_ssl_module \
+	--with-http_v2_module \
+	--with-http_v3_module \
+	--with-http_realip_module \
+	--with-http_addition_module \
+	--with-http_sub_module \
+	--with-http_gunzip_module \
+	--with-http_gzip_static_module \
+	--with-compat \
+	--add-dynamic-module=../ngx_brotli && \
+	make && make install
 
-COPY ./dhparam2048.pem /etc/nginx
+FROM nginx:alpine
 
-RUN mkdir -p /var/lib/nginx/{body,fastcgi}
+COPY --from=builder /usr/lib/nginx/modules/*.so /usr/lib/nginx/modules/
 
-ENV PATH="$PATH:/usr/share/nginx/sbin"
+RUN rm /etc/nginx/conf.d/default.conf
+
+COPY nginx.conf /etc/nginx/nginx.conf
+
+COPY ./dhparam2048.pem /etc/nginx/dhparam2048.pem
+
+CMD ["nginx", "-g", "daemon off;"]
