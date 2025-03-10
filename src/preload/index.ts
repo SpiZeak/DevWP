@@ -1,5 +1,11 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+
+contextBridge.exposeInMainWorld('dockerControl', {
+  startService: (serviceName) => ipcRenderer.send('start-service', serviceName),
+  stopService: (serviceName) => ipcRenderer.send('stop-service', serviceName),
+  getStatus: (serviceName) => ipcRenderer.send('get-status', serviceName)
+})
 
 // Custom APIs for renderer
 const api = {}

@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { exec } from 'child_process'
 
 function createWindow(): void {
   // Create the browser window.
@@ -15,6 +16,40 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
     }
+  })
+
+  ipcMain.on('start-service', (_, serviceName) => {
+    exec(`docker-compose up ${serviceName}`, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error starting service: ${stderr}`)
+        return
+      }
+      console.log(`Service started: ${stdout}`)
+    })
+  })
+
+  ipcMain.on('stop-service', (_, serviceName) => {
+    exec(`docker-compose down ${serviceName}`, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error stopping service: ${stderr}`)
+        return
+      }
+      console.log(`Service stopped: ${stdout}`)
+    })
+  })
+
+  ipcMain.on('get-status', async () => {
+    return new Promise<string>((resolve, reject) => {
+      exec('docker-compose ps', (error, stdout, stderr) => {
+        if (error) {
+          console.error(`Error getting status: ${stderr}`)
+          reject(`Error getting status: ${stderr}`)
+        } else {
+          console.log(`Status: ${stdout}`)
+          resolve(stdout)
+        }
+      })
+    })
   })
 
   mainWindow.on('ready-to-show', () => {

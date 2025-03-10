@@ -3,7 +3,7 @@ import electronLogo from './assets/electron.svg'
 import { JSX } from 'react'
 
 function App(): JSX.Element {
-  const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
+  const ipcHandle = (): void => window.electron.ipcRenderer.send('get-status')
 
   return (
     <>
@@ -24,7 +24,7 @@ function App(): JSX.Element {
         </div>
         <div className="action">
           <a target="_blank" rel="noreferrer" onClick={ipcHandle}>
-            Send IPC
+            Get Docker Status
           </a>
         </div>
       </div>
