@@ -5,7 +5,6 @@ RUN apk add --no-cache --virtual .build-deps \
 	gcc \
 	libc-dev \
 	make \
-	openssl-dev \
 	pcre2-dev \
 	zlib-dev \
 	linux-headers \
@@ -17,10 +16,24 @@ RUN apk add --no-cache --virtual .build-deps \
 	alpine-sdk \
 	findutils \
 	curl \
-	git
+	git \
+	cmake
 
 # Create required directory
 RUN mkdir -p /usr/src
+
+# Download and compile LibreSSL 4.0.0
+RUN cd /usr/src && \
+	curl -sSL https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-4.0.0.tar.gz -o libressl-4.0.0.tar.gz && \
+	tar -zxf libressl-4.0.0.tar.gz && \
+	cd libressl-4.0.0 && \
+	mkdir build && \
+	cd build && \
+	cmake .. \
+	-DCMAKE_INSTALL_PREFIX=/usr/local/libressl-4.0.0 \
+	-DCMAKE_BUILD_TYPE=Release && \
+	make -j$(nproc) && \
+	make install
 
 # Download sources
 RUN wget "http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" -O nginx.tar.gz && \
@@ -28,7 +41,7 @@ RUN wget "http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" -O nginx.tar.
 	cd /usr/src && \
 	git clone --recurse-submodules -j$(nproc) https://github.com/google/ngx_brotli.git
 
-# Use a simplified configure approach with hardcoded core options
+# Use a simplified configure approach with hardcoded core options and LibreSSL
 RUN cd /usr/src/nginx-$NGINX_VERSION && \
 	./configure \
 	--prefix=/etc/nginx \
@@ -49,7 +62,9 @@ RUN cd /usr/src/nginx-$NGINX_VERSION && \
 	--with-http_gunzip_module \
 	--with-http_gzip_static_module \
 	--with-compat \
-	--add-dynamic-module=../ngx_brotli && \
+	--add-dynamic-module=../ngx_brotli \
+	--with-openssl=/usr/src/libressl-4.0.0 \
+	--with-openssl-opt=enable-tls1_3 && \
 	make && make install
 
 FROM nginx:alpine
@@ -58,12 +73,18 @@ FROM nginx:alpine
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 
-# Create a non-root user with same ID as host user
-RUN apk add --no-cache shadow && \
-	groupadd -g ${GROUP_ID} appuser && \
-	useradd -u ${USER_ID} -g appuser -s /bin/sh -m appuser
+# Use Alpine-native commands for user creation
+RUN addgroup -g ${GROUP_ID} -S appuser && \
+	adduser -u ${USER_ID} -S -G appuser -s /bin/sh appuser
 
+# Copy modules and LibreSSL from builder
 COPY --from=builder /usr/lib/nginx/modules/*.so /usr/lib/nginx/modules/
+COPY --from=builder /usr/local/libressl-4.0.0 /usr/local/libressl-4.0.0
+COPY --from=builder /usr/sbin/nginx /usr/sbin/nginx
+
+# Set up environment for LibreSSL
+ENV LD_LIBRARY_PATH=/usr/local/libressl-4.0.0/lib:$LD_LIBRARY_PATH
+ENV PATH=/usr/local/libressl-4.0.0/bin:$PATH
 
 RUN rm /etc/nginx/conf.d/default.conf
 
@@ -71,11 +92,20 @@ COPY nginx.conf /etc/nginx/nginx.conf
 
 COPY ./dhparam2048.pem /etc/nginx/dhparam2048.pem
 
-# Fix permissions for the appuser
-RUN mkdir -p /var/cache/nginx && \
+# Create all required directories with proper permissions
+RUN mkdir -p /var/cache/nginx/client_temp && \
+	mkdir -p /var/cache/nginx/proxy_temp && \
+	mkdir -p /var/cache/nginx/fastcgi_temp && \
+	mkdir -p /var/cache/nginx/uwsgi_temp && \
+	mkdir -p /var/cache/nginx/scgi_temp && \
+	chmod 755 /var/cache && \
+	chmod -R 770 /var/cache/nginx && \
 	chown -R appuser:appuser /var/cache/nginx && \
 	touch /var/run/nginx.pid && \
-	chown -R appuser:appuser /var/run/nginx.pid
+	chown appuser:appuser /var/run/nginx.pid && \
+	# Ensure log directory exists with correct permissions
+	mkdir -p /var/log/nginx && \
+	chown -R appuser:appuser /var/log/nginx
 
 # Switch to the non-root user
 USER appuser
