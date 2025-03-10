@@ -54,6 +54,15 @@ RUN cd /usr/src/nginx-$NGINX_VERSION && \
 
 FROM nginx:alpine
 
+# Add arguments for user and group IDs
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+
+# Create a non-root user with same ID as host user
+RUN apk add --no-cache shadow && \
+	groupadd -g ${GROUP_ID} appuser && \
+	useradd -u ${USER_ID} -g appuser -s /bin/sh -m appuser
+
 COPY --from=builder /usr/lib/nginx/modules/*.so /usr/lib/nginx/modules/
 
 RUN rm /etc/nginx/conf.d/default.conf
@@ -61,5 +70,14 @@ RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/nginx.conf
 
 COPY ./dhparam2048.pem /etc/nginx/dhparam2048.pem
+
+# Fix permissions for the appuser
+RUN mkdir -p /var/cache/nginx && \
+	chown -R appuser:appuser /var/cache/nginx && \
+	touch /var/run/nginx.pid && \
+	chown -R appuser:appuser /var/run/nginx.pid
+
+# Switch to the non-root user
+USER appuser
 
 CMD ["nginx", "-g", "daemon off;"]

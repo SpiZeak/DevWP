@@ -1,5 +1,11 @@
 FROM php:8.4-fpm-alpine
 
+WORKDIR /src/www
+
+# Add arguments for user and group IDs
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+
 RUN apk update && \
     apk add --no-cache \
     linux-headers \
@@ -12,7 +18,12 @@ RUN apk update && \
     oniguruma-dev \
     libxml2-dev \
     libsodium-dev \
+    shadow \
     $PHPIZE_DEPS
+
+# Create a non-root user with same ID as host user
+RUN addgroup -g ${GROUP_ID} appuser && \
+    adduser -u ${USER_ID} -G appuser -s /bin/sh -D appuser
 
 # Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
@@ -70,3 +81,18 @@ RUN { \
 
 # Use the default production configuration
 RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"
+
+# Fix permissions for FPM directories
+RUN mkdir -p /var/www/html && \
+    chown -R appuser:appuser /var/www/html && \
+    chown -R appuser:appuser /home/appuser && \
+    chown -R appuser:appuser $PHP_INI_DIR
+
+# Update PHP-FPM configuration to run as appuser
+RUN sed -i "s/user = www-data/user = appuser/g" /usr/local/etc/php-fpm.d/www.conf && \
+    sed -i "s/group = www-data/group = appuser/g" /usr/local/etc/php-fpm.d/www.conf
+
+# Switch to the non-root user
+USER appuser
+
+CMD ["php-fpm"]

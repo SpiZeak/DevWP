@@ -1,7 +1,11 @@
 services:
   php:
     container_name: sites_php
-    build: ./config/php
+    build:
+      context: ./config/php
+      args:
+        USER_ID: ${UID:-1000}
+        GROUP_ID: ${GID:-1000}
     expose:
       - 9000
     depends_on:
@@ -35,7 +39,11 @@ services:
 
   web:
     container_name: sites_web
-    build: ./config/nginx
+    build:
+      context: ./config/nginx
+      args:
+        USER_ID: ${UID:-1000}
+        GROUP_ID: ${GID:-1000}
     environment:
       - DOMAINS=${DOMAINS}
     ports:
