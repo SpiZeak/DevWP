@@ -52,6 +52,57 @@ function createWindow(): void {
     })
   })
 
+  // Add this new IPC handler for sites
+  ipcMain.handle('get-sites', async (event) => {
+    return new Promise((resolve, reject) => {
+      // Read domains from environment variable or from the file system
+      const domainsStr = process.env.DOMAINS || ''
+
+      // Read sites directory content
+      exec('ls -la ./www', (error, stdout, stderr) => {
+        if (error) {
+          console.error(`Error reading sites directory: ${stderr}`)
+          reject(`Error reading sites directory: ${stderr}`)
+          return
+        }
+
+        // Parse domains from env and actual directories
+        const envDomains = domainsStr
+          .split(',')
+          .map((d) => d.trim())
+          .filter(Boolean)
+
+        // Get directories from the output
+        const dirRegex = /\s(\S+)$/gm
+        const dirs = []
+        let match
+
+        const lines = stdout.split('\n')
+        for (const line of lines) {
+          if (line.startsWith('d')) {
+            match = dirRegex.exec(line)
+            if (match && !['.', '..', '.git'].includes(match[1])) {
+              dirs.push(match[1])
+            }
+            dirRegex.lastIndex = 0 // Reset regex state
+          }
+        }
+
+        // Combine both sources and create site objects
+        const allDomains = [...new Set([...envDomains, ...dirs])]
+
+        const sites = allDomains.map((domain) => ({
+          name: domain,
+          path: `/src/www/${domain}`,
+          url: `https://${domain}`,
+          active: dirs.includes(domain)
+        }))
+
+        resolve(sites)
+      })
+    })
+  })
+
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })
