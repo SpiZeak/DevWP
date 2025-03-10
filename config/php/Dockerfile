@@ -19,6 +19,7 @@ RUN apk update && \
     libxml2-dev \
     libsodium-dev \
     shadow \
+    git \
     $PHPIZE_DEPS
 
 # Create a non-root user with same ID as host user

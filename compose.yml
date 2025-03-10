@@ -55,7 +55,6 @@ services:
       - ./config/nginx/global/:/etc/nginx/global/:ro
       - ./config/nginx/conf.d/:/etc/nginx/conf.d/:ro
       - ./config/nginx/sites-enabled/:/etc/nginx/sites-enabled/
-      - ./config/nginx/cache:/var/cache/nginx:rw
       - ./config/certs:/certs:ro
       - ./www:/src/www
     depends_on:
