@@ -11,8 +11,7 @@ const SiteList: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
-  const [newSite, setNewSite] = useState<{ name: string; domain: string }>({
-    name: '',
+  const [newSite, setNewSite] = useState<{ domain: string }>({
     domain: ''
   })
 
@@ -26,20 +25,19 @@ const SiteList: React.FC = () => {
 
   const handleCloseModal = (): void => {
     setIsModalOpen(false)
-    // Reset form data
-    setNewSite({ name: '', domain: '' })
+    setNewSite({ domain: '' })
   }
 
-  const handleSubmitNewSite = (): void => {
-    // TODO: Call API to create the site
+  const handleSubmitNewSite = async (): Promise<void> => {
     console.log('Creating new site:', newSite)
-
-    // Close modal and reset form
-    setIsModalOpen(false)
-    setNewSite({ name: '', domain: '' })
-
-    // Refresh the site list
-    fetchSites()
+    try {
+      await window.electronAPI.createSite(newSite)
+      setIsModalOpen(false)
+      setNewSite({ domain: '' })
+      fetchSites()
+    } catch (error) {
+      console.error('Failed to create new site:', error)
+    }
   }
 
   const fetchSites = async (): Promise<void> => {
@@ -187,26 +185,6 @@ const SiteList: React.FC = () => {
             }}
           >
             <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Create New Site</h3>
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>
-                Site Name
-              </label>
-              <input
-                type="text"
-                value={newSite.name}
-                onChange={(e) => setNewSite({ ...newSite, name: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  border: '1px solid var(--ev-c-gray-1)',
-                  borderRadius: '4px',
-                  backgroundColor: 'var(--ev-c-gray-2)'
-                }}
-                placeholder="mysite"
-              />
-            </div>
-
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>
                 Domain
@@ -221,7 +199,8 @@ const SiteList: React.FC = () => {
                     padding: '8px',
                     border: '1px solid var(--ev-c-gray-1)',
                     borderRadius: '4px',
-                    backgroundColor: 'var(--ev-c-gray-2)'
+                    backgroundColor: 'var(--ev-c-gray-2)',
+                    color: '#fff'
                   }}
                   placeholder="example.test"
                 />
@@ -247,15 +226,14 @@ const SiteList: React.FC = () => {
               </button>
               <button
                 onClick={handleSubmitNewSite}
-                disabled={!newSite.name || !newSite.domain}
+                disabled={!newSite.domain}
                 style={{
-                  backgroundColor:
-                    !newSite.name || !newSite.domain ? 'var(--ev-c-gray-1)' : 'var(--ev-c-brand)',
+                  backgroundColor: !newSite.domain ? 'var(--ev-c-gray-1)' : 'var(--ev-c-brand)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',
                   padding: '8px 16px',
-                  cursor: !newSite.name || !newSite.domain ? 'not-allowed' : 'pointer'
+                  cursor: !newSite.domain ? 'not-allowed' : 'pointer'
                 }}
               >
                 Create

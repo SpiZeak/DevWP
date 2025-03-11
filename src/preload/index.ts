@@ -10,7 +10,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return (): void => {
       ipcRenderer.removeListener('docker-status', listener)
     }
-  }
+  },
+  createSite: (site) => ipcRenderer.invoke('create-site', site)
 })
 
 // Custom APIs for renderer

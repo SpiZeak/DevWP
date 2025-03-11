@@ -121,6 +121,19 @@ function createWindow(): BrowserWindow {
     })
   })
 
+  ipcMain.handle('create-site', async (_, site) => {
+    return new Promise((resolve, reject) => {
+      exec(`mkdir -p ./www/${site.domain}`, (error, _, stderr) => {
+        if (error) {
+          console.error(`Error creating site directory: ${stderr}`)
+          reject(`Error creating site directory: ${stderr}`)
+          return
+        }
+        resolve(true) // Return a value to the renderer
+      })
+    })
+  })
+
   // Add this with your other IPC handlers
   ipcMain.handle('open-external', async (_, url) => {
     await shell.openExternal(url)

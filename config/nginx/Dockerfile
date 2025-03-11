@@ -119,5 +119,3 @@ RUN mkdir -p /var/cache/nginx/client_temp && \
 
 # Switch to the non-root user
 USER appuser
-
-CMD ["nginx", "-g", "daemon off;"]
