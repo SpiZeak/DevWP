@@ -52,33 +52,11 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp && \
 
 # Install Xdebug
 RUN pecl install xdebug && \
-    docker-php-ext-enable xdebug && \
-    { \
-    echo 'xdebug.mode=develop,debug'; \
-    echo 'xdebug.client_host=172.17.0.1'; \
-    echo 'xdebug.start_with_request=yes'; \
-    } > /usr/local/etc/php/conf.d/xdebug.ini
-
-# Configure opcache
-RUN { \
-    echo 'opcache.memory_consumption=128'; \
-    echo 'opcache.interned_strings_buffer=8'; \
-    echo 'opcache.max_accelerated_files=4000'; \
-    echo 'opcache.revalidate_freq=2'; \
-    echo 'opcache.fast_shutdown=1'; \
-    echo 'opcache.enable_cli=1'; \
-    } > /usr/local/etc/php/conf.d/opcache-recommended.ini
+    docker-php-ext-enable xdebug
 
 # Install Redis
 RUN pecl install redis && \
     docker-php-ext-enable redis
-
-# Set recommended PHP settings
-RUN { \
-    echo 'upload_max_filesize = 64M'; \
-    echo 'post_max_size = 64M'; \
-    echo 'memory_limit = 256M'; \
-    } > /usr/local/etc/php/conf.d/wordpress.ini
 
 # Use the default production configuration
 RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"

@@ -99,6 +99,16 @@ RUN mkdir -p /var/cache/nginx/client_temp && \
 	mkdir -p /var/cache/nginx/uwsgi_temp && \
 	mkdir -p /var/cache/nginx/scgi_temp && \
 	chmod 755 /var/cache && \
+	mkdir -p /etc/nginx/client_body_temp && \
+	chmod 777 /etc/nginx/client_body_temp && \
+	mkdir -p /etc/nginx/proxy_temp && \
+	chmod 777 /etc/nginx/proxy_temp && \
+	mkdir -p /etc/nginx/fastcgi_temp && \
+	chmod 777 /etc/nginx/fastcgi_temp && \
+	mkdir -p /etc/nginx/uwsgi_temp && \
+	chmod 777 /etc/nginx/uwsgi_temp && \
+	mkdir -p /etc/nginx/scgi_temp && \
+	chmod 777 /etc/nginx/scgi_temp && \
 	chmod -R 770 /var/cache/nginx && \
 	chown -R appuser:appuser /var/cache/nginx && \
 	touch /var/run/nginx.pid && \
