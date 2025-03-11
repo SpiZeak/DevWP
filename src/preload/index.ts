@@ -1,23 +1,20 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
-contextBridge.exposeInMainWorld('dockerControl', {
-  startService: (serviceName) => ipcRenderer.send('start-service', serviceName),
-  stopService: (serviceName) => ipcRenderer.send('stop-service', serviceName),
-  getStatus: (serviceName) => ipcRenderer.send('get-status', serviceName),
-  getSites: () => ipcRenderer.invoke('get-sites')
+contextBridge.exposeInMainWorld('electronAPI', {
+  getSites: () => ipcRenderer.invoke('get-sites'),
+  onDockerStatus: (callback) => {
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('docker-status', listener)
+
+    return (): void => {
+      ipcRenderer.removeListener('docker-status', listener)
+    }
+  }
 })
 
 // Custom APIs for renderer
-const api = {
-  onDockerStatusUpdate: (callback) => {
-    const listener = (_event, data) => callback(data)
-    ipcRenderer.on('docker-status-update', listener)
-    return (): void => {
-      ipcRenderer.removeListener('docker-status-update', listener)
-    }
-  }
-}
+const api = {}
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise

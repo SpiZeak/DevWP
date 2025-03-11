@@ -1,6 +1,7 @@
 import Versions from './components/Versions'
 import electronLogo from './assets/electron.svg'
 import { JSX, useState, useEffect } from 'react'
+import DockerLoader from './components/DockerLoader'
 
 interface Site {
   name: string
@@ -13,14 +14,11 @@ function App(): JSX.Element {
   const [sites, setSites] = useState<Site[]>([])
   const [loading, setLoading] = useState<boolean>(false)
 
-  const ipcHandle = (): void => window.electron.ipcRenderer.send('get-status')
-
-  // Fetch sites when component mounts
   useEffect(() => {
     const fetchSites = async (): Promise<void> => {
       try {
         setLoading(true)
-        const siteList = await window.dockerControl.getSites()
+        const siteList = await window.electronAPI.getSites()
         setSites(siteList)
       } catch (error) {
         console.error('Failed to fetch sites:', error)
@@ -42,6 +40,7 @@ function App(): JSX.Element {
       <img alt="logo" className="logo" src={electronLogo} />
       <h1>DevWP</h1>
       <div className="creator">Powered by electron-vite</div>
+      <DockerLoader />
       <ul
         style={{
           width: '100%',
@@ -80,15 +79,6 @@ function App(): JSX.Element {
                     gap: '8px'
                   }}
                 >
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: site.active ? '#4caf50' : '#f44336'
-                    }}
-                  />
                   {site.name}
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--ev-c-text-2)' }}>{site.path}</div>

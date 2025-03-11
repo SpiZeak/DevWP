@@ -2,10 +2,62 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { exec } from 'child_process'
+import { exec, spawn } from 'child_process'
 
-function createWindow(): void {
-  // Create the browser window.
+function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Start docker compose containers with real-time logging
+    const dockerProcess = spawn('docker-compose', ['up', '-d', '--build'])
+
+    // Send initial status if window exists
+    if (mainWindow) {
+      mainWindow.webContents.send('docker-status', {
+        status: 'starting',
+        message: 'Starting Docker containers...'
+      })
+    }
+
+    dockerProcess.stdout.on('data', (data) => {
+      const output = data.toString().trim()
+      console.log(`Docker compose: ${output}`)
+      if (mainWindow) {
+        mainWindow.webContents.send('docker-status', {
+          status: 'progress',
+          message: output
+        })
+      }
+    })
+
+    dockerProcess.stderr.on('data', (data) => {
+      const output = data.toString().trim()
+      console.error(`Docker compose error: ${output}`)
+      if (mainWindow) {
+        mainWindow.webContents.send('docker-status', {
+          status: 'error',
+          message: output
+        })
+      }
+    })
+
+    dockerProcess.on('close', (code) => {
+      console.log(`Docker compose process exited with code ${code}`)
+      if (mainWindow) {
+        mainWindow.webContents.send('docker-status', {
+          status: code === 0 ? 'complete' : 'error',
+          message: `Process exited with code ${code}`
+        })
+      }
+
+      if (code === 0) {
+        resolve()
+      } else {
+        reject(new Error(`Docker compose exited with code ${code}`))
+      }
+    })
+  })
+}
+
+function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
@@ -16,40 +68,6 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
     }
-  })
-
-  ipcMain.on('start-service', (_, serviceName) => {
-    exec(`docker-compose up ${serviceName}`, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error starting service: ${stderr}`)
-        return
-      }
-      console.log(`Service started: ${stdout}`)
-    })
-  })
-
-  ipcMain.on('stop-service', (_, serviceName) => {
-    exec(`docker-compose down ${serviceName}`, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error stopping service: ${stderr}`)
-        return
-      }
-      console.log(`Service stopped: ${stdout}`)
-    })
-  })
-
-  ipcMain.on('get-status', async () => {
-    return new Promise<string>((resolve, reject) => {
-      exec('docker-compose ps', (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Error getting status: ${stderr}`)
-          reject(`Error getting status: ${stderr}`)
-        } else {
-          console.log(`Status: ${stdout}`)
-          resolve(stdout)
-        }
-      })
-    })
   })
 
   // Add this new IPC handler for sites
@@ -125,6 +143,8 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  return mainWindow
 }
 
 // This method will be called when Electron has finished
@@ -141,10 +161,18 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
+  // Create window first
+  const mainWindow = createWindow()
 
-  createWindow()
+  // Default open or close DevTools by F12 in development
+  // ...existing code...
+
+  // Start docker compose after window is created and loaded
+  mainWindow.webContents.on('did-finish-load', () => {
+    startDockerCompose(mainWindow).catch((err) => {
+      console.error('Docker compose failed:', err)
+    })
+  })
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
