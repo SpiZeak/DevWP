@@ -40,6 +40,17 @@ const SiteList: React.FC = () => {
     }
   }
 
+  const handleDeleteSite = async (site: Site): Promise<void> => {
+    if (confirm(`Are you sure you want to delete the site ${site.name}?`)) {
+      try {
+        await window.electronAPI.deleteSite(site)
+        fetchSites()
+      } catch (error) {
+        console.error('Failed to delete site:', error)
+      }
+    }
+  }
+
   const fetchSites = async (): Promise<void> => {
     try {
       setLoading(true)
@@ -133,7 +144,7 @@ const SiteList: React.FC = () => {
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--ev-c-text-2)' }}>{site.path}</div>
               </div>
-              <div>
+              <div style={{ display: 'flex', gap: '10px' }}>
                 <button
                   onClick={() => openSiteUrl(site.url)}
                   style={{
@@ -152,6 +163,25 @@ const SiteList: React.FC = () => {
                   onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'var(--ev-c-gray-2)')}
                 >
                   Open
+                </button>
+                <button
+                  onClick={() => handleDeleteSite(site)}
+                  style={{
+                    backgroundColor: 'var(--ev-c-red)',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '6px 10px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseOver={(e) =>
+                    (e.currentTarget.style.backgroundColor = 'var(--ev-c-red-dark)')
+                  }
+                  onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'var(--ev-c-red)')}
+                >
+                  🗑️
                 </button>
               </div>
             </li>
@@ -219,7 +249,8 @@ const SiteList: React.FC = () => {
                   border: 'none',
                   borderRadius: '4px',
                   padding: '8px 16px',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  color: 'var(--ev-c-text-1)'
                 }}
               >
                 Cancel

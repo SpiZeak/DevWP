@@ -11,7 +11,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener('docker-status', listener)
     }
   },
-  createSite: (site) => ipcRenderer.invoke('create-site', site)
+  createSite: (site) => ipcRenderer.invoke('create-site', site),
+  deleteSite: (site) => ipcRenderer.invoke('delete-site', site)
 })
 
 // Custom APIs for renderer
