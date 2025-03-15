@@ -12,7 +12,7 @@ services:
       - database
       - cache
     volumes:
-      - ./www:/src/www
+      - ./www:/src/www:rw
       - ./config/php/php.ini:/usr/local/etc/php/php.ini:ro
       - ./config/php/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
 
@@ -45,8 +45,6 @@ services:
       args:
         USER_ID: ${UID:-1000}
         GROUP_ID: ${GID:-1000}
-    environment:
-      - DOMAINS=${DOMAINS}
     ports:
       - '80:80'
       - '443:443/tcp'
@@ -55,9 +53,9 @@ services:
       - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./config/nginx/global/:/etc/nginx/global/:ro
       - ./config/nginx/conf.d/:/etc/nginx/conf.d/:ro
-      - ./config/nginx/sites-enabled/:/etc/nginx/sites-enabled/
+      - ./config/nginx/sites-enabled/:/etc/nginx/sites-enabled/:rw
       - ./config/certs:/certs:ro
-      - ./www:/src/www
+      - ./www:/src/www:rw
     depends_on:
       - php
       - certs
@@ -65,8 +63,6 @@ services:
   certs:
     container_name: sites_certs
     image: stakater/ssl-certs-generator
-    environment:
-      - SSL_SUBJECT=${DOMAINS}
     volumes:
       - ./config/certs:/certs
 

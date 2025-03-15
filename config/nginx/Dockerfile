@@ -73,6 +73,9 @@ FROM nginx:alpine
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 
+# Install su-exec for user switching in entrypoint
+RUN apk add --no-cache su-exec
+
 # Use Alpine-native commands for user creation
 RUN addgroup -g ${GROUP_ID} -S appuser && \
 	adduser -u ${USER_ID} -S -G appuser -s /bin/sh appuser
@@ -117,5 +120,13 @@ RUN mkdir -p /var/cache/nginx/client_temp && \
 	mkdir -p /var/log/nginx && \
 	chown -R appuser:appuser /var/log/nginx
 
-# Switch to the non-root user
-USER appuser
+# Copy and set up the entrypoint script
+COPY entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Set entrypoint and default command
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["nginx", "-g", "daemon off;"]
+
+# The entrypoint script will handle user switching
+USER root

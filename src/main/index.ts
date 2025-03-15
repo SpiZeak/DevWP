@@ -224,6 +224,25 @@ async function generateIndexHtml(domain: string, sitePath: string): Promise<void
   }
 }
 
+// Add this function after your other utility functions
+function stopDockerCompose(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    console.log('Stopping Docker containers...')
+    const dockerProcess = spawn('docker-compose', ['down'])
+
+    dockerProcess.on('close', (code) => {
+      if (code === 0) {
+        console.log('Docker containers stopped successfully')
+        resolve()
+      } else {
+        const errorMsg = `Docker compose down exited with code ${code}`
+        console.error(errorMsg)
+        reject(new Error(errorMsg))
+      }
+    })
+  })
+}
+
 function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
     width: 900,
@@ -392,9 +411,15 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  stopDockerCompose()
+    .catch((error) => {
+      console.error('Failed to stop Docker containers:', error)
+    })
+    .finally(() => {
+      if (process.platform !== 'darwin') {
+        app.quit()
+      }
+    })
 })
 
 // In this file you can include the rest of your app's specific main process
