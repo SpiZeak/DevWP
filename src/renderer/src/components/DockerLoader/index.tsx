@@ -1,4 +1,5 @@
 import { JSX } from 'react'
+import dockerLogo from '../../assets/docker.svg'
 
 // Example for React (adjust based on your actual framework)
 // filepath: /home/max/Projects/DevWP/src/renderer/src/components/DockerLoader.tsx
@@ -31,6 +32,11 @@ function DockerLoader(): JSX.Element | null {
   return (
     <div className="docker-loader-overlay">
       <div className="docker-loader-container">
+        <img
+          src={dockerLogo}
+          alt="Docker Logo"
+          style={{ width: '80px', height: '80px', margin: '40px 0 40px 15px' }}
+        />
         <div className="docker-loader-spinner"></div>
         <h3>Starting Docker Environment</h3>
         <p className="docker-status-message">{dockerStatus.message}</p>

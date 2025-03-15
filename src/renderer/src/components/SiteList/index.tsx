@@ -236,8 +236,9 @@ const SiteList: React.FC = () => {
                 />
               </div>
               <div style={{ fontSize: '12px', color: 'var(--ev-c-text-2)', marginTop: '5px' }}>
-                This will create a site in www/{newSite.domain} accessible at https://
-                {newSite.domain}
+                This will create a site in www/
+                <span style={{ fontWeight: 'bold' }}>{newSite.domain}</span> accessible at https://
+                <span style={{ fontWeight: 'bold' }}>{newSite.domain}</span>
               </div>
             </div>
 
