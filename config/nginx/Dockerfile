@@ -120,13 +120,6 @@ RUN mkdir -p /var/cache/nginx/client_temp && \
 	mkdir -p /var/log/nginx && \
 	chown -R appuser:appuser /var/log/nginx
 
-# Copy and set up the entrypoint script
-COPY entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/entrypoint.sh
+USER appuser
 
-# Set entrypoint and default command
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]
-
-# The entrypoint script will handle user switching
-USER root
