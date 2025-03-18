@@ -217,6 +217,7 @@ async function generateIndexHtml(domain: string, sitePath: string): Promise<void
 
     const indexPath = join(sitePath, 'index.html')
     await fs.writeFile(indexPath, indexHtmlContent, 'utf8')
+    await fs.chmod(indexPath, 0o755)
     console.log(`Created index.html for ${domain}`)
   } catch (error) {
     console.error(`Failed to generate index.html for ${domain}:`, error)
