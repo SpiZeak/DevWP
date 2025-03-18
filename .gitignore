@@ -1,6 +1,6 @@
 .env
 config/certs
-config/nginx/sites-enabled
+config/nginx/sites-enabled/*
 www/*
 certs/*
 node_modules
