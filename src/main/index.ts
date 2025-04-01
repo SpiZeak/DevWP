@@ -108,6 +108,22 @@ async function generateNginxConfig(domain: string): Promise<void> {
     await fs.writeFile(configPath, templateContent, 'utf8')
 
     console.log(`Created Nginx config for ${domain} at ${configPath}`)
+
+    console.log(`Reloading Nginx configuration...`)
+
+    await new Promise<void>((resolve, reject) => {
+      const reloadProcess = spawn('docker', ['compose', 'exec', 'web', 'nginx', '-s', 'reload'])
+
+      reloadProcess.on('close', (code) => {
+        if (code === 0) {
+          console.log('Nginx configuration reloaded successfully')
+          resolve()
+        } else {
+          console.error(`Failed to reload Nginx configuration: exited with code ${code}`)
+          reject(new Error(`Failed to reload Nginx configuration: exited with code ${code}`))
+        }
+      })
+    })
   } catch (error) {
     console.error(`Failed to generate Nginx config for ${domain}:`, error)
     throw error

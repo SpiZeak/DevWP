@@ -260,7 +260,7 @@ const SiteList: React.FC = () => {
                 onClick={handleSubmitNewSite}
                 disabled={!newSite.domain}
                 style={{
-                  backgroundColor: !newSite.domain ? 'var(--ev-c-gray-1)' : 'var(--ev-c-brand)',
+                  backgroundColor: newSite.domain ? 'var(--ev-c-gray-1)' : 'var(--ev-c-brand)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',
