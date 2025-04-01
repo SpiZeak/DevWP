@@ -241,6 +241,56 @@ async function generateIndexHtml(domain: string, sitePath: string): Promise<void
   }
 }
 
+// Function to get Docker container information
+function getDockerContainers(): Promise<any[]> {
+  return new Promise((resolve, reject) => {
+    exec('docker ps --format "{{.ID}}|{{.Names}}|{{.State}}" -a', (error, stdout) => {
+      if (error) {
+        console.error('Error getting container status:', error)
+        reject(error)
+        return
+      }
+
+      const containers = stdout
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => {
+          const [id, name, state] = line.split('|')
+          return { id, name, state: state.toLowerCase() }
+        })
+
+      resolve(containers)
+    })
+  })
+}
+
+// Set up interval to check containers periodically
+let containerCheckInterval: NodeJS.Timeout | null = null
+
+function startContainerMonitoring(window: BrowserWindow): void {
+  // Clear any existing interval
+  if (containerCheckInterval) {
+    clearInterval(containerCheckInterval)
+  }
+
+  // Initial check
+  getDockerContainers()
+    .then((containers) => {
+      window.webContents.send('container-status', containers)
+    })
+    .catch((error) => console.error('Error checking containers:', error))
+
+  // Set up interval (check every 5 seconds)
+  containerCheckInterval = setInterval(() => {
+    getDockerContainers()
+      .then((containers) => {
+        window.webContents.send('container-status', containers)
+      })
+      .catch((error) => console.error('Error checking containers:', error))
+  }, 5000)
+}
+
 // Add this function after your other utility functions
 function stopDockerCompose(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -271,6 +321,11 @@ function createWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
     }
+  })
+
+  // Add IPC handler for container status
+  ipcMain.handle('get-container-status', async () => {
+    return getDockerContainers()
   })
 
   // Add this new IPC handler for sites
@@ -379,6 +434,17 @@ function createWindow(): BrowserWindow {
     return { action: 'deny' }
   })
 
+  // Start container monitoring when window is loaded
+  mainWindow.webContents.on('did-finish-load', () => {
+    // Start docker compose
+    startDockerCompose(mainWindow).catch((err) => {
+      console.error('Docker compose failed:', err)
+    })
+
+    // Start container monitoring
+    startContainerMonitoring(mainWindow)
+  })
+
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
@@ -405,17 +471,7 @@ app.whenReady().then(() => {
   })
 
   // Create window first
-  const mainWindow = createWindow()
-
-  // Default open or close DevTools by F12 in development
-  // ...existing code...
-
-  // Start docker compose after window is created and loaded
-  mainWindow.webContents.on('did-finish-load', () => {
-    startDockerCompose(mainWindow).catch((err) => {
-      console.error('Docker compose failed:', err)
-    })
-  })
+  createWindow()
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
@@ -428,6 +484,12 @@ app.whenReady().then(() => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  // Clear container monitoring interval if it exists
+  if (containerCheckInterval) {
+    clearInterval(containerCheckInterval)
+    containerCheckInterval = null
+  }
+
   stopDockerCompose()
     .catch((error) => {
       console.error('Failed to stop Docker containers:', error)

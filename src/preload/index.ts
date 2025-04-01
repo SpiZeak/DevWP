@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
+// Add to your preload script
 contextBridge.exposeInMainWorld('electronAPI', {
   getSites: () => ipcRenderer.invoke('get-sites'),
   onDockerStatus: (callback) => {
@@ -12,7 +13,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
   createSite: (site) => ipcRenderer.invoke('create-site', site),
-  deleteSite: (site) => ipcRenderer.invoke('delete-site', site)
+  deleteSite: (site) => ipcRenderer.invoke('delete-site', site),
+
+  // Add these new methods
+  getContainerStatus: () => ipcRenderer.invoke('get-container-status'),
+  onContainerStatus: (callback) => {
+    ipcRenderer.on('container-status', (_event, containers) => callback(containers))
+    return () => {
+      ipcRenderer.removeAllListeners('container-status')
+    }
+  }
 })
 
 // Custom APIs for renderer
