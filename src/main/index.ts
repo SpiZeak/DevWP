@@ -425,6 +425,21 @@ function createWindow(): BrowserWindow {
     return true
   })
 
+  // Add this IPC handler for container restart
+  ipcMain.handle('restart-container', async (_, containerId) => {
+    return new Promise((resolve, reject) => {
+      exec(`docker restart ${containerId}`, (error, stdout) => {
+        if (error) {
+          console.error('Error restarting container:', error)
+          reject(error)
+          return
+        }
+        console.log('Container restart output:', stdout)
+        resolve(true)
+      })
+    })
+  })
+
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
   })

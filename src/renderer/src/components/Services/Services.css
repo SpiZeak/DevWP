@@ -18,13 +18,37 @@
   margin: 0;
 }
 
+.restart-button {
+  background: transparent;
+  color: #ccc;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  margin-left: auto;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.restart-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.restart-button.restarting {
+  animation: spin 1s linear infinite;
+  color: #5caaee;
+}
+
 .container-item {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
-  border-radius: 4px;
-  margin-bottom: 5px;
-  background-color: #2a2a2a;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .container-name {

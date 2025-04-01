@@ -22,7 +22,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => {
       ipcRenderer.removeAllListeners('container-status')
     }
-  }
+  },
+  restartContainer: (containerId) => ipcRenderer.invoke('restart-container', containerId)
 })
 
 // Custom APIs for renderer
