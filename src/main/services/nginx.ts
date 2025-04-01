@@ -5,17 +5,17 @@ import { promises as fs } from 'fs'
 export async function generateNginxConfig(domain: string): Promise<void> {
   try {
     // Read the template config
-    const templatePath = join(__dirname, '../../../config/nginx/template-site.conf')
+    const templatePath = join(__dirname, '../../config/nginx/template-site.conf')
     let templateContent = await fs.readFile(templatePath, 'utf8')
 
     // Replace placeholders with site-specific values
     templateContent = templateContent.replace(/example\.com/g, domain)
 
     // Ensure the sites-enabled directory exists
-    await fs.mkdir(join(__dirname, '../../../config/nginx/sites-enabled'), { recursive: true })
+    await fs.mkdir(join(__dirname, '../../config/nginx/sites-enabled'), { recursive: true })
 
     // Write the new config file
-    const configPath = join(__dirname, '../../../config/nginx/sites-enabled', `${domain}.conf`)
+    const configPath = join(__dirname, '../../config/nginx/sites-enabled', `${domain}.conf`)
     await fs.writeFile(configPath, templateContent, 'utf8')
 
     console.log(`Created Nginx config for ${domain} at ${configPath}`)
@@ -31,7 +31,7 @@ export async function generateNginxConfig(domain: string): Promise<void> {
 
 export async function removeNginxConfig(domain: string): Promise<void> {
   try {
-    const configPath = join(__dirname, '../../../config/nginx/sites-enabled', `${domain}.conf`)
+    const configPath = join(__dirname, '../../config/nginx/sites-enabled', `${domain}.conf`)
 
     // Check if the file exists before trying to delete it
     try {

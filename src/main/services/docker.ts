@@ -1,18 +1,14 @@
 import { spawn, exec } from 'child_process'
-import { BrowserWindow } from 'electron'
-
-// Container status type
-export interface Container {
-  id: string
-  name: string
-  state: string
-}
+import { platform } from 'os'
 
 // Function to start Docker Compose
 export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
   return new Promise((resolve, reject) => {
-    // Start docker compose containers with real-time logging
-    const dockerProcess = spawn('docker-compose', ['up', '-d', '--build'])
+    // Cross-platform Docker Compose command
+    const isWin = platform() === 'win32'
+    const command = isWin ? 'docker-compose.exe' : 'docker-compose'
+
+    const dockerProcess = spawn(command, ['up', '-d', '--build'])
 
     // Send initial status if window exists
     if (mainWindow) {
