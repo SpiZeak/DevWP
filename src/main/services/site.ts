@@ -11,8 +11,70 @@ export interface Site {
   active: boolean
 }
 
-export async function generateIndexHtml(domain: string, sitePath: string): Promise<void> {
+export function createSite(site: { domain: string }): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    // Use path.join for cross-platform path handling
+    const sitePath = join(process.cwd(), 'www', site.domain)
+    const dbName = site.domain.replace(/\./g, '_') // Convert domain to valid db name
+
+    // Use fs.mkdir instead of exec for cross-platform directory creation
+    fs.mkdir(sitePath, { recursive: true })
+      .then(async () => {
+        try {
+          await modifyHostsFile(site.domain, 'add')
+          await generateNginxConfig(site.domain)
+          await createDatabase(dbName)
+          await generateIndexHtml(site.domain, sitePath, dbName)
+          resolve(true)
+        } catch (configError) {
+          reject(`Error setting up site: ${configError}`)
+        }
+      })
+      .catch((error) => {
+        console.error(`Error creating site directory:`, error)
+        reject(`Error creating site directory: ${error.message}`)
+      })
+  })
+}
+
+// Create a database for the site
+async function createDatabase(dbName: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const createDbCmd = `docker exec sites_database mysql -u user -ppassword -e "CREATE DATABASE IF NOT EXISTS ${dbName}"`
+
+    exec(createDbCmd, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error creating database: ${stderr}`)
+        reject(error)
+        return
+      }
+      console.log(`Created database: ${dbName}`)
+      resolve()
+    })
+  })
+}
+
+// Update generateIndexHtml to include database information
+export async function generateIndexHtml(
+  domain: string,
+  sitePath: string,
+  dbName?: string
+): Promise<void> {
   try {
+    // Include database information in the generated HTML
+    const dbInfoHtml = dbName
+      ? `
+        <div class="info-box">
+            <h3 style="margin-top: 0;">Database Information</h3>
+            <ul>
+                <li><strong>Database Name:</strong> ${dbName}</li>
+                <li><strong>Database User:</strong> user</li>
+                <li><strong>Database Password:</strong> password</li>
+                <li><strong>Database Host:</strong> database</li>
+            </ul>
+        </div>`
+      : ''
+
     const indexHtmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -76,6 +138,8 @@ export async function generateIndexHtml(domain: string, sitePath: string): Promi
             <li><strong>Site Root:</strong> ${sitePath}</li>
         </ul>
 
+        ${dbInfoHtml}
+
         <div class="info-box">
             <h3 style="margin-top: 0;">Nginx Configuration</h3>
             <p>An Nginx configuration file has been automatically generated for this site at:</p>
@@ -102,92 +166,74 @@ export async function generateIndexHtml(domain: string, sitePath: string): Promi
   }
 }
 
-export function createSite(site: { domain: string }): Promise<boolean> {
+export function deleteSite(site: { name: string }): Promise<boolean> {
   return new Promise((resolve, reject) => {
-    const sitePath = `./www/${site.domain}`
-    exec(`mkdir -p ${sitePath}`, async (error, _, stderr) => {
-      if (error) {
-        console.error(`Error creating site directory: ${stderr}`)
-        reject(`Error creating site directory: ${stderr}`)
-        return
-      }
-      try {
-        await modifyHostsFile(site.domain, 'add')
-        await generateNginxConfig(site.domain)
-        await generateIndexHtml(site.domain, sitePath)
-        resolve(true)
-      } catch (configError) {
-        reject(`Error setting up site: ${configError}`)
-      }
-    })
+    const sitePath = join(process.cwd(), 'www', site.name)
+    const dbName = site.name.replace(/\./g, '_')
+
+    fs.rm(sitePath, { recursive: true, force: true })
+      .then(async () => {
+        try {
+          await modifyHostsFile(site.name, 'remove')
+          await removeNginxConfig(site.name)
+          await dropDatabase(dbName)
+          resolve(true)
+        } catch (hostsError) {
+          reject(`Error cleaning up site: ${hostsError}`)
+        }
+      })
+      .catch((error) => {
+        console.error(`Error deleting site directory:`, error)
+        reject(`Error deleting site directory: ${error.message}`)
+      })
   })
 }
 
-export function deleteSite(site: { name: string }): Promise<boolean> {
+// Drop a database when deleting a site
+async function dropDatabase(dbName: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    exec(`rm -rf ./www/${site.name}`, async (error, _, stderr) => {
+    const dropDbCmd = `docker exec sites_database mysql -u user -ppassword -e "DROP DATABASE IF EXISTS ${dbName}"`
+
+    exec(dropDbCmd, (error, stdout, stderr) => {
       if (error) {
-        console.error(`Error deleting site directory: ${stderr}`)
-        reject(`Error deleting site directory: ${stderr}`)
+        console.error(`Error dropping database: ${stderr}`)
+        reject(error)
         return
       }
-      try {
-        await modifyHostsFile(site.name, 'remove')
-        await removeNginxConfig(site.name)
-        resolve(true)
-      } catch (hostsError) {
-        reject(`Error cleaning up site: ${hostsError}`)
-      }
+      console.log(`Dropped database: ${dbName}`)
+      resolve()
     })
   })
 }
 
 export function getSites(): Promise<Site[]> {
   return new Promise((resolve, reject) => {
-    // Read domains from environment variable or from the file system
-    const domainsStr = process.env.DOMAINS || ''
+    const wwwPath = join(process.cwd(), 'www')
 
-    // Read sites directory content
-    exec('ls -la ./www', (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error reading sites directory: ${stderr}`)
-        reject(`Error reading sites directory: ${stderr}`)
-        return
-      }
+    // Use fs.readdir instead of 'ls' command
+    fs.readdir(wwwPath, { withFileTypes: true })
+      .then(async (entries) => {
+        // Get only directories
+        const dirs = entries
+          .filter((entry) => entry.isDirectory())
+          .filter((entry) => !['.', '..', '.git'].includes(entry.name))
+          .map((entry) => entry.name)
 
-      // Parse domains from env and actual directories
-      const envDomains = domainsStr
-        .split(',')
-        .map((d) => d.trim())
-        .filter(Boolean)
+        // Combine both sources and create site objects
+        const allDomains = [...new Set([...dirs])]
 
-      // Get directories from the output
-      const dirRegex = /\s(\S+)$/gm
-      const dirs: string[] = []
-      let match
+        const sites = allDomains.map((domain) => ({
+          name: domain,
+          path: join('www', domain),
+          url: `https://${domain}`,
+          active: dirs.includes(domain)
+        }))
 
-      const lines = stdout.split('\n')
-      for (const line of lines) {
-        if (line.startsWith('d')) {
-          match = dirRegex.exec(line)
-          if (match && !['.', '..', '.git'].includes(match[1])) {
-            dirs.push(match[1])
-          }
-          dirRegex.lastIndex = 0 // Reset regex state
-        }
-      }
-
-      // Combine both sources and create site objects
-      const allDomains = [...new Set([...envDomains, ...dirs])]
-
-      const sites = allDomains.map((domain) => ({
-        name: domain,
-        path: `www/${domain}`,
-        url: `https://${domain}`,
-        active: dirs.includes(domain)
-      }))
-
-      resolve(sites)
-    })
+        resolve(sites)
+      })
+      .catch((error) => {
+        console.error(`Error reading sites directory:`, error)
+        reject(`Error reading sites directory: ${error.message}`)
+      })
   })
 }
