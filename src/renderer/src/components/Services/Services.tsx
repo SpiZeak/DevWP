@@ -5,7 +5,7 @@ const Services = () => {
   const [containers, setContainers] = useState([])
   const [loading, setLoading] = useState(true)
   const [restarting, setRestarting] = useState({})
-  const containerMap = containers.filter((container) => container.name !== 'sites_certs')
+  const containerMap = containers.filter((container) => container.name !== 'devwp_certs')
 
   useEffect(() => {
     // Set up a listener for container status updates

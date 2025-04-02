@@ -1,6 +1,6 @@
 services:
   php:
-    container_name: sites_php
+    container_name: devwp_php
     build:
       context: ./config/php
       args:
@@ -17,20 +17,18 @@ services:
       - ./config/php/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
 
   database:
-    container_name: sites_database
+    container_name: devwp_database
     image: mysql:innovation
     environment:
-      MYSQL_DATABASE: database
-      MYSQL_USER: user
-      MYSQL_PASSWORD: password
-      MYSQL_RANDOM_ROOT_PASSWORD: '1'
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_ROOT_PASSWORD: root
     volumes:
       - database:/var/lib/mysql
     ports:
       - '3306:3306'
 
   cache:
-    container_name: sites_cache
+    container_name: devwp_cache
     image: redis:alpine
     ports:
       - '6379:6379'
@@ -39,7 +37,7 @@ services:
       - cache:/data
 
   web:
-    container_name: sites_web
+    container_name: devwp_web
     build:
       context: ./config/nginx
       args:
@@ -61,13 +59,13 @@ services:
       - certs
 
   certs:
-    container_name: sites_certs
+    container_name: devwp_certs
     image: stakater/ssl-certs-generator
     volumes:
       - ./config/certs:/certs
 
   mailhog:
-    container_name: sites_mailhog
+    container_name: devwp_mailhog
     image: mailhog/mailhog
     ports:
       - 1025:1025 # smtp server

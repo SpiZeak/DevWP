@@ -40,9 +40,9 @@ export function createSite(site: { domain: string }): Promise<boolean> {
 // Create a database for the site
 async function createDatabase(dbName: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const createDbCmd = `docker exec sites_database mysql -u user -ppassword -e "CREATE DATABASE IF NOT EXISTS ${dbName}"`
+    const createDbCmd = `docker exec devwp_database mysql -u root -proot -e "CREATE DATABASE IF NOT EXISTS ${dbName}"`
 
-    exec(createDbCmd, (error, stdout, stderr) => {
+    exec(createDbCmd, (error, _, stderr) => {
       if (error) {
         console.error(`Error creating database: ${stderr}`)
         reject(error)
@@ -192,9 +192,9 @@ export function deleteSite(site: { name: string }): Promise<boolean> {
 // Drop a database when deleting a site
 async function dropDatabase(dbName: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const dropDbCmd = `docker exec sites_database mysql -u user -ppassword -e "DROP DATABASE IF EXISTS ${dbName}"`
+    const dropDbCmd = `docker exec devwp_database mysql -u root -proot -e "DROP DATABASE IF EXISTS ${dbName}"`
 
-    exec(dropDbCmd, (error, stdout, stderr) => {
+    exec(dropDbCmd, (error, _, stderr) => {
       if (error) {
         console.error(`Error dropping database: ${stderr}`)
         reject(error)
