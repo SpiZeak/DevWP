@@ -11,6 +11,56 @@ export interface Site {
   active: boolean
 }
 
+// Install WordPress in the newly created site
+async function installWordPress(siteDomain: string, dbName: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const siteDir = `/src/www/${siteDomain}`
+
+    // Command to download WordPress core
+    const downloadCmd = `docker compose exec php wp core download --path=${siteDir} --force`
+
+    // Command to create wp-config.php
+    const configCmd = `docker compose exec php wp config create --path=${siteDir} --dbname=${dbName} --dbuser=root --dbpass=root --dbhost=database --force`
+
+    // Command to install WordPress
+    const installCmd = `docker compose exec php wp core install --path=${siteDir} --url=https://${siteDomain} --title="${siteDomain}" --admin_user=root --admin_password=root --admin_email=admin@${siteDomain}`
+
+    console.log('Downloading WordPress...')
+    exec(downloadCmd, (downloadError, _, downloadStderr) => {
+      if (downloadError) {
+        console.error(`Error downloading WordPress: ${downloadStderr}`)
+        reject(downloadError)
+        return
+      }
+
+      console.log('Downloaded WordPress core')
+      console.log('Creating wp-config.php...')
+
+      exec(configCmd, (configError, _, configStderr) => {
+        if (configError) {
+          console.error(`Error creating wp-config.php: ${configStderr}`)
+          reject(configError)
+          return
+        }
+
+        console.log('Created wp-config.php')
+        console.log('Installing WordPress...')
+
+        exec(installCmd, (installError, _, installStderr) => {
+          if (installError) {
+            console.error(`Error installing WordPress: ${installStderr}`)
+            reject(installError)
+            return
+          }
+
+          console.log(`Successfully installed WordPress on ${siteDomain}`)
+          resolve()
+        })
+      })
+    })
+  })
+}
+
 export function createSite(site: { domain: string }): Promise<boolean> {
   return new Promise((resolve, reject) => {
     // Use path.join for cross-platform path handling
@@ -24,10 +74,19 @@ export function createSite(site: { domain: string }): Promise<boolean> {
           await modifyHostsFile(site.domain, 'add')
           await generateNginxConfig(site.domain)
           await createDatabase(dbName)
-          await generateIndexHtml(site.domain, sitePath, dbName)
+          await installWordPress(site.domain, dbName) // Add this new line to install WordPress
           resolve(true)
         } catch (configError) {
-          reject(`Error setting up site: ${configError}`)
+          // If WordPress installation fails, still create the basic site with the HTML template
+          console.warn(
+            `WordPress installation failed: ${configError}. Creating basic site instead.`
+          )
+          try {
+            await generateIndexHtml(site.domain, sitePath, dbName)
+            resolve(true)
+          } catch (htmlError) {
+            reject(`Error setting up site: ${htmlError}`)
+          }
         }
       })
       .catch((error) => {
@@ -166,29 +225,6 @@ export async function generateIndexHtml(
   }
 }
 
-export function deleteSite(site: { name: string }): Promise<boolean> {
-  return new Promise((resolve, reject) => {
-    const sitePath = join(process.cwd(), 'www', site.name)
-    const dbName = site.name.replace(/\./g, '_')
-
-    fs.rm(sitePath, { recursive: true, force: true })
-      .then(async () => {
-        try {
-          await modifyHostsFile(site.name, 'remove')
-          await removeNginxConfig(site.name)
-          await dropDatabase(dbName)
-          resolve(true)
-        } catch (hostsError) {
-          reject(`Error cleaning up site: ${hostsError}`)
-        }
-      })
-      .catch((error) => {
-        console.error(`Error deleting site directory:`, error)
-        reject(`Error deleting site directory: ${error.message}`)
-      })
-  })
-}
-
 // Drop a database when deleting a site
 async function dropDatabase(dbName: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -203,6 +239,48 @@ async function dropDatabase(dbName: string): Promise<void> {
       console.log(`Dropped database: ${dbName}`)
       resolve()
     })
+  })
+}
+
+// Clear Redis cache for a site
+async function clearRedisCache(siteDomain: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Using wildcard pattern to match any keys related to this site
+    const clearCacheCmd = `docker exec devwp_cache redis-cli KEYS "*${siteDomain}*" | xargs -r docker exec -i devwp_cache redis-cli DEL`
+
+    exec(clearCacheCmd, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error clearing Redis cache: ${stderr}`)
+        reject(error)
+        return
+      }
+      console.log(`Cleared Redis cache for: ${siteDomain}`)
+      resolve()
+    })
+  })
+}
+
+export function deleteSite(site: { name: string }): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    const sitePath = join(process.cwd(), 'www', site.name)
+    const dbName = site.name.replace(/\./g, '_')
+
+    fs.rm(sitePath, { recursive: true, force: true })
+      .then(async () => {
+        try {
+          await modifyHostsFile(site.name, 'remove')
+          await removeNginxConfig(site.name)
+          await dropDatabase(dbName)
+          await clearRedisCache(site.name)
+          resolve(true)
+        } catch (hostsError) {
+          reject(`Error cleaning up site: ${hostsError}`)
+        }
+      })
+      .catch((error) => {
+        console.error(`Error deleting site directory:`, error)
+        reject(`Error deleting site directory: ${error.message}`)
+      })
   })
 }
 
