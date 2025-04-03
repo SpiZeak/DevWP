@@ -1,4 +1,5 @@
 @import './base.css';
+@import './icons.css';
 
 body {
   display: flex;

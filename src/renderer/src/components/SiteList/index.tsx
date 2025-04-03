@@ -174,14 +174,15 @@ const SiteList: React.FC = () => {
                     color: 'white',
                     cursor: 'pointer',
                     fontSize: '12px',
-                    transition: 'background-color 0.2s'
+                    transition: 'background-color 0.2s',
+                    fontFamily: 'Monaspace Neon, monospace'
                   }}
                   onMouseOver={(e) =>
                     (e.currentTarget.style.backgroundColor = 'var(--ev-c-red-dark)')
                   }
                   onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'var(--ev-c-red)')}
                 >
-                  🗑️
+                  <span className="icon"></span>
                 </button>
               </div>
             </li>
