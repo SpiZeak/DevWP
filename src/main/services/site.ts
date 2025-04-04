@@ -63,7 +63,6 @@ async function installWordPress(siteDomain: string, dbName: string): Promise<voi
 
 export function createSite(site: { domain: string }): Promise<boolean> {
   return new Promise((resolve, reject) => {
-    // Use path.join for cross-platform path handling
     const sitePath = join(process.cwd(), 'www', site.domain)
     const dbName = site.domain.replace(/\./g, '_') // Convert domain to valid db name
 
@@ -74,7 +73,7 @@ export function createSite(site: { domain: string }): Promise<boolean> {
           await modifyHostsFile(site.domain, 'add')
           await generateNginxConfig(site.domain)
           await createDatabase(dbName)
-          await installWordPress(site.domain, dbName) // Add this new line to install WordPress
+          await installWordPress(site.domain, dbName)
           resolve(true)
         } catch (configError) {
           // If WordPress installation fails, still create the basic site with the HTML template
@@ -304,7 +303,7 @@ export function getSites(): Promise<Site[]> {
           name: domain,
           path: join('www', domain),
           url: `https://${domain}`,
-          active: dirs.includes(domain)
+          status: 'provisioned'
         }))
 
         resolve(sites)

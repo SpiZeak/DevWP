@@ -4,7 +4,7 @@ interface Site {
   name: string
   path: string
   url: string
-  active: boolean
+  status: string
 }
 
 const SiteList: React.FC = () => {
@@ -31,8 +31,18 @@ const SiteList: React.FC = () => {
   const handleSubmitNewSite = async (): Promise<void> => {
     console.log('Creating new site:', newSite)
 
+    setSites([
+      {
+        name: newSite.domain,
+        path: `www/${newSite.domain}`,
+        url: `https://${newSite.domain}`,
+        status: 'provisioning'
+      },
+      ...sites
+    ])
+
     try {
-      window.electronAPI.createSite(newSite).then(fetchSites())
+      window.electronAPI.createSite(newSite).then(fetchSites)
       setIsModalOpen(false)
       setNewSite({ domain: '' })
     } catch (error) {
@@ -141,6 +151,20 @@ const SiteList: React.FC = () => {
                   }}
                 >
                   {site.name}
+                  {site.status === 'provisioning' && (
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: '14px',
+                        height: '14px',
+                        borderRadius: '50%',
+                        border: '2px solid rgba(255, 255, 255, 0.3)',
+                        borderTopColor: 'var(--ev-c-brand)',
+                        animation: 'spin 1s infinite linear'
+                      }}
+                      title="Site is being provisioned"
+                    />
+                  )}
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--ev-c-text-2)' }}>{site.path}</div>
               </div>
