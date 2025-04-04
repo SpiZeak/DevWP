@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import './Services.css'
+import './Services.scss'
 
 const Services: React.FC = () => {
   const [containers, setContainers] = useState([])
@@ -22,7 +22,6 @@ const Services: React.FC = () => {
   }, [])
 
   const restartContainer = async (containerId, containerName) => {
-    // Set restarting state for this container
     setRestarting((prev) => ({ ...prev, [containerId]: true }))
 
     try {
@@ -42,20 +41,33 @@ const Services: React.FC = () => {
     <div className="container-bar">
       <h3>Docker Services</h3>
       {loading ? (
-        <p>Loading container status...</p>
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading services...</p>
+        </div>
       ) : (
-        <ul>
+        <ul className="services-list">
           {containerMap.length > 0 ? (
             containerMap.map((container) => (
-              <li key={container.id} className={`container-item ${container.state}`}>
-                <span className="container-name">{container.name}</span>
+              <li key={container.id} className={`service-item ${container.state}`}>
+                <div className="service-info">
+                  <div
+                    className="service-status-indicator"
+                    title={`Status: ${container.state}`}
+                  ></div>
+                  <span className="service-name">{container.name.replace(/^devwp_/, '')}</span>
+                </div>
                 <button
                   className={`restart-button ${restarting[container.id] ? 'restarting' : ''}`}
                   onClick={() => restartContainer(container.id, container.name)}
                   disabled={restarting[container.id]}
-                  title="Restart container"
+                  title="Restart service"
                 >
-                  {restarting[container.id] ? '⟳' : '↻'}
+                  {restarting[container.id] ? (
+                    <span className="restart-spinner"></span>
+                  ) : (
+                    <span className="restart-icon">↻</span>
+                  )}
                 </button>
               </li>
             ))
