@@ -30,11 +30,11 @@ const SiteList: React.FC = () => {
 
   const handleSubmitNewSite = async (): Promise<void> => {
     console.log('Creating new site:', newSite)
+
     try {
-      await window.electronAPI.createSite(newSite)
+      window.electronAPI.createSite(newSite).then(fetchSites())
       setIsModalOpen(false)
       setNewSite({ domain: '' })
-      fetchSites()
     } catch (error) {
       console.error('Failed to create new site:', error)
     }

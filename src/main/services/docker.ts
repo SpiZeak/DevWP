@@ -31,17 +31,43 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
 
     dockerProcess.stderr.on('data', (data) => {
       const output = data.toString().trim()
-      console.error(`Docker compose error: ${output}`)
-      if (mainWindow) {
-        mainWindow.webContents.send('docker-status', {
-          status: 'error',
-          message: output
-        })
+
+      // Check if this is a progress message (like image pull) rather than an actual error
+      if (
+        output.includes('Pulling from') ||
+        output.includes('Pulling fs layer') ||
+        output.includes('Download complete') ||
+        output.includes('Pull complete') ||
+        output.includes('Digest:') ||
+        output.includes('Status:') ||
+        output.includes('Started') ||
+        output.includes('Starting') ||
+        output.includes('Running') ||
+        output.includes('Built')
+      ) {
+        console.log(`Docker compose progress (stderr): ${output}`)
+
+        if (mainWindow) {
+          mainWindow.webContents.send('docker-status', {
+            status: 'progress',
+            message: output
+          })
+        }
+      } else {
+        console.error(`Docker compose error: ${output}`)
+
+        if (mainWindow) {
+          mainWindow.webContents.send('docker-status', {
+            status: 'error',
+            message: output
+          })
+        }
       }
     })
 
     dockerProcess.on('close', (code) => {
       console.log(`Docker compose process exited with code ${code}`)
+
       if (mainWindow) {
         mainWindow.webContents.send('docker-status', {
           status: code === 0 ? 'complete' : 'error',
