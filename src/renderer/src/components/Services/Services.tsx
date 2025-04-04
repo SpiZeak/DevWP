@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import './Services.css'
 
-const Services = () => {
+const Services: React.FC = () => {
   const [containers, setContainers] = useState([])
   const [loading, setLoading] = useState(true)
   const [restarting, setRestarting] = useState({})

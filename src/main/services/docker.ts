@@ -80,7 +80,7 @@ export function stopDockerCompose(): Promise<void> {
 // Function to get Docker container information
 export function getDockerContainers(): Promise<Container[]> {
   return new Promise((resolve, reject) => {
-    exec('docker ps --format "{{.ID}}|{{.Names}}|{{.State}}" -a', (error, stdout) => {
+    exec('docker compose ps --format "{{.ID}}|{{.Names}}|{{.State}}" -a', (error, stdout) => {
       if (error) {
         console.error('Error getting container status:', error)
         reject(error)
