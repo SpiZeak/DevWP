@@ -40,7 +40,7 @@ const Services: React.FC = () => {
   }
 
   return (
-    <div className="container-bar">
+    <div className="Services">
       <h3>Docker Services</h3>
       {loading ? (
         <div className="loading-container">

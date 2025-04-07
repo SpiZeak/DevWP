@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import './SiteList.scss'
 
 interface Site {
   name: string
@@ -78,14 +79,13 @@ const SiteList: React.FC = () => {
   }, [])
 
   return (
-    <>
+    <div className="SiteList">
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           width: '100%',
-          maxWidth: '500px',
           marginBottom: '10px'
         }}
       >
@@ -115,7 +115,6 @@ const SiteList: React.FC = () => {
       <ul
         style={{
           width: '100%',
-          maxWidth: '500px',
           margin: '20px 0',
           padding: '0',
           borderRadius: '8px',
@@ -235,7 +234,6 @@ const SiteList: React.FC = () => {
               borderRadius: '8px',
               padding: '20px',
               width: '90%',
-              maxWidth: '500px',
               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
             }}
           >
@@ -299,7 +297,7 @@ const SiteList: React.FC = () => {
           </div>
         </div>
       )}
-    </>
+    </div>
   )
 }
 
