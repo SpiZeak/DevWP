@@ -37,7 +37,7 @@ function DockerLoader(): JSX.Element | null {
           alt="Docker Logo"
           style={{ width: '80px', height: '80px', margin: '40px 0 40px 15px' }}
         />
-        <div className="docker-loader-spinner"></div>
+        {dockerStatus.status !== 'error' && <div className="docker-loader-spinner"></div>}
         <h3>Starting Docker Environment</h3>
         <p className="docker-status-message">{dockerStatus.message}</p>
         {dockerStatus.status === 'error' && (

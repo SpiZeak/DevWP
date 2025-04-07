@@ -1,8 +1,7 @@
 .env
-config/certs
 config/nginx/sites-enabled/*
 www/*
-certs/*
+config/certs/*
 node_modules
 dist
 out
