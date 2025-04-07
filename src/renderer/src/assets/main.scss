@@ -1,5 +1,5 @@
-@import './base.css';
-@import './icons.css';
+@import './base';
+@import './icons';
 
 body {
   display: flex;
@@ -40,7 +40,7 @@ code {
   position: absolute;
   bottom: 30px;
   margin: 0 auto;
-  padding: 15px 0;
+  padding: 1rem 0;
   font-family: 'Menlo', 'Lucida Console', monospace;
   display: inline-flex;
   overflow: hidden;
@@ -48,18 +48,19 @@ code {
   border-radius: 22px;
   background-color: #202127;
   backdrop-filter: blur(24px);
-}
 
-.versions li {
-  display: block;
-  float: left;
-  border-right: 1px solid var(--ev-c-gray-1);
-  padding: 0 20px;
-  font-size: 14px;
-  line-height: 14px;
-  opacity: 0.8;
-  &:last-child {
-    border: none;
+  li {
+    display: block;
+    float: left;
+    border-right: 1px solid var(--ev-c-gray-1);
+    padding: 0 1rem;
+    font-size: 12px;
+    line-height: 12px;
+    opacity: 0.8;
+
+    &:last-child {
+      border: none;
+    }
   }
 }
 

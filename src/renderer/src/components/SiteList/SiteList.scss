@@ -1,3 +1,226 @@
 .SiteList {
   width: 100%;
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 10px;
+
+    h3 {
+      margin: 0;
+    }
+  }
+
+  .new-site-button {
+    background-color: var(--ev-c-brand);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: var(--ev-c-brand-dark);
+    }
+
+    .plus-icon {
+      font-size: 16px;
+      line-height: 1;
+    }
+  }
+
+  .sites-list {
+    width: 100%;
+    margin: 20px 0;
+    padding: 0;
+    border-radius: 8px;
+    overflow-y: auto;
+    max-height: 500px;
+    background-color: var(--ev-c-gray-3);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .site-list-message {
+    padding: 15px;
+    text-align: center;
+  }
+
+  .site-item {
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    &.with-border {
+      border-bottom: 1px solid var(--ev-c-gray-2);
+    }
+  }
+
+  .site-info {
+    flex: 1;
+  }
+
+  .site-name-container {
+    font-weight: bold;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .provisioning-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: var(--ev-c-brand);
+    animation: spin 1s infinite linear;
+  }
+
+  .site-path {
+    font-size: 12px;
+    color: var(--ev-c-text-2);
+  }
+
+  .site-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .open-button {
+    background-color: var(--ev-c-gray-2);
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    color: var(--ev-c-text-1);
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: var(--ev-c-gray-1);
+    }
+  }
+
+  .delete-button {
+    background-color: var(--ev-c-red);
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.2s;
+    font-family: 'Monaspace Neon', monospace;
+
+    &:hover {
+      background-color: var(--ev-c-red-dark);
+    }
+  }
+
+  // Modal styles
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+
+  .modal-content {
+    background-color: var(--ev-c-gray-3);
+    border-radius: 8px;
+    padding: 20px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .modal-title {
+    margin-top: 0;
+    margin-bottom: 20px;
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+  }
+
+  .form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+  }
+
+  .input-container {
+    display: flex;
+    align-items: center;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--ev-c-gray-1);
+    border-radius: 4px;
+    background-color: var(--ev-c-gray-2);
+    color: #fff;
+  }
+
+  .form-help-text {
+    font-size: 12px;
+    color: var(--ev-c-text-2);
+    margin-top: 5px;
+  }
+
+  .bold-text {
+    font-weight: bold;
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+
+  .cancel-button {
+    background-color: var(--ev-c-gray-2);
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+    color: var(--ev-c-text-1);
+  }
+
+  .create-button {
+    background-color: var(--ev-c-brand);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+
+    &.disabled {
+      background-color: var(--ev-c-gray-1);
+      cursor: not-allowed;
+    }
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

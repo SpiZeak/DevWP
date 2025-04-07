@@ -4,7 +4,7 @@ import dockerLogo from '../../assets/docker.svg'
 // Example for React (adjust based on your actual framework)
 // filepath: /home/max/Projects/DevWP/src/renderer/src/components/DockerLoader.tsx
 import { useState, useEffect } from 'react'
-import './DockerLoader.css'
+import './DockerLoader.scss'
 
 function DockerLoader(): JSX.Element | null {
   const [dockerStatus, setDockerStatus] = useState({
