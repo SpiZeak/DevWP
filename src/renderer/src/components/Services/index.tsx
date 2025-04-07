@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react'
 import './Services.scss'
 
+// Container name mapping for user-friendly display
+const containerNameMapping: Record<string, string> = {
+  devwp_web: 'Nginx',
+  devwp_php: 'PHP',
+  devwp_database: 'MySQL',
+  devwp_cache: 'Redis',
+  devwp_mailhog: 'MailHog',
+  devwp_certs: 'Certificates'
+}
+
 const Services: React.FC = () => {
   const [containers, setContainers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -39,6 +49,11 @@ const Services: React.FC = () => {
     }
   }
 
+  // Helper function to get display name for a container
+  const getDisplayName = (containerName: string): string => {
+    return containerNameMapping[containerName] || containerName.replace(/^devwp_/, '')
+  }
+
   return (
     <div className="Services">
       <h3>Docker Services</h3>
@@ -58,7 +73,7 @@ const Services: React.FC = () => {
                     title={`Status: ${container.state}`}
                   ></div>
                   <div className="service-details">
-                    <span className="service-name">{container.name.replace(/^devwp_/, '')}</span>
+                    <span className="service-name">{getDisplayName(container.name)}</span>
                     {container.version && (
                       <span className="service-version">{container.version}</span>
                     )}
