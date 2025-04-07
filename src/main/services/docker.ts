@@ -43,7 +43,9 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
         output.includes('Started') ||
         output.includes('Starting') ||
         output.includes('Running') ||
-        output.includes('Built')
+        output.includes('Built') ||
+        output.includes('Creating') ||
+        output.includes('Created')
       ) {
         console.log(`Docker compose progress (stderr): ${output}`)
 
