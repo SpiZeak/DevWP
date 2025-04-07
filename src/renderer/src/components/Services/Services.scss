@@ -163,3 +163,19 @@
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
 }
+
+.service-details {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+
+  .service-name {
+    font-weight: 500;
+  }
+
+  .service-version {
+    font-size: 0.8rem;
+    color: #b0b0b0;
+    margin-top: 2px;
+  }
+}

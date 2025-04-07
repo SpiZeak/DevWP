@@ -7,6 +7,8 @@ const Services: React.FC = () => {
   const [restarting, setRestarting] = useState({})
   const containerMap = containers.filter((container) => container.name.includes('devwp_'))
 
+  console.log('Container Map:', containerMap)
+
   useEffect(() => {
     // Set up a listener for container status updates
     const removeListener = window.electronAPI.onContainerStatus((containers) => {
@@ -21,7 +23,7 @@ const Services: React.FC = () => {
     return removeListener
   }, [])
 
-  const restartContainer = async (containerId, containerName) => {
+  const restartContainer = async (containerId: string, containerName: string): Promise<void> => {
     setRestarting((prev) => ({ ...prev, [containerId]: true }))
 
     try {
@@ -55,7 +57,12 @@ const Services: React.FC = () => {
                     className="service-status-indicator"
                     title={`Status: ${container.state}`}
                   ></div>
-                  <span className="service-name">{container.name.replace(/^devwp_/, '')}</span>
+                  <div className="service-details">
+                    <span className="service-name">{container.name.replace(/^devwp_/, '')}</span>
+                    {container.version && (
+                      <span className="service-version">{container.version}</span>
+                    )}
+                  </div>
                 </div>
                 <button
                   className={`restart-button ${restarting[container.id] ? 'restarting' : ''}`}

@@ -106,9 +106,16 @@ export function stopDockerCompose(): Promise<void> {
 }
 
 // Function to get Docker container information
+interface Container {
+  id: string
+  name: string
+  state: string
+  version?: string // Optional version field
+}
+
 export function getDockerContainers(): Promise<Container[]> {
   return new Promise((resolve, reject) => {
-    exec('docker compose ps --format "{{.ID}}|{{.Names}}|{{.State}}" -a', (error, stdout) => {
+    exec('docker compose ps --format "{{.ID}}|{{.Names}}|{{.State}}" -a', async (error, stdout) => {
       if (error) {
         console.error('Error getting container status:', error)
         reject(error)
@@ -121,10 +128,74 @@ export function getDockerContainers(): Promise<Container[]> {
         .filter(Boolean)
         .map((line) => {
           const [id, name, state] = line.split('|')
-          return { id, name, state: state.toLowerCase() }
+          return { id, name, state: state.toLowerCase(), version: undefined }
         })
 
+      // Fetch version information for each container
+      try {
+        for (const container of containers) {
+          const version = await getContainerVersion(container.id)
+          container.version = version
+        }
+      } catch (versionError) {
+        console.error('Error fetching container versions:', versionError)
+      }
+
       resolve(containers)
+    })
+  })
+}
+
+// Helper function to get container version
+function getContainerVersion(containerId: string): Promise<string | undefined> {
+  return new Promise((resolve) => {
+    // First, get the container name to identify if it's the web/nginx container
+    exec(`docker inspect --format='{{.Name}}' ${containerId}`, (nameError, nameStdout) => {
+      if (nameError) {
+        console.error(`Error getting container name for ${containerId}:`, nameError)
+        resolve(undefined)
+        return
+      }
+
+      const containerName = nameStdout.trim().replace(/^\//, '') // Remove leading slash if present
+
+      // Special handling for nginx (web) container
+      if (containerName === 'devwp_web') {
+        // Execute nginx -v inside the container to get its version
+        exec(`docker exec ${containerId} nginx -v`, (nginxError, nginxStderr, stderr) => {
+          if (nginxError) {
+            console.error(`Error getting Nginx version for container ${containerId}:`, nginxError)
+            resolve(undefined)
+            return
+          }
+
+          // Nginx outputs version to stderr
+          const output = stderr || nginxStderr
+          const versionMatch = output.match(/nginx\/(\d+\.\d+\.\d+)/)
+          const version = versionMatch ? versionMatch[1] : undefined
+
+          resolve(version)
+        })
+      } else {
+        // For other containers, use the original image tag extraction method
+        exec(
+          `docker inspect --format='{{index .Config.Image}}' ${containerId}`,
+          (error, stdout) => {
+            if (error) {
+              console.error(`Error getting version for container ${containerId}:`, error)
+              resolve(undefined)
+              return
+            }
+
+            const image = stdout.trim()
+            // Parse version from image tag if available
+            const versionMatch = image.match(/:([^:]+)$/)
+            const version = versionMatch ? versionMatch[1] : 'latest'
+
+            resolve(version)
+          }
+        )
+      }
     })
   })
 }

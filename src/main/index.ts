@@ -4,6 +4,11 @@ import { createWindow } from './window'
 import { registerContainerHandlers, stopContainerMonitoring } from './ipc/container'
 import { registerSiteHandlers } from './ipc/site'
 import { stopDockerCompose } from './services/docker'
+import {
+  installExtension,
+  REACT_DEVELOPER_TOOLS,
+  REDUX_DEVTOOLS
+} from 'electron-devtools-installer'
 
 // Register all IPC handlers
 registerContainerHandlers()
@@ -12,6 +17,10 @@ registerSiteHandlers()
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.whenReady().then(() => {
+  installExtension([REDUX_DEVTOOLS, REACT_DEVELOPER_TOOLS])
+    .then(([redux, react]) => console.log(`Added Extensions:  ${redux.name}, ${react.name}`))
+    .catch((err) => console.log('An error occurred: ', err))
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
