@@ -2,23 +2,48 @@ import { join } from 'path'
 import { spawn } from 'child_process'
 import { promises as fs } from 'fs'
 
-export async function generateNginxConfig(domain: string): Promise<void> {
+export async function generateNginxConfig(
+  domain: string,
+  multisite?: { enabled: boolean; type: 'subdomain' | 'subdirectory' }
+): Promise<void> {
   try {
-    // Read the template config
-    const templatePath = join(__dirname, '../../config/nginx/template-site.conf')
-    let templateContent = await fs.readFile(templatePath, 'utf8')
+    // Read the template file
+    const templatePath = join(process.cwd(), 'config', 'nginx', 'template-site.conf')
+    let configContent = await fs.readFile(templatePath, 'utf8')
 
-    // Replace placeholders with site-specific values
-    templateContent = templateContent.replace(/example\.com/g, domain)
+    // Replace the domain placeholder
+    configContent = configContent.replace(/example\.com/g, domain)
 
-    // Ensure the sites-enabled directory exists
-    await fs.mkdir(join(__dirname, '../../config/nginx/sites-enabled'), { recursive: true })
+    // Replace the include directive based on multisite configuration
+    if (multisite?.enabled) {
+      const includeDirective =
+        multisite.type === 'subdomain'
+          ? 'include global/wordpress-ms-subdomain.conf;'
+          : 'include global/wordpress-ms-subdir.conf;'
 
-    // Write the new config file
-    const configPath = join(__dirname, '../../config/nginx/sites-enabled', `${domain}.conf`)
-    await fs.writeFile(configPath, templateContent, 'utf8')
+      // Replace the WordPress include directive
+      configContent = configContent.replace(
+        '# include global/wordpress-ms-subdir.conf;',
+        '# include global/wordpress-ms-subdir.conf;'
+      )
+      configContent = configContent.replace(
+        '# include global/wordpress-ms-subdomain.conf;',
+        '# include global/wordpress-ms-subdomain.conf;'
+      )
+      configContent = configContent.replace('include global/wordpress.conf;', includeDirective)
+    }
 
-    console.log(`Created Nginx config for ${domain} at ${configPath}`)
+    // Write the configuration file
+    const sitesEnabledPath = join(process.cwd(), 'config', 'nginx', 'sites-enabled')
+    await fs.mkdir(sitesEnabledPath, { recursive: true })
+    await fs.writeFile(join(sitesEnabledPath, `${domain}.conf`), configContent, 'utf8')
+
+    console.log(`Created Nginx configuration for ${domain}`)
+
+    // For subdomain multisite, we need to add wildcard entry to hosts file
+    if (multisite?.enabled && multisite.type === 'subdomain') {
+      await modifyHostsFile(`*.${domain}`, 'add')
+    }
 
     console.log(`Reloading Nginx configuration...`)
 

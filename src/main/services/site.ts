@@ -61,7 +61,13 @@ async function installWordPress(siteDomain: string, dbName: string): Promise<voi
   })
 }
 
-export function createSite(site: { domain: string }): Promise<boolean> {
+export function createSite(site: {
+  domain: string
+  multisite?: {
+    enabled: boolean
+    type: 'subdomain' | 'subdirectory'
+  }
+}): Promise<boolean> {
   return new Promise((resolve, reject) => {
     const sitePath = join(process.cwd(), 'www', site.domain)
     const dbName = site.domain.replace(/\./g, '_') // Convert domain to valid db name
@@ -71,9 +77,15 @@ export function createSite(site: { domain: string }): Promise<boolean> {
       .then(async () => {
         try {
           await modifyHostsFile(site.domain, 'add')
-          await generateNginxConfig(site.domain)
+          await generateNginxConfig(site.domain, site.multisite)
           await createDatabase(dbName)
           await installWordPress(site.domain, dbName)
+
+          // Convert to multisite if enabled
+          if (site.multisite?.enabled) {
+            await convertToMultisite(site.domain, site.multisite)
+          }
+
           resolve(true)
         } catch (configError) {
           // If WordPress installation fails, still create the basic site with the HTML template
@@ -312,5 +324,34 @@ export function getSites(): Promise<Site[]> {
         console.error(`Error reading sites directory:`, error)
         reject(`Error reading sites directory: ${error.message}`)
       })
+  })
+}
+
+// Convert a site to multisite
+async function convertToMultisite(
+  siteDomain: string,
+  multisite: { enabled: boolean; type: 'subdomain' | 'subdirectory' } | undefined
+): Promise<void> {
+  if (!multisite?.enabled) return
+
+  return new Promise((resolve, reject) => {
+    const siteDir = `/src/www/${siteDomain}`
+    const subdomains = multisite.type === 'subdomain' ? '--subdomains' : ''
+
+    // Command to enable multisite in wp-config.php
+    const enableMultisiteCmd = `docker compose exec php wp core multisite-convert ${subdomains} --path=${siteDir} --base=/`
+
+    console.log(`Converting ${siteDomain} to multisite (${multisite.type} mode)...`)
+    exec(enableMultisiteCmd, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error converting to multisite: ${stderr}`)
+        reject(error)
+        return
+      }
+
+      console.log(`Successfully converted ${siteDomain} to multisite (${multisite.type})`)
+      console.log(stdout)
+      resolve()
+    })
   })
 }

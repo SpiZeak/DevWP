@@ -12,8 +12,18 @@ const SiteList: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
-  const [newSite, setNewSite] = useState<{ domain: string }>({
-    domain: ''
+  const [newSite, setNewSite] = useState<{
+    domain: string
+    multisite: {
+      enabled: boolean
+      type: 'subdomain' | 'subdirectory'
+    }
+  }>({
+    domain: '',
+    multisite: {
+      enabled: false,
+      type: 'subdirectory'
+    }
   })
 
   const openSiteUrl = (url: string): void => {
@@ -26,7 +36,7 @@ const SiteList: React.FC = () => {
 
   const handleCloseModal = (): void => {
     setIsModalOpen(false)
-    setNewSite({ domain: '' })
+    setNewSite({ domain: '', multisite: { enabled: false, type: 'subdirectory' } })
   }
 
   const handleSubmitNewSite = async (): Promise<void> => {
@@ -45,7 +55,7 @@ const SiteList: React.FC = () => {
     try {
       window.electronAPI.createSite(newSite).then(fetchSites)
       setIsModalOpen(false)
-      setNewSite({ domain: '' })
+      setNewSite({ domain: '', multisite: { enabled: false, type: 'subdirectory' } })
     } catch (error) {
       console.error('Failed to create new site:', error)
     }
@@ -139,6 +149,76 @@ const SiteList: React.FC = () => {
                 <span className="bold-text">{newSite.domain}</span> accessible at https://
                 <span className="bold-text">{newSite.domain}</span>
               </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Multisite</label>
+              <div className="checkbox-container">
+                <input
+                  type="checkbox"
+                  id="multisite-enabled"
+                  checked={newSite.multisite.enabled}
+                  onChange={(e) =>
+                    setNewSite({
+                      ...newSite,
+                      multisite: {
+                        ...newSite.multisite,
+                        enabled: e.target.checked
+                      }
+                    })
+                  }
+                  className="form-checkbox"
+                />
+                <label htmlFor="multisite-enabled">Enable WordPress Multisite</label>
+              </div>
+
+              {newSite.multisite.enabled && (
+                <div className="radio-group">
+                  <div className="radio-option">
+                    <input
+                      type="radio"
+                      id="multisite-subdirectory"
+                      name="multisite-type"
+                      value="subdirectory"
+                      checked={newSite.multisite.type === 'subdirectory'}
+                      onChange={() =>
+                        setNewSite({
+                          ...newSite,
+                          multisite: {
+                            ...newSite.multisite,
+                            type: 'subdirectory'
+                          }
+                        })
+                      }
+                      className="form-radio"
+                    />
+                    <label htmlFor="multisite-subdirectory">
+                      Subdirectory (example.test/site2)
+                    </label>
+                  </div>
+
+                  <div className="radio-option">
+                    <input
+                      type="radio"
+                      id="multisite-subdomain"
+                      name="multisite-type"
+                      value="subdomain"
+                      checked={newSite.multisite.type === 'subdomain'}
+                      onChange={() =>
+                        setNewSite({
+                          ...newSite,
+                          multisite: {
+                            ...newSite.multisite,
+                            type: 'subdomain'
+                          }
+                        })
+                      }
+                      className="form-radio"
+                    />
+                    <label htmlFor="multisite-subdomain">Subdomain (site2.example.test)</label>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="modal-actions">

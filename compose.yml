@@ -15,6 +15,7 @@ services:
       - ./www:/src/www:rw
       - ./config/php/php.ini:/usr/local/etc/php/php.ini:ro
       - ./config/php/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+      - ./config/php/conf.d/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini
 
   database:
     container_name: devwp_database

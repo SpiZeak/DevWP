@@ -6,9 +6,21 @@ export function registerSiteHandlers(): void {
     return getSites()
   })
 
-  ipcMain.handle('create-site', async (_, site) => {
-    return createSite(site)
-  })
+  ipcMain.handle(
+    'create-site',
+    async (
+      _,
+      site: {
+        domain: string
+        multisite?: {
+          enabled: boolean
+          type: 'subdomain' | 'subdirectory'
+        }
+      }
+    ) => {
+      return createSite(site)
+    }
+  )
 
   ipcMain.handle('delete-site', async (_, site) => {
     return deleteSite(site)
