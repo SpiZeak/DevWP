@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './Services.scss'
+import XdebugSwitch from '../XdebugSwitch'
 
 // Container name mapping for user-friendly display
 const containerNameMapping: Record<string, string> = {
@@ -55,8 +56,11 @@ const Services: React.FC = () => {
   }
 
   return (
-    <div className="Services">
-      <h3>Docker Services</h3>
+    <div className="services-container">
+      <h2>Services</h2>
+
+      <XdebugSwitch />
+
       {loading ? (
         <div className="loading-container">
           <div className="loading-spinner"></div>
