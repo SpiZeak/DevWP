@@ -19,7 +19,7 @@ const SiteList: React.FC = () => {
       type: 'subdomain' | 'subdirectory'
     }
   }>({
-    domain: '',
+    domain: 'example.test',
     multisite: {
       enabled: false,
       type: 'subdirectory'
@@ -84,6 +84,15 @@ const SiteList: React.FC = () => {
     }
   }
 
+  const formatDomain = (domain: string): string => {
+    // Check if the domain ends with a period followed by at least one character
+    if (!/.+\..+$/.test(domain)) {
+      return `${domain}.test`
+    }
+
+    return domain
+  }
+
   useEffect(() => {
     fetchSites()
   }, [])
@@ -138,8 +147,7 @@ const SiteList: React.FC = () => {
               <div className="input-container">
                 <input
                   type="text"
-                  value={newSite.domain}
-                  onChange={(e) => setNewSite({ ...newSite, domain: e.target.value })}
+                  onChange={(e) => setNewSite({ ...newSite, domain: formatDomain(e.target.value) })}
                   className="form-input"
                   placeholder="example.test"
                 />
