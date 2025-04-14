@@ -5,6 +5,10 @@ on:
     - cron: '0 2 * * *' # Runs daily at 2 AM UTC
   workflow_dispatch: # Optional manual trigger
 
+# Add permissions block to allow pushing changes
+permissions:
+  contents: write
+
 jobs:
   update-deps:
     runs-on: ubuntu-latest
@@ -12,8 +16,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -26,10 +28,14 @@ jobs:
 
       - name: Commit and push changes
         run: |
-          git config --global user.name "${GITHUB_ACTOR}"
-          git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+          # Use github context for actor info for consistency
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
           git add .
-          git commit -m "Auto-update dependencies and lockfile" || echo "No changes to commit"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Check if there are staged changes before committing
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: Auto-update dependencies and lockfile"
+            git push # Rely on checkout action's token configuration
+          fi
