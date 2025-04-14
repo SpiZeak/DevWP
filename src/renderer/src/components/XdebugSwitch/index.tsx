@@ -51,13 +51,6 @@ function XdebugSwitch(): JSX.Element {
     <div className="xdebug-switch-container">
       <div className="xdebug-switch-label">
         <span>Xdebug</span>
-        {isLoading ? (
-          <span className="xdebug-status-loading">Loading...</span>
-        ) : (
-          <span className={`xdebug-status ${xdebugEnabled ? 'enabled' : 'disabled'}`}>
-            {xdebugEnabled ? 'Enabled' : 'Disabled'}
-          </span>
-        )}
       </div>
       <label className="xdebug-switch">
         <input
@@ -66,9 +59,8 @@ function XdebugSwitch(): JSX.Element {
           onChange={handleToggle}
           disabled={isLoading || isToggling}
         />
-        <span className={`xdebug-slider round ${isToggling ? 'toggling' : ''}`}></span>
+        <span className="xdebug-slider round"></span>
       </label>
-      {isToggling && <span className="xdebug-toggling-message">Restarting PHP container...</span>}
     </div>
   )
 }

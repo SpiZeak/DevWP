@@ -98,21 +98,6 @@
       border-radius: 50%;
     }
   }
-
-  &.toggling {
-    position: relative;
-
-    &:after {
-      content: '';
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      border-radius: 34px;
-      border: 2px solid transparent;
-      border-top-color: #ffffff;
-      animation: spin 1s linear infinite;
-    }
-  }
 }
 
 .xdebug-toggling-message {
