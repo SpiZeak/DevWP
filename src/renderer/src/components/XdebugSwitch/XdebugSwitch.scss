@@ -1,8 +1,8 @@
 .xdebug-switch-container {
   display: flex;
-  flex-direction: column;
-  margin: 10px 0;
-  padding: 10px;
+  justify-content: space-between;
+  margin: 0.25rem 0;
+  margin: 1rem 0;
   border-radius: 6px;
   background-color: var(--color-bg-secondary);
 }
@@ -11,7 +11,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+
+  img {
+    display: block;
+    object-fit: contain;
+    width: 80px;
+    height: 40px;
+  }
 
   span {
     font-weight: 500;

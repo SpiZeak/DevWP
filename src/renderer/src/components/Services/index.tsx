@@ -57,10 +57,7 @@ const Services: React.FC = () => {
 
   return (
     <div className="services-container">
-      <h2>Services</h2>
-
       <XdebugSwitch />
-
       {loading ? (
         <div className="loading-container">
           <div className="loading-spinner"></div>

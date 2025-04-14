@@ -130,7 +130,7 @@ const SiteList: React.FC = () => {
                   Open
                 </button>
                 <button onClick={() => handleDeleteSite(site)} className="delete-button">
-                  <span className="icon"></span>
+                  <span className="icon"></span>
                 </button>
               </div>
             </li>
