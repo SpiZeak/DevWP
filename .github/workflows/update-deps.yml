@@ -26,16 +26,26 @@ jobs:
       - name: Install updated dependencies and generate bun.lockb
         run: bun install
 
-      - name: Commit and push changes
+      - name: Commit changes
+        id: commit # Add an id to check output later
         run: |
-          # Use github context for actor info for consistency
           git config --global user.name "${{ github.actor }}"
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-          git add .
+          git add package.json bun.lockb # Be specific about files to add
           # Check if there are staged changes before committing
           if git diff --staged --quiet; then
             echo "No changes to commit"
+            echo "changes_exist=false" >> $GITHUB_OUTPUT
           else
+            echo "Changes detected, committing..."
             git commit -m "chore: Auto-update dependencies and lockfile"
-            git push # Rely on checkout action's token configuration
+            echo "changes_exist=true" >> $GITHUB_OUTPUT
           fi
+
+      - name: Push changes
+        # Only run if the commit step detected changes
+        if: steps.commit.outputs.changes_exist == 'true'
+        run: |
+          echo "Pushing changes..."
+          # Explicitly push to the branch the workflow is running on
+          git push origin HEAD:${{ github.ref_name }}
