@@ -4,6 +4,7 @@ import { is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { startDockerCompose } from './services/docker'
 import { startContainerMonitoring } from './ipc/container'
+import { registerXdebugHandlers } from './ipc/xdebug'
 
 export function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -42,6 +43,9 @@ export function createWindow(): BrowserWindow {
 
     // Start container monitoring
     startContainerMonitoring(mainWindow)
+
+    // Register Xdebug handlers
+    registerXdebugHandlers(mainWindow)
   })
 
   // HMR for renderer base on electron-vite cli.

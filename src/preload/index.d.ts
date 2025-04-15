@@ -19,5 +19,16 @@ declare global {
       getStatus: (serviceName?: string) => void
       getSites: () => Promise<Site[]>
     }
+    electronAPI: {
+      getXdebugStatus: () => Promise<boolean>
+      toggleXdebug: () => Promise<boolean>
+      onXdebugStatus: (
+        callback: (data: {
+          status: 'restarting' | 'complete' | 'error'
+          enabled?: boolean
+          message?: string
+        }) => void
+      ) => () => void
+    }
   }
 }

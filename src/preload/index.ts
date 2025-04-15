@@ -36,7 +36,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeAllListeners('container-status')
     }
   },
-  restartContainer: (containerId) => ipcRenderer.invoke('restart-container', containerId)
+  restartContainer: (containerId) => ipcRenderer.invoke('restart-container', containerId),
+
+  // Add these new methods
+  getXdebugStatus: () => ipcRenderer.invoke('get-xdebug-status'),
+  toggleXdebug: () => ipcRenderer.invoke('toggle-xdebug'),
+  onXdebugStatus: (callback) => {
+    const listener = (_event, data) => callback(data)
+    ipcRenderer.on('xdebug-status', listener)
+
+    return () => {
+      ipcRenderer.removeListener('xdebug-status', listener)
+    }
+  }
 })
 
 // Custom APIs for renderer

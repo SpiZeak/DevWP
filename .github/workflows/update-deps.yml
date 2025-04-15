@@ -5,6 +5,10 @@ on:
     - cron: '0 2 * * *' # Runs daily at 2 AM UTC
   workflow_dispatch: # Optional manual trigger
 
+# Add permissions block to allow pushing changes
+permissions:
+  contents: write
+
 jobs:
   update-deps:
     runs-on: ubuntu-latest
@@ -12,8 +16,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
@@ -24,12 +26,26 @@ jobs:
       - name: Install updated dependencies and generate bun.lockb
         run: bun install
 
-      - name: Commit and push changes
+      - name: Commit changes
+        id: commit # Add an id to check output later
         run: |
-          git config --global user.name "${GITHUB_ACTOR}"
-          git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
-          git add .
-          git commit -m "Auto-update dependencies and lockfile" || echo "No changes to commit"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          git add package.json bun.lockb # Be specific about files to add
+          # Check if there are staged changes before committing
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            echo "changes_exist=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected, committing..."
+            git commit -m "chore: Auto-update dependencies and lockfile"
+            echo "changes_exist=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push changes
+        # Only run if the commit step detected changes
+        if: steps.commit.outputs.changes_exist == 'true'
+        run: |
+          echo "Pushing changes..."
+          # Explicitly push to the branch the workflow is running on
+          git push origin HEAD:${{ github.ref_name }}
