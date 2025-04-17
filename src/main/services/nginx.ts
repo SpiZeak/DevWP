@@ -1,5 +1,6 @@
 import { join } from 'path'
 import { spawn } from 'child_process'
+import { modifyHostsFile } from './hosts'
 import { promises as fs } from 'fs'
 
 export async function generateNginxConfig(

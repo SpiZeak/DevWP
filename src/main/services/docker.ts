@@ -1,5 +1,6 @@
 import { spawn, exec } from 'child_process'
 import { platform } from 'os'
+import { BrowserWindow } from 'electron'
 
 // Function to start Docker Compose
 export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
@@ -105,12 +106,11 @@ export function stopDockerCompose(): Promise<void> {
   })
 }
 
-// Function to get Docker container information
 interface Container {
   id: string
   name: string
   state: string
-  version?: string // Optional version field
+  version?: string | undefined
 }
 
 export function getDockerContainers(): Promise<Container[]> {
@@ -129,7 +129,7 @@ export function getDockerContainers(): Promise<Container[]> {
         .map((line) => {
           const [id, name, state] = line.split('|')
           return { id, name, state: state.toLowerCase(), version: undefined }
-        })
+        }) as Container[]
 
       // Fetch version information for each container
       try {

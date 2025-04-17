@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, JSX } from 'react'
 import './XdebugSwitch.scss'
 import xdebugIcon from '../../assets/xdebug.svg'
 

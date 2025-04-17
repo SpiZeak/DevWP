@@ -8,7 +8,6 @@ export interface Site {
   name: string
   path: string
   url: string
-  active: boolean
 }
 
 // Install WordPress in the newly created site
@@ -259,7 +258,7 @@ async function clearRedisCache(siteDomain: string): Promise<void> {
     // Using wildcard pattern to match any keys related to this site
     const clearCacheCmd = `docker exec devwp_cache redis-cli KEYS "*${siteDomain}*" | xargs -r docker exec -i devwp_cache redis-cli DEL`
 
-    exec(clearCacheCmd, (error, stdout, stderr) => {
+    exec(clearCacheCmd, (error, _, stderr) => {
       if (error) {
         console.error(`Error clearing Redis cache: ${stderr}`)
         reject(error)
@@ -314,8 +313,7 @@ export function getSites(): Promise<Site[]> {
         const sites = allDomains.map((domain) => ({
           name: domain,
           path: join('www', domain),
-          url: `https://${domain}`,
-          status: 'provisioned'
+          url: `https://${domain}`
         }))
 
         resolve(sites)

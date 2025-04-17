@@ -2,6 +2,13 @@ import { useState, useEffect } from 'react'
 import './Services.scss'
 import XdebugSwitch from '../XdebugSwitch'
 
+interface Container {
+  id: string
+  name: string
+  state: string
+  version?: string | undefined
+}
+
 // Container name mapping for user-friendly display
 const containerNameMapping: Record<string, string> = {
   devwp_web: 'Nginx',
@@ -13,7 +20,7 @@ const containerNameMapping: Record<string, string> = {
 }
 
 const Services: React.FC = () => {
-  const [containers, setContainers] = useState([])
+  const [containers, setContainers] = useState([] as Container[])
   const [loading, setLoading] = useState(true)
   const [restarting, setRestarting] = useState({})
   const containerMap = containers.filter((container) => container.name.includes('devwp_'))

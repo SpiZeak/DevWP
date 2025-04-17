@@ -1,19 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
-// Add this to your existing electronAPI interface
-interface ElectronAPI {
-  // ...existing methods
-  createSite: (site: {
-    domain: string
-    multisite?: {
-      enabled: boolean
-      type: 'subdomain' | 'subdirectory'
-    }
-  }) => Promise<boolean>
-  // ...other methods
-}
-
 // Add to your preload script
 contextBridge.exposeInMainWorld('electronAPI', {
   getSites: () => ipcRenderer.invoke('get-sites'),
