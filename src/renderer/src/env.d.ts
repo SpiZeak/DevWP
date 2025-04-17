@@ -1,13 +1,7 @@
 /// <reference types="vite/client" />
 
 import { ElectronAPI } from '@electron-toolkit/preload'
-
-interface Site {
-  name: string
-  path: string
-  url: string
-  active: boolean
-}
+import { Site } from './components/SiteList'
 
 declare global {
   interface Window {
@@ -32,14 +26,24 @@ declare global {
           message?: string
         }) => void
       ) => () => void
-      // ...existing getSites, createSite, deleteSite, getContainerStatus, onContainerStatus, restartContainer...
-      // Add the type for the Docker startup status listener
+      deleteSite: (siteName: Site) => Promise<void>
+      createSite: (site: {
+        domain: string
+        multisite: {
+          enabled: boolean
+          type: 'subdomain' | 'subdirectory'
+        }
+      }) => Promise<void>
       onDockerStatus: (
         callback: (data: {
           status: 'starting' | 'progress' | 'complete' | 'error'
           message: string
         }) => void
       ) => () => void
+      getContainerStatus: () => Promise<void>
+      onContainerStatus: (callback: (containers: any[]) => void) => () => void
+      restartContainer: (containerId: string) => Promise<void>
+      getSites: () => Promise<Site[]>
     }
   }
 }

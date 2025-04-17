@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import './SiteList.scss'
 
-interface Site {
+export interface Site {
   name: string
   path: string
   url: string
