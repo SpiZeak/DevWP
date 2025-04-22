@@ -21,14 +21,14 @@
         "electron-builder": "^26.0.12",
         "electron-devtools-installer": "^4.0.0",
         "electron-vite": "^3.1.0",
-        "eslint": "^9.25.0",
+        "eslint": "^9.25.1",
         "eslint-plugin-react": "^7.37.5",
         "eslint-plugin-react-hooks": "^5.2.0",
-        "eslint-plugin-react-refresh": "^0.4.19",
+        "eslint-plugin-react-refresh": "^0.4.20",
         "prettier": "^3.5.3",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
-        "sass-embedded": "^1.86.3",
+        "sass-embedded": "^1.87.0",
         "typescript": "^5.8.3",
         "vite": "^6.3.2",
       },
@@ -587,7 +587,7 @@
 
     "escape-string-regexp": ["escape-string-regexp@4.0.0", "", {}, "sha512-TtpcNJ3XAzx3Gq8sWRzJaVajRs0uVxA2YAkdb1jm2YkPz4G6egUFAyA3n5vtEIZefPk5Wa4UXbKuS5fKkJWdgA=="],
 
-    "eslint": ["eslint@9.25.0", "", { "dependencies": { "@eslint-community/eslint-utils": "^4.2.0", "@eslint-community/regexpp": "^4.12.1", "@eslint/config-array": "^0.20.0", "@eslint/config-helpers": "^0.2.1", "@eslint/core": "^0.13.0", "@eslint/eslintrc": "^3.3.1", "@eslint/js": "9.25.0", "@eslint/plugin-kit": "^0.2.8", "@humanfs/node": "^0.16.6", "@humanwhocodes/module-importer": "^1.0.1", "@humanwhocodes/retry": "^0.4.2", "@types/estree": "^1.0.6", "@types/json-schema": "^7.0.15", "ajv": "^6.12.4", "chalk": "^4.0.0", "cross-spawn": "^7.0.6", "debug": "^4.3.2", "escape-string-regexp": "^4.0.0", "eslint-scope": "^8.3.0", "eslint-visitor-keys": "^4.2.0", "espree": "^10.3.0", "esquery": "^1.5.0", "esutils": "^2.0.2", "fast-deep-equal": "^3.1.3", "file-entry-cache": "^8.0.0", "find-up": "^5.0.0", "glob-parent": "^6.0.2", "ignore": "^5.2.0", "imurmurhash": "^0.1.4", "is-glob": "^4.0.0", "json-stable-stringify-without-jsonify": "^1.0.1", "lodash.merge": "^4.6.2", "minimatch": "^3.1.2", "natural-compare": "^1.4.0", "optionator": "^0.9.3" }, "peerDependencies": { "jiti": "*" }, "optionalPeers": ["jiti"], "bin": { "eslint": "bin/eslint.js" } }, "sha512-MsBdObhM4cEwkzCiraDv7A6txFXEqtNXOb877TsSp2FCkBNl8JfVQrmiuDqC1IkejT6JLPzYBXx/xAiYhyzgGA=="],
+    "eslint": ["eslint@9.25.1", "", { "dependencies": { "@eslint-community/eslint-utils": "^4.2.0", "@eslint-community/regexpp": "^4.12.1", "@eslint/config-array": "^0.20.0", "@eslint/config-helpers": "^0.2.1", "@eslint/core": "^0.13.0", "@eslint/eslintrc": "^3.3.1", "@eslint/js": "9.25.1", "@eslint/plugin-kit": "^0.2.8", "@humanfs/node": "^0.16.6", "@humanwhocodes/module-importer": "^1.0.1", "@humanwhocodes/retry": "^0.4.2", "@types/estree": "^1.0.6", "@types/json-schema": "^7.0.15", "ajv": "^6.12.4", "chalk": "^4.0.0", "cross-spawn": "^7.0.6", "debug": "^4.3.2", "escape-string-regexp": "^4.0.0", "eslint-scope": "^8.3.0", "eslint-visitor-keys": "^4.2.0", "espree": "^10.3.0", "esquery": "^1.5.0", "esutils": "^2.0.2", "fast-deep-equal": "^3.1.3", "file-entry-cache": "^8.0.0", "find-up": "^5.0.0", "glob-parent": "^6.0.2", "ignore": "^5.2.0", "imurmurhash": "^0.1.4", "is-glob": "^4.0.0", "json-stable-stringify-without-jsonify": "^1.0.1", "lodash.merge": "^4.6.2", "minimatch": "^3.1.2", "natural-compare": "^1.4.0", "optionator": "^0.9.3" }, "peerDependencies": { "jiti": "*" }, "optionalPeers": ["jiti"], "bin": { "eslint": "bin/eslint.js" } }, "sha512-E6Mtz9oGQWDCpV12319d59n4tx9zOTXSTmc8BLVxBx+G/0RdM5MvEEJLU9c0+aleoePYYgVTOsRblx433qmhWQ=="],
 
     "eslint-config-prettier": ["eslint-config-prettier@10.1.1", "", { "peerDependencies": { "eslint": ">=7.0.0" }, "bin": { "eslint-config-prettier": "bin/cli.js" } }, "sha512-4EQQr6wXwS+ZJSzaR5ZCrYgLxqvUjdXctaEtBqHcbkW944B1NQyO4qpdHQbXBONfwxXdkAY81HH4+LUfrg+zPw=="],
 
@@ -597,7 +597,7 @@
 
     "eslint-plugin-react-hooks": ["eslint-plugin-react-hooks@5.2.0", "", { "peerDependencies": { "eslint": "^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0 || ^9.0.0" } }, "sha512-+f15FfK64YQwZdJNELETdn5ibXEUQmW1DZL6KXhNnc2heoy/sg9VJJeT7n8TlMWouzWqSWavFkIhHyIbIAEapg=="],
 
-    "eslint-plugin-react-refresh": ["eslint-plugin-react-refresh@0.4.19", "", { "peerDependencies": { "eslint": ">=8.40" } }, "sha512-eyy8pcr/YxSYjBoqIFSrlbn9i/xvxUFa8CjzAYo9cFjgGXqq1hyjihcpZvxRLalpaWmueWR81xn7vuKmAFijDQ=="],
+    "eslint-plugin-react-refresh": ["eslint-plugin-react-refresh@0.4.20", "", { "peerDependencies": { "eslint": ">=8.40" } }, "sha512-XpbHQ2q5gUF8BGOX4dHe+71qoirYMhApEPZ7sfhF/dNnOF1UXnCMGZf79SFTBO7Bz5YEIT4TMieSlJBWhP9WBA=="],
 
     "eslint-scope": ["eslint-scope@8.3.0", "", { "dependencies": { "esrecurse": "^4.3.0", "estraverse": "^5.2.0" } }, "sha512-pUNxi75F8MJ/GdeKtVLSbYg4ZI34J6C0C7sbL4YOp2exGwen7ZsuBqKzUhXd0qMQ362yET3z+uPwKeg/0C2XCQ=="],
 
@@ -1103,47 +1103,47 @@
 
     "sanitize-filename": ["sanitize-filename@1.6.3", "", { "dependencies": { "truncate-utf8-bytes": "^1.0.0" } }, "sha512-y/52Mcy7aw3gRm7IrcGDFx/bCk4AhRh2eI9luHOQM86nZsqwiRkkq2GekHXBBD+SmPidc8i2PqtYZl+pWJ8Oeg=="],
 
-    "sass-embedded": ["sass-embedded@1.86.3", "", { "dependencies": { "@bufbuild/protobuf": "^2.0.0", "buffer-builder": "^0.2.0", "colorjs.io": "^0.5.0", "immutable": "^5.0.2", "rxjs": "^7.4.0", "supports-color": "^8.1.1", "sync-child-process": "^1.0.2", "varint": "^6.0.0" }, "optionalDependencies": { "sass-embedded-android-arm": "1.86.3", "sass-embedded-android-arm64": "1.86.3", "sass-embedded-android-ia32": "1.86.3", "sass-embedded-android-riscv64": "1.86.3", "sass-embedded-android-x64": "1.86.3", "sass-embedded-darwin-arm64": "1.86.3", "sass-embedded-darwin-x64": "1.86.3", "sass-embedded-linux-arm": "1.86.3", "sass-embedded-linux-arm64": "1.86.3", "sass-embedded-linux-ia32": "1.86.3", "sass-embedded-linux-musl-arm": "1.86.3", "sass-embedded-linux-musl-arm64": "1.86.3", "sass-embedded-linux-musl-ia32": "1.86.3", "sass-embedded-linux-musl-riscv64": "1.86.3", "sass-embedded-linux-musl-x64": "1.86.3", "sass-embedded-linux-riscv64": "1.86.3", "sass-embedded-linux-x64": "1.86.3", "sass-embedded-win32-arm64": "1.86.3", "sass-embedded-win32-ia32": "1.86.3", "sass-embedded-win32-x64": "1.86.3" }, "bin": { "sass": "dist/bin/sass.js" } }, "sha512-3pZSp24ibO1hdopj+W9DuiWsZOb2YY6AFRo/jjutKLBkqJGM1nJjXzhAYfzRV+Xn5BX1eTI4bBTE09P0XNHOZg=="],
+    "sass-embedded": ["sass-embedded@1.87.0", "", { "dependencies": { "@bufbuild/protobuf": "^2.0.0", "buffer-builder": "^0.2.0", "colorjs.io": "^0.5.0", "immutable": "^5.0.2", "rxjs": "^7.4.0", "supports-color": "^8.1.1", "sync-child-process": "^1.0.2", "varint": "^6.0.0" }, "optionalDependencies": { "sass-embedded-android-arm": "1.87.0", "sass-embedded-android-arm64": "1.87.0", "sass-embedded-android-ia32": "1.87.0", "sass-embedded-android-riscv64": "1.87.0", "sass-embedded-android-x64": "1.87.0", "sass-embedded-darwin-arm64": "1.87.0", "sass-embedded-darwin-x64": "1.87.0", "sass-embedded-linux-arm": "1.87.0", "sass-embedded-linux-arm64": "1.87.0", "sass-embedded-linux-ia32": "1.87.0", "sass-embedded-linux-musl-arm": "1.87.0", "sass-embedded-linux-musl-arm64": "1.87.0", "sass-embedded-linux-musl-ia32": "1.87.0", "sass-embedded-linux-musl-riscv64": "1.87.0", "sass-embedded-linux-musl-x64": "1.87.0", "sass-embedded-linux-riscv64": "1.87.0", "sass-embedded-linux-x64": "1.87.0", "sass-embedded-win32-arm64": "1.87.0", "sass-embedded-win32-ia32": "1.87.0", "sass-embedded-win32-x64": "1.87.0" }, "bin": { "sass": "dist/bin/sass.js" } }, "sha512-1IA3iTJNh4BkkA/nidKiVwbmkxr9o6LsPegycHMX/JYs255zpocN5GdLF1+onohQCJxbs5ldr8osKV7qNaNBjg=="],
 
-    "sass-embedded-android-arm": ["sass-embedded-android-arm@1.86.3", "", { "os": "android", "cpu": "arm" }, "sha512-UyeXrFzZSvrGbvrWUBcspbsbivGgAgebLGJdSqJulgSyGbA6no3DWQ5Qpdd6+OAUC39BlpPu74Wx9s4RrVuaFw=="],
+    "sass-embedded-android-arm": ["sass-embedded-android-arm@1.87.0", "", { "os": "android", "cpu": "arm" }, "sha512-Z20u/Y1kFDpMbgiloR5YPLxNuMVeKQRC8e/n68oAAxf3u7rDSmNn2msi7USqgT1f2zdBBNawn/ifbFEla6JiHw=="],
 
-    "sass-embedded-android-arm64": ["sass-embedded-android-arm64@1.86.3", "", { "os": "android", "cpu": "arm64" }, "sha512-q+XwFp6WgAv+UgnQhsB8KQ95kppvWAB7DSoJp+8Vino8b9ND+1ai3cUUZPE5u4SnLZrgo5NtrbPvN5KLc4Pfyg=="],
+    "sass-embedded-android-arm64": ["sass-embedded-android-arm64@1.87.0", "", { "os": "android", "cpu": "arm64" }, "sha512-uqeZoBuXm3W2KhxolScAAfWOLHL21e50g7AxlLmG0he7WZsWw6e9kSnmq301iLIFp4kvmXYXbXbNKAeu9ItRYA=="],
 
-    "sass-embedded-android-ia32": ["sass-embedded-android-ia32@1.86.3", "", { "os": "android", "cpu": "ia32" }, "sha512-gTJjVh2cRzvGujXj5ApPk/owUTL5SiO7rDtNLrzYAzi1N5HRuLYXqk3h1IQY3+eCOBjGl7mQ9XyySbJs/3hDvg=="],
+    "sass-embedded-android-ia32": ["sass-embedded-android-ia32@1.87.0", "", { "os": "android", "cpu": "ia32" }, "sha512-hSWTqo2Igdig528cUb1W1+emw9d1J4+nqOoR4tERS04zcwRRFNDiuBT0o5meV7nkEwE982F+h57YdcRXj8gTtg=="],
 
-    "sass-embedded-android-riscv64": ["sass-embedded-android-riscv64@1.86.3", "", { "os": "android", "cpu": "none" }, "sha512-Po3JnyiCS16kd6REo1IMUbFGYtvL9O0rmKaXx5vOuBaJD1LPy2LiSSp7TU7wkJ9IxsTDGzFaSeP1I9qb6D8VVg=="],
+    "sass-embedded-android-riscv64": ["sass-embedded-android-riscv64@1.87.0", "", { "os": "android", "cpu": "none" }, "sha512-kBAPSjiTBLy5ua/0LRNAJwOAARhzFU7gP35fYORJcdBuz1lkIVPVnid1lh9qQ6Ce9MOJcr7VKFtGnTuqVeig5A=="],
 
-    "sass-embedded-android-x64": ["sass-embedded-android-x64@1.86.3", "", { "os": "android", "cpu": "x64" }, "sha512-+7h3jdDv/0kUFx0BvxYlq2fa7CcHiDPlta6k5OxO5K6jyqJwo9hc0Z052BoYEauWTqZ+vK6bB5rv2BIzq4U9nA=="],
+    "sass-embedded-android-x64": ["sass-embedded-android-x64@1.87.0", "", { "os": "android", "cpu": "x64" }, "sha512-ZHMrNdtdMSpJUYco2MesnlPwDTZftD3pqkkOMI2pbqarPoFUKJtP5k80nwCM0sJGtqfNE+O16w9yPght0CMiJg=="],
 
-    "sass-embedded-darwin-arm64": ["sass-embedded-darwin-arm64@1.86.3", "", { "os": "darwin", "cpu": "arm64" }, "sha512-EgLwV4ORm5Hr0DmIXo0Xw/vlzwLnfAiqD2jDXIglkBsc5czJmo4/IBdGXOP65TRnsgJEqvbU3aQhuawX5++x9A=="],
+    "sass-embedded-darwin-arm64": ["sass-embedded-darwin-arm64@1.87.0", "", { "os": "darwin", "cpu": "arm64" }, "sha512-7TK1JWJdCIRSdZv5CJv/HpDz/wIfwUy2FoPz9sVOEj1pDTH0N+VfJd5VutCddIdoQN9jr0ap8vwkc65FbAxV2A=="],
 
-    "sass-embedded-darwin-x64": ["sass-embedded-darwin-x64@1.86.3", "", { "os": "darwin", "cpu": "x64" }, "sha512-dfKhfrGPRNLWLC82vy/vQGmNKmAiKWpdFuWiePRtg/E95pqw+sCu6080Y6oQLfFu37Iq3MpnXiSpDuSo7UnPWA=="],
+    "sass-embedded-darwin-x64": ["sass-embedded-darwin-x64@1.87.0", "", { "os": "darwin", "cpu": "x64" }, "sha512-2JiQzt7FmgUC4MYT2QvbeH/Bi3e76WEhaYoc5P3WyTW8unsHksyTdMuTuYe0Qf9usIyt6bmm5no/4BBw7c8Cig=="],
 
-    "sass-embedded-linux-arm": ["sass-embedded-linux-arm@1.86.3", "", { "os": "linux", "cpu": "arm" }, "sha512-+fVCIH+OR0SMHn2NEhb/VfbpHuUxcPtqMS34OCV3Ka99LYZUJZqth4M3lT/ppGl52mwIVLNYzR4iLe6mdZ6mYA=="],
+    "sass-embedded-linux-arm": ["sass-embedded-linux-arm@1.87.0", "", { "os": "linux", "cpu": "arm" }, "sha512-z5P6INMsGXiUcq1sRRbksyQUhalFFYjTEexuxfSYdK3U2YQMADHubQh8pGzkWvFRPOpnh83RiGuwvpaARYHnsw=="],
 
-    "sass-embedded-linux-arm64": ["sass-embedded-linux-arm64@1.86.3", "", { "os": "linux", "cpu": "arm64" }, "sha512-tYq5rywR53Qtc+0KI6pPipOvW7a47ETY69VxfqI9BR2RKw2hBbaz0bIw6OaOgEBv2/XNwcWb7a4sr7TqgkqKAA=="],
+    "sass-embedded-linux-arm64": ["sass-embedded-linux-arm64@1.87.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-5z+mwJCbGZcg+q+MwdEVSh0ogFK7OSAe175Gsozzr/Izw34Q+RGUw9O82jsV2c4YNuTAQvzEHgIO5cvNvt3Quw=="],
 
-    "sass-embedded-linux-ia32": ["sass-embedded-linux-ia32@1.86.3", "", { "os": "linux", "cpu": "ia32" }, "sha512-CmQ5OkqnaeLdaF+bMqlYGooBuenqm3LvEN9H8BLhjkpWiFW8hnYMetiqMcJjhrXLvDw601KGqA5sr/Rsg5s45g=="],
+    "sass-embedded-linux-ia32": ["sass-embedded-linux-ia32@1.87.0", "", { "os": "linux", "cpu": "ia32" }, "sha512-Xzcp+YPp0iakGL148Jl57CO+MxLuj2jsry3M+rc1cSnDlvkjNVs6TMxaL70GFeV5HdU2V60voYcgE7adDUtJjw=="],
 
-    "sass-embedded-linux-musl-arm": ["sass-embedded-linux-musl-arm@1.86.3", "", { "os": "linux", "cpu": "arm" }, "sha512-SEm65SQknI4pl+mH5Xf231hOkHJyrlgh5nj4qDbiBG6gFeutaNkNIeRgKEg3cflXchCr8iV/q/SyPgjhhzQb7w=="],
+    "sass-embedded-linux-musl-arm": ["sass-embedded-linux-musl-arm@1.87.0", "", { "os": "linux", "cpu": "arm" }, "sha512-4PyqOWhRzyu06RRmpCCBOJdF4BOv7s446wrV6yODtEyyfSIDx3MJabo3KT0oJ1lTWSI/aU3R89bKx0JFXcIHHw=="],
 
-    "sass-embedded-linux-musl-arm64": ["sass-embedded-linux-musl-arm64@1.86.3", "", { "os": "linux", "cpu": "arm64" }, "sha512-4zOr2C/eW89rxb4ozTfn7lBzyyM5ZigA1ZSRTcAR26Qbg/t2UksLdGnVX9/yxga0d6aOi0IvO/7iM2DPPRRotg=="],
+    "sass-embedded-linux-musl-arm64": ["sass-embedded-linux-musl-arm64@1.87.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-HWE5eTRCoKzFZWsxOjDMTF5m4DDTQ0n7NJxSYiUXPBDydr9viPXbGOMYG7WVJLjiF7upr7DYo/mfp/SNTMlZyg=="],
 
-    "sass-embedded-linux-musl-ia32": ["sass-embedded-linux-musl-ia32@1.86.3", "", { "os": "linux", "cpu": "ia32" }, "sha512-84Tcld32LB1loiqUvczWyVBQRCChm0wNLlkT59qF29nxh8njFIVf9yaPgXcSyyjpPoD9Tu0wnq3dvVzoMCh9AQ=="],
+    "sass-embedded-linux-musl-ia32": ["sass-embedded-linux-musl-ia32@1.87.0", "", { "os": "linux", "cpu": "ia32" }, "sha512-aQaPvlRn3kh93PLQvl6BcFKu8Ji92+42blFEkg6nMVvmugD5ZwH2TGFrX25ibx4CYxRpMS4ssF7a0i7vy5HB1Q=="],
 
-    "sass-embedded-linux-musl-riscv64": ["sass-embedded-linux-musl-riscv64@1.86.3", "", { "os": "linux", "cpu": "none" }, "sha512-IxEqoiD7vdNpiOwccybbV93NljBy64wSTkUOknGy21SyV43C8uqESOwTwW9ywa3KufImKm8L3uQAW/B0KhJMWg=="],
+    "sass-embedded-linux-musl-riscv64": ["sass-embedded-linux-musl-riscv64@1.87.0", "", { "os": "linux", "cpu": "none" }, "sha512-o5DxcqiFzET3KRWo+futHr/lhAMBP3tJGGx8YIgpHQYfvDMbsvE0hiFC+nZ/GF9dbcGd+ceIQwfvE5mcc7Gsjw=="],
 
-    "sass-embedded-linux-musl-x64": ["sass-embedded-linux-musl-x64@1.86.3", "", { "os": "linux", "cpu": "x64" }, "sha512-ePeTPXUxPK6JgHcUfnrkIyDtyt+zlAvF22mVZv6y1g/PZFm1lSfX+Za7TYHg9KaYqaaXDiw6zICX4i44HhR8rA=="],
+    "sass-embedded-linux-musl-x64": ["sass-embedded-linux-musl-x64@1.87.0", "", { "os": "linux", "cpu": "x64" }, "sha512-dKxWsu9Wu/CyfzQmHdeiGqrRSzJ85VUjbSx+aP1/7ttmps3SSg+YW95PuqnCOa7GSuSreC3dKKpXHTywUxMLQA=="],
 
-    "sass-embedded-linux-riscv64": ["sass-embedded-linux-riscv64@1.86.3", "", { "os": "linux", "cpu": "none" }, "sha512-NuXQ72dwfNLe35E+RaXJ4Noq4EkFwM65eWwCwxEWyJO9qxOx1EXiCAJii6x8kkOh5daWuMU0VAI1B9RsJaqqQQ=="],
+    "sass-embedded-linux-riscv64": ["sass-embedded-linux-riscv64@1.87.0", "", { "os": "linux", "cpu": "none" }, "sha512-Sy3ESZ4FwBiijvmTA9n+0p0w3MNCue1AgINVPzpAY27EFi0h49eqQm9SWfOkFqmkFS2zFRYowdQOr5Bbr2gOXA=="],
 
-    "sass-embedded-linux-x64": ["sass-embedded-linux-x64@1.86.3", "", { "os": "linux", "cpu": "x64" }, "sha512-t8be9zJ5B82+og9bQmIQ83yMGYZMTMrlGA+uGWtYacmwg6w3093dk91Fx0YzNSZBp3Tk60qVYjCZnEIwy60x0g=="],
+    "sass-embedded-linux-x64": ["sass-embedded-linux-x64@1.87.0", "", { "os": "linux", "cpu": "x64" }, "sha512-+UfjakOcHHKTnEqB3EZ+KqzezQOe1emvy4Rs+eQhLyfekpYuNze/qlRvYxfKTmrtvDiUrIto8MXsyZfMLzkuMA=="],
 
-    "sass-embedded-win32-arm64": ["sass-embedded-win32-arm64@1.86.3", "", { "os": "win32", "cpu": "arm64" }, "sha512-4ghuAzjX4q8Nksm0aifRz8hgXMMxS0SuymrFfkfJlrSx68pIgvAge6AOw0edoZoe0Tf5ZbsWUWamhkNyNxkTvw=="],
+    "sass-embedded-win32-arm64": ["sass-embedded-win32-arm64@1.87.0", "", { "os": "win32", "cpu": "arm64" }, "sha512-m1DS6FYUE0/fv+vt38uQB/kxR4UjnyD+2zcSc298pFmA0aYh/XZIPWw7RxG1HL3KLE1ZrGyu3254MPoxRhs3ig=="],
 
-    "sass-embedded-win32-ia32": ["sass-embedded-win32-ia32@1.86.3", "", { "os": "win32", "cpu": "ia32" }, "sha512-tCaK4zIRq9mLRPxLzBAdYlfCuS/xLNpmjunYxeWkIwlJo+k53h1udyXH/FInnQ2GgEz0xMXyvH3buuPgzwWYsw=="],
+    "sass-embedded-win32-ia32": ["sass-embedded-win32-ia32@1.87.0", "", { "os": "win32", "cpu": "ia32" }, "sha512-JztXLo59GMe2E6g+kCsyiERYhtZgkcyDYx6CrXoSTE5WaE+RbxRiCCCv8/1+hf406f08pUxJ8G0Ody7M5urtBA=="],
 
-    "sass-embedded-win32-x64": ["sass-embedded-win32-x64@1.86.3", "", { "os": "win32", "cpu": "x64" }, "sha512-zS+YNKfTF4SnOfpC77VTb0qNZyTXrxnAezSoRV0xnw6HlY+1WawMSSB6PbWtmbvyfXNgpmJUttoTtsvJjRCucg=="],
+    "sass-embedded-win32-x64": ["sass-embedded-win32-x64@1.87.0", "", { "os": "win32", "cpu": "x64" }, "sha512-4nQErpauvhgSo+7ClumGdjdf9sGx+U9yBgvhI0+zUw+D5YvraVgvA0Lk8Wuwntx2PqnvKUk8YDr/vxHJostv4Q=="],
 
     "sax": ["sax@1.4.1", "", {}, "sha512-+aWOz7yVScEGoKNd4PA10LZ8sk0A/z5+nXQG5giUO5rprX9jgYsTdov9qCchZiPIZezbZH+jRut8nPodFAX4Jg=="],
 
@@ -1449,7 +1449,7 @@
 
     "electron-updater/semver": ["semver@7.7.1", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-hlq8tAfn0m/61p4BVRcPzIGr6LKiMwo4VM6dGi6pt4qcRkmNzTcWq6eCEjEh+qXjkMDvPlOFFSGwQjoEa6gyMA=="],
 
-    "eslint/@eslint/js": ["@eslint/js@9.25.0", "", {}, "sha512-iWhsUS8Wgxz9AXNfvfOPFSW4VfMXdVhp1hjkZVhXCrpgh/aLcc45rX6MPu+tIVUWDw0HfNwth7O28M1xDxNf9w=="],
+    "eslint/@eslint/js": ["@eslint/js@9.25.1", "", {}, "sha512-dEIwmjntEx8u3Uvv+kr3PDeeArL8Hw07H9kyYxCjnM9pBjfEhk6uLXSchxxzgiwtRhhzVzqmUSDFBOi1TuZ7qg=="],
 
     "fast-glob/glob-parent": ["glob-parent@5.1.2", "", { "dependencies": { "is-glob": "^4.0.1" } }, "sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow=="],
 
