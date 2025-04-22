@@ -33,21 +33,30 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
     dockerProcess.stderr.on('data', (data) => {
       const output = data.toString().trim()
 
-      // Check if this is a progress message (like image pull) rather than an actual error
-      if (
-        output.includes('Pulling from') ||
-        output.includes('Pulling fs layer') ||
-        output.includes('Download complete') ||
-        output.includes('Pull complete') ||
-        output.includes('Digest:') ||
-        output.includes('Status:') ||
-        output.includes('Started') ||
-        output.includes('Starting') ||
-        output.includes('Running') ||
-        output.includes('Built') ||
-        output.includes('Creating') ||
-        output.includes('Created')
-      ) {
+      // Define progress keywords
+      const progressKeywords = [
+        'Pulling from',
+        'Pulling fs layer',
+        'Download complete',
+        'Pull complete',
+        'Digest:',
+        'Status:',
+        'Started',
+        'Starting',
+        'Running',
+        'Built',
+        'Creating',
+        'Created',
+        'Extracting',
+        'Verifying Checksum',
+        'Downloading',
+        'Unpacking',
+        'Waiting',
+        'Removing'
+      ]
+
+      // Check if the output contains any of the progress keywords
+      if (progressKeywords.some((keyword) => output.includes(keyword))) {
         console.log(`Docker compose progress (stderr): ${output}`)
 
         if (mainWindow) {

@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { promises as fs } from 'fs'
+import { promises as fs, constants } from 'fs' // Import constants
 import { exec } from 'child_process'
 import { generateNginxConfig, removeNginxConfig } from './nginx'
 import { modifyHostsFile } from './hosts'
@@ -68,41 +68,66 @@ export function createSite(site: {
   }
 }): Promise<boolean> {
   return new Promise((resolve, reject) => {
-    const sitePath = join(process.cwd(), 'www', site.domain)
-    const dbName = site.domain.replace(/\./g, '_') // Convert domain to valid db name
+    ;(async () => {
+      const sitePath = join(process.cwd(), 'www', site.domain)
+      const dbName = site.domain.replace(/\./g, '_')
 
-    // Use fs.mkdir instead of exec for cross-platform directory creation
-    fs.mkdir(sitePath, { recursive: true })
-      .then(async () => {
-        try {
-          await modifyHostsFile(site.domain, 'add')
-          await generateNginxConfig(site.domain, site.multisite)
-          await createDatabase(dbName)
-          await installWordPress(site.domain, dbName)
+      try {
+        // Check if the directory already exists
+        await fs.access(sitePath, constants.F_OK)
+        // If access doesn't throw, the directory exists
+        reject(new Error(`Site directory '${sitePath}' already exists.`))
+        return // Stop execution
+      } catch (error: any) {
+        // If the error code is ENOENT, the directory doesn't exist, which is expected
+        if (error.code !== 'ENOENT') {
+          // For any other error during access check, reject
+          console.error(`Error checking site directory:`, error)
+          reject(`Error checking site directory: ${error.message}`)
+          return
+        }
+        // Directory does not exist, proceed to create it
+        console.log(`Site directory ${sitePath} does not exist. Creating...`)
+      }
 
-          // Convert to multisite if enabled
-          if (site.multisite?.enabled) {
-            await convertToMultisite(site.domain, site.multisite)
-          }
+      // Directory doesn't exist, proceed with creation and setup
+      try {
+        await fs.mkdir(sitePath, { recursive: true }) // Create the directory
 
-          resolve(true)
-        } catch (configError) {
-          // If WordPress installation fails, still create the basic site with the HTML template
-          console.warn(
-            `WordPress installation failed: ${configError}. Creating basic site instead.`
-          )
+        // Proceed with the rest of the site setup
+        await modifyHostsFile(site.domain, 'add')
+        await generateNginxConfig(site.domain, site.multisite)
+        await createDatabase(dbName)
+        await installWordPress(site.domain, dbName)
+
+        // Convert to multisite if enabled
+        if (site.multisite?.enabled) {
+          await convertToMultisite(site.domain, site.multisite)
+        }
+
+        resolve(true)
+      } catch (setupError: any) {
+        // Catch errors during setup
+        // Handle WordPress installation failure or other setup errors
+        if (setupError.message.includes('installWordPress')) {
+          // Check if it's a WP install error specifically if needed
+          console.warn(`WordPress installation failed: ${setupError}. Creating basic site instead.`)
           try {
             await generateIndexHtml(site.domain, sitePath, dbName)
-            resolve(true)
-          } catch (htmlError) {
-            reject(`Error setting up site: ${htmlError}`)
+            resolve(true) // Resolve even if WP install failed but index.html was created
+          } catch (htmlError: any) {
+            reject(`Error setting up site after WP failure: ${htmlError.message}`)
           }
+        } else {
+          // Handle other setup errors (mkdir, hosts, nginx, db, etc.)
+          console.error(`Error setting up site:`, setupError)
+          // Attempt cleanup? (Optional, depends on desired behavior)
+          // e.g., await fs.rm(sitePath, { recursive: true, force: true });
+          //      await modifyHostsFile(site.domain, 'remove'); ... etc.
+          reject(`Error setting up site: ${setupError.message}`)
         }
-      })
-      .catch((error) => {
-        console.error(`Error creating site directory:`, error)
-        reject(`Error creating site directory: ${error.message}`)
-      })
+      }
+    })()
   })
 }
 
