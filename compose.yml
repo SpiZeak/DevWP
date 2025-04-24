@@ -71,6 +71,27 @@ services:
     ports:
       - 1025:1025 # smtp server
       - 8025:8025 # web ui
+
+  sonarqube:
+    container_name: devwp_sonarqube
+    image: sonarqube:community
+    expose:
+      - 9000
+    ports:
+      - '9000:9000'
+
+  sonarqube-scanner:
+    container_name: devwp_sonarqube-scanner
+    image: sonarsource/sonar-scanner-cli:latest
+    volumes:
+      - ./www:/usr/src:r
+    entrypoint: [
+      "sonar-scanner",
+      "-Dsonar.projectKey=cirkulation",
+      "-Dsonar.sources=cirkulation.test",
+      "-Dsonar.host.url=http://sonarqube:9000",
+      "-Dsonar.token=sqp_7469b2ba5c18b21d78ded586c997fff84dd7c73d"
+    ]
 volumes:
   database:
   cache:
