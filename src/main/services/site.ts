@@ -551,3 +551,68 @@ async function deleteSonarQubeProject(projectKey: string): Promise<void> {
     })
   })
 }
+
+// Scan a site with SonarQube using user/password
+export async function scanSiteWithSonarQube(siteDomain: string): Promise<void> {
+  const projectKey = siteDomain.replace(/\./g, '_')
+  const sourcePathInContainer = `/usr/src/${siteDomain}` // Path inside the scanner container
+  const sonarHostUrl = 'http://sonarqube:9000'
+
+  // Use the same credentials as for project creation/deletion
+  // WARNING: Using default SonarQube admin credentials. See createSonarQubeProject warning.
+  const sonarUser = 'admin'
+  const sonarPassword = 'newAdminPassword1<'
+
+  // Construct the sonar-scanner command using user/password
+  // Note: Assumes the sonarqube-scanner service is running and has access to the source code volume
+  const scanCmd = `docker compose run sonarqube-scanner sonar-scanner \
+    -Dsonar.projectKey=${projectKey} \
+    -Dsonar.sources=${sourcePathInContainer} \
+    -Dsonar.host.url=${sonarHostUrl} \
+    -Dsonar.login=${sonarUser} \
+    -Dsonar.password='${sonarPassword}'` // Added single quotes around the password value
+
+  return new Promise((resolve, reject) => {
+    console.log(
+      `Starting SonarQube scan for project: ${projectKey} (Site: ${siteDomain}) using user/password...`
+    )
+    exec(scanCmd, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error executing SonarQube scan command for ${siteDomain}: ${stderr}`)
+        // Provide more specific feedback if possible
+        if (stderr.includes('Authentication failed')) {
+          reject(new Error('SonarQube authentication failed. Check the provided credentials.'))
+        } else if (stderr.includes('Project not found')) {
+          reject(
+            new Error(
+              `SonarQube project '${projectKey}' not found. Ensure it was created successfully.`
+            )
+          )
+        } else {
+          reject(new Error(`SonarQube scan failed: ${error.message}`))
+        }
+        return
+      }
+
+      // Log stdout and stderr for debugging purposes (scanner output)
+      if (stdout) {
+        console.log(`SonarQube scan stdout for ${siteDomain}:\n${stdout}`)
+      }
+      if (stderr) {
+        console.warn(`SonarQube scan stderr for ${siteDomain}:\n${stderr}`) // Use warn as stderr might contain non-fatal info
+      }
+
+      // Check stdout for explicit success or failure messages if the exit code is 0 but scan failed
+      if (stdout.includes('EXECUTION_FAILURE')) {
+        console.error(`SonarQube scan for ${siteDomain} reported execution failure.`)
+        reject(new Error('SonarQube scan execution failed. Check scanner logs.'))
+        return
+      }
+
+      console.log(`Successfully completed SonarQube scan initiation for: ${siteDomain}`)
+      // Note: The scan itself runs asynchronously on the SonarQube server.
+      // This promise resolves when the scanner CLI finishes its execution.
+      resolve()
+    })
+  })
+}

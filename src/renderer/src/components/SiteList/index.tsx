@@ -12,6 +12,7 @@ const SiteList: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
+  const [scanningSite, setScanningSite] = useState<string | null>(null)
   const [newSite, setNewSite] = useState<{
     domain: string
     multisite: {
@@ -72,6 +73,29 @@ const SiteList: React.FC = () => {
     }
   }
 
+  // Add handler for SonarQube scan
+  const handleScanSite = async (site: Site): Promise<void> => {
+    if (scanningSite) return // Prevent multiple scans at once (simple approach)
+    console.log(`Initiating SonarQube scan for ${site.name}...`)
+    setScanningSite(site.name) // Set scanning state
+    try {
+      const result = await window.electronAPI.scanSiteWithSonarQube(site.name)
+      if (result.success) {
+        alert(
+          `SonarQube scan initiated successfully for ${site.name}. Check SonarQube UI for progress.`
+        )
+      } else {
+        console.error(`SonarQube scan failed for ${site.name}:`, result.error)
+        alert(`SonarQube scan failed for ${site.name}: ${result.error}`)
+      }
+    } catch (error) {
+      console.error(`Failed to trigger SonarQube scan for ${site.name}:`, error)
+      alert(`Failed to trigger SonarQube scan for ${site.name}.`)
+    } finally {
+      setScanningSite(null) // Reset scanning state
+    }
+  }
+
   const fetchSites = async (): Promise<void> => {
     try {
       setLoading(true)
@@ -102,7 +126,7 @@ const SiteList: React.FC = () => {
       <div className="header">
         <h3>My Sites</h3>
         <button onClick={handleCreateSite} className="new-site-button">
-          <span className="plus-icon">+</span> New Site
+          <span className="icon"></span> New Site
         </button>
       </div>
       <ul className="sites-list">
@@ -126,10 +150,30 @@ const SiteList: React.FC = () => {
                 <div className="site-path">{site.path}</div>
               </div>
               <div className="site-actions">
-                <button onClick={() => openSiteUrl(site.url)} className="open-button">
-                  Open
+                <button
+                  onClick={() => openSiteUrl(site.url)}
+                  className="open-button"
+                  title="Open Site"
+                >
+                  <span className="icon"></span>
                 </button>
-                <button onClick={() => handleDeleteSite(site)} className="delete-button">
+                <button
+                  onClick={() => handleScanSite(site)}
+                  className={`scan-button ${scanningSite === site.name ? 'scanning' : ''}`}
+                  disabled={scanningSite === site.name} // Disable while scanning this site
+                  title={scanningSite === site.name ? 'Scan in progress...' : 'Run SonarQube Scan'}
+                >
+                  {scanningSite === site.name ? (
+                    <span className="scanning-spinner" /> // Add a spinner or indicator
+                  ) : (
+                    <span className="icon">󱉶</span>
+                  )}
+                </button>
+                <button
+                  onClick={() => handleDeleteSite(site)}
+                  className="delete-button"
+                  title="Delete Site"
+                >
                   <span className="icon"></span>
                 </button>
               </div>

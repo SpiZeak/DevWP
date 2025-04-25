@@ -35,7 +35,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => {
       ipcRenderer.removeListener('xdebug-status', listener)
     }
-  }
+  },
+  scanSiteWithSonarQube: (siteDomain: string) =>
+    ipcRenderer.invoke('scan-site-sonarqube', siteDomain)
 })
 
 // Custom APIs for renderer
