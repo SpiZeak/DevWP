@@ -70,7 +70,9 @@ export function createSite(site: {
   return new Promise((resolve, reject) => {
     ;(async () => {
       const sitePath = join(process.cwd(), 'www', site.domain)
-      const dbName = site.domain.replace(/\./g, '_')
+      const dbName = site.domain.replace(/\./g, '_') // Used for DB and SonarQube project key
+      const sonarProjectKey = dbName // Use the sanitized name for SonarQube project key
+      const sonarProjectName = site.domain // Use the original domain for SonarQube project name
 
       try {
         // Check if the directory already exists
@@ -98,23 +100,47 @@ export function createSite(site: {
         await modifyHostsFile(site.domain, 'add')
         await generateNginxConfig(site.domain, site.multisite)
         await createDatabase(dbName)
-        await installWordPress(site.domain, dbName)
+        await installWordPress(site.domain, dbName) // Attempt WP install
 
         // Convert to multisite if enabled
         if (site.multisite?.enabled) {
           await convertToMultisite(site.domain, site.multisite)
         }
 
+        // Attempt to create SonarQube project
+        try {
+          await createSonarQubeProject(sonarProjectName, sonarProjectKey)
+        } catch (sonarError: any) {
+          console.warn(
+            `Failed to create SonarQube project for ${site.domain}: ${sonarError.message}`
+          )
+          // Log the error but don't fail the site creation
+        }
+
         resolve(true)
       } catch (setupError: any) {
         // Catch errors during setup
         // Handle WordPress installation failure or other setup errors
-        if (setupError.message.includes('installWordPress')) {
-          // Check if it's a WP install error specifically if needed
-          console.warn(`WordPress installation failed: ${setupError}. Creating basic site instead.`)
+        if (
+          setupError.message.includes('installWordPress') ||
+          setupError.message.includes('multisite-convert')
+        ) {
+          // Check if it's a WP install or multisite conversion error specifically if needed
+          console.warn(`WordPress setup failed: ${setupError}. Creating basic site instead.`)
           try {
             await generateIndexHtml(site.domain, sitePath, dbName)
-            resolve(true) // Resolve even if WP install failed but index.html was created
+
+            // Attempt to create SonarQube project even if WP install failed
+            try {
+              await createSonarQubeProject(sonarProjectName, sonarProjectKey)
+            } catch (sonarError: any) {
+              console.warn(
+                `Failed to create SonarQube project for ${site.domain} after WP failure: ${sonarError.message}`
+              )
+              // Log the error but don't fail the site creation
+            }
+
+            resolve(true) // Resolve even if WP setup failed but index.html was created
           } catch (htmlError: any) {
             reject(`Error setting up site after WP failure: ${htmlError.message}`)
           }
@@ -299,6 +325,7 @@ export function deleteSite(site: { name: string }): Promise<boolean> {
   return new Promise((resolve, reject) => {
     const sitePath = join(process.cwd(), 'www', site.name)
     const dbName = site.name.replace(/\./g, '_')
+    const sonarProjectKey = dbName // Use the same key convention
 
     fs.rm(sitePath, { recursive: true, force: true })
       .then(async () => {
@@ -307,9 +334,21 @@ export function deleteSite(site: { name: string }): Promise<boolean> {
           await removeNginxConfig(site.name)
           await dropDatabase(dbName)
           await clearRedisCache(site.name)
+
+          // Attempt to delete SonarQube project
+          try {
+            await deleteSonarQubeProject(sonarProjectKey)
+          } catch (sonarError: any) {
+            console.warn(
+              `Failed to delete SonarQube project ${sonarProjectKey}: ${sonarError.message}`
+            )
+            // Log the error but don't fail the site deletion
+          }
+
           resolve(true)
-        } catch (hostsError) {
-          reject(`Error cleaning up site: ${hostsError}`)
+        } catch (cleanupError: any) {
+          // Changed variable name for clarity
+          reject(`Error cleaning up site: ${cleanupError}`)
         }
       })
       .catch((error) => {
@@ -374,6 +413,140 @@ async function convertToMultisite(
 
       console.log(`Successfully converted ${siteDomain} to multisite (${multisite.type})`)
       console.log(stdout)
+      resolve()
+    })
+  })
+}
+
+// Create a SonarQube project
+async function createSonarQubeProject(projectName: string, projectKey: string): Promise<void> {
+  // WARNING: Using default SonarQube admin credentials (admin:admin).
+  // This is insecure if the default password has been changed or for non-local environments.
+  // Consider generating a specific API token in SonarQube (Administration > Security > Users > Tokens)
+  // and storing it securely (e.g., using environment variables) for improved security and practice.
+  const sonarUser = 'admin'
+  const sonarPassword = 'newAdminPassword1<'
+
+  // Ensure curl is installed in the php container:
+  // Add 'RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*' to config/php/Dockerfile if needed
+  const createProjectCmd = `docker compose exec php curl -u '${sonarUser}:${sonarPassword}' -X POST 'http://sonarqube:9000/api/projects/create' -d 'name=${encodeURIComponent(projectName)}&project=${encodeURIComponent(projectKey)}'` // Added single quotes around -u argument
+
+  return new Promise((resolve, reject) => {
+    console.log(
+      `Creating SonarQube project: ${projectName} (Key: ${projectKey}) using default credentials...`
+    )
+    exec(createProjectCmd, (error, stdout, stderr) => {
+      // SonarQube API might return errors in stdout with a 200 OK status initially,
+      // or non-200 status codes for auth errors etc.
+      // A successful creation might return JSON data or just status 200.
+      // A failure (e.g., project key exists) might return JSON with an error message in stdout and status 400.
+      // Let's check stderr first, then potential error messages in stdout.
+
+      if (error) {
+        // This usually catches network errors or if curl command fails fundamentally
+        console.error(`Error executing SonarQube project creation command: ${stderr}`)
+        // Check if the error is due to authentication failure (HTTP 401)
+        if (stderr.includes('401') || stdout.includes('Authentication required')) {
+          console.error(
+            'SonarQube authentication failed. Check default credentials or configure an API token.'
+          )
+          reject(
+            new Error(
+              'SonarQube authentication failed. Check default credentials (admin:admin) or configure an API token.'
+            )
+          )
+        } else {
+          reject(new Error(`Failed to execute curl command: ${error.message}`))
+        }
+        return
+      }
+
+      // Check stdout for specific SonarQube API error messages (often returned with non-error HTTP status)
+      // Example error: {"errors":[{"msg":"Project key already exists: ..."}]}
+      // Example auth error (sometimes in stdout): {"errors":[{"msg":"Authentication required"}]}
+      if (stdout.includes('"errors":')) {
+        if (stdout.includes('Authentication required')) {
+          console.error(
+            'SonarQube authentication failed. Check default credentials or configure an API token.'
+          )
+          reject(
+            new Error(
+              'SonarQube authentication failed. Check default credentials (admin:admin) or configure an API token.'
+            )
+          )
+        } else {
+          console.error(`SonarQube API error creating project ${projectKey}: ${stdout}`)
+          reject(new Error(`SonarQube API error: ${stdout}`))
+        }
+        return
+      }
+
+      // If stderr is present but no 'error' object, it might be informational from curl
+      if (stderr) {
+        console.warn(`SonarQube project creation stderr (may be informational): ${stderr}`)
+      }
+
+      console.log(`Successfully initiated SonarQube project creation for: ${projectName}`)
+      // Note: API call is asynchronous on the SonarQube server side.
+      // We resolve here assuming the API call was accepted.
+      resolve()
+    })
+  })
+}
+
+// Delete a SonarQube project
+async function deleteSonarQubeProject(projectKey: string): Promise<void> {
+  // WARNING: Using default SonarQube admin credentials (admin:admin). See createSonarQubeProject warning.
+  const sonarUser = 'admin'
+  const sonarPassword = 'newAdminPassword1<' // Ensure this matches the password used/set
+
+  // Ensure curl is installed in the php container
+  const deleteProjectCmd = `docker compose exec php curl -u '${sonarUser}:${sonarPassword}' -X POST 'http://sonarqube:9000/api/projects/delete' -d 'project=${encodeURIComponent(projectKey)}'` // Added single quotes around -u argument
+
+  return new Promise((resolve, reject) => {
+    console.log(`Deleting SonarQube project (Key: ${projectKey}) using default credentials...`)
+    exec(deleteProjectCmd, (error, stdout, stderr) => {
+      // Similar error handling as createSonarQubeProject
+
+      if (error) {
+        console.error(`Error executing SonarQube project deletion command: ${stderr}`)
+        if (stderr.includes('401') || stdout.includes('Authentication required')) {
+          console.error('SonarQube authentication failed. Check credentials or token.')
+          reject(new Error('SonarQube authentication failed.'))
+        } else {
+          reject(new Error(`Failed to execute curl command: ${error.message}`))
+        }
+        return
+      }
+
+      // Check stdout for API errors (e.g., project not found might be here or indicated by status code handled by error object)
+      // SonarQube might return 204 No Content on success, or errors in JSON.
+      if (stdout.includes('"errors":')) {
+        if (stdout.includes('Authentication required')) {
+          console.error('SonarQube authentication failed. Check credentials or token.')
+          reject(new Error('SonarQube authentication failed.'))
+        } else if (stdout.includes('not found')) {
+          console.warn(
+            `SonarQube project ${projectKey} not found for deletion (may have already been deleted).`
+          )
+          resolve() // Resolve successfully if project not found
+        } else {
+          console.error(`SonarQube API error deleting project ${projectKey}: ${stdout}`)
+          reject(new Error(`SonarQube API error: ${stdout}`))
+        }
+        return
+      }
+
+      // Check stderr for potential issues not caught by 'error'
+      if (stderr) {
+        // Ignore "Empty reply from server" which can happen with 204 responses in some curl versions
+        if (!stderr.includes('Empty reply from server')) {
+          console.warn(`SonarQube project deletion stderr (may be informational): ${stderr}`)
+        }
+      }
+
+      console.log(`Successfully initiated SonarQube project deletion for: ${projectKey}`)
+      // API call is asynchronous on the SonarQube server side.
       resolve()
     })
   })
