@@ -164,7 +164,7 @@ const SiteList: React.FC = () => {
                   title={scanningSite === site.name ? 'Scan in progress...' : 'Run SonarQube Scan'}
                 >
                   {scanningSite === site.name ? (
-                    <span className="scanning-spinner" /> // Add a spinner or indicator
+                    <span className="provisioning-spinner" title="Site is being provisioned" />
                   ) : (
                     <span className="icon">󱉶</span>
                   )}
