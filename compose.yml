@@ -8,9 +8,6 @@ services:
         GROUP_ID: ${GID:-1000}
     expose:
       - 9000
-    depends_on:
-      - database
-      - cache
     volumes:
       - ./www:/src/www:rw
       - ./config/php/php.ini:/usr/local/etc/php/php.ini:ro
@@ -57,6 +54,8 @@ services:
       - ./www:/src/www:rw
     depends_on:
       - php
+      - database
+      - cache
       - certs
 
   certs:

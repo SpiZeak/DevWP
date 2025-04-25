@@ -5,11 +5,9 @@ import { BrowserWindow } from 'electron'
 // Function to start Docker Compose
 export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
   return new Promise((resolve, reject) => {
-    // Cross-platform Docker Compose command
     const isWin = platform() === 'win32'
     const command = isWin ? 'docker-compose.exe' : 'docker-compose'
-
-    const dockerProcess = spawn(command, ['up', '-d', '--build'])
+    const dockerProcess = spawn(command, ['up', '-d', '--build', 'web'])
 
     // Send initial status if window exists
     if (mainWindow) {

@@ -25,8 +25,6 @@ const Services: React.FC = () => {
   const [restarting, setRestarting] = useState({})
   const containerMap = containers.filter((container) => container.name.includes('devwp_'))
 
-  console.log('Container Map:', containerMap)
-
   useEffect(() => {
     // Set up a listener for container status updates
     const removeListener = window.electronAPI.onContainerStatus((containers) => {
@@ -46,7 +44,6 @@ const Services: React.FC = () => {
 
     try {
       await window.electronAPI.restartContainer(containerId)
-      console.log(`Container ${containerName} restart requested`)
     } catch (error) {
       console.error(`Error restarting container ${containerName}:`, error)
     } finally {

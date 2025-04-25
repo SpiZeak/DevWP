@@ -41,8 +41,6 @@ const SiteList: React.FC = () => {
   }
 
   const handleSubmitNewSite = async (): Promise<void> => {
-    console.log('Creating new site:', newSite)
-
     setSites([
       {
         name: newSite.domain,
@@ -73,11 +71,9 @@ const SiteList: React.FC = () => {
     }
   }
 
-  // Add handler for SonarQube scan
   const handleScanSite = async (site: Site): Promise<void> => {
-    if (scanningSite) return // Prevent multiple scans at once (simple approach)
-    console.log(`Initiating SonarQube scan for ${site.name}...`)
-    setScanningSite(site.name) // Set scanning state
+    if (scanningSite) return
+    setScanningSite(site.name)
     try {
       const result = await window.electronAPI.scanSiteWithSonarQube(site.name)
       if (result.success) {
@@ -92,7 +88,7 @@ const SiteList: React.FC = () => {
       console.error(`Failed to trigger SonarQube scan for ${site.name}:`, error)
       alert(`Failed to trigger SonarQube scan for ${site.name}.`)
     } finally {
-      setScanningSite(null) // Reset scanning state
+      setScanningSite(null)
     }
   }
 
