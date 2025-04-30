@@ -14,6 +14,8 @@ import {
 registerContainerHandlers()
 registerSiteHandlers()
 
+app.commandLine.appendSwitch('gtk-version', '3')
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.whenReady().then(() => {
