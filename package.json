@@ -23,7 +23,7 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
-    "@types/bun": "^1.2.11",
+    "@types/bun": "^1.2.12",
     "electron-updater": "^6.6.2",
     "sudo-prompt": "^9.2.1"
   },
