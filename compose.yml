@@ -57,6 +57,7 @@ services:
       - database
       - cache
       - certs
+      - sonarqube
 
   certs:
     container_name: devwp_certs
