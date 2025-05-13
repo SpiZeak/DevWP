@@ -50,10 +50,14 @@
   }
 
   .site-item {
-    padding: 15px;
+    padding: 0.5rem 1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
+
+    &:hover {
+      background-color: var(--ev-c-gray-1);
+    }
 
     &.with-border {
       border-bottom: 1px solid var(--ev-c-gray-2);
