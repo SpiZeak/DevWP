@@ -1,4 +1,4 @@
-FROM nginx:alpine AS builder
+FROM nginx:stable-alpine AS builder
 
 # For latest build deps, see https://github.com/nginxinc/docker-nginx/blob/master/mainline/alpine/Dockerfile
 RUN apk add --no-cache --virtual .build-deps \
@@ -22,15 +22,15 @@ RUN apk add --no-cache --virtual .build-deps \
 # Create required directory
 RUN mkdir -p /usr/src
 
-# Download and compile LibreSSL 4.0.0
+# Download and compile LibreSSL 4.1.0
 RUN cd /usr/src && \
-	curl -sSL https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-4.0.0.tar.gz -o libressl-4.0.0.tar.gz && \
-	tar -zxf libressl-4.0.0.tar.gz && \
-	cd libressl-4.0.0 && \
+	curl -sSL https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-4.1.0.tar.gz -o libressl-4.1.0.tar.gz && \
+	tar -zxf libressl-4.1.0.tar.gz && \
+	cd libressl-4.1.0 && \
 	mkdir build && \
 	cd build && \
 	cmake .. \
-	-DCMAKE_INSTALL_PREFIX=/usr/local/libressl-4.0.0 \
+	-DCMAKE_INSTALL_PREFIX=/usr/local/libressl-4.1.0 \
 	-DCMAKE_BUILD_TYPE=Release && \
 	make -j$(nproc) && \
 	make install
@@ -63,7 +63,7 @@ RUN cd /usr/src/nginx-$NGINX_VERSION && \
 	--with-http_gzip_static_module \
 	--with-compat \
 	--add-dynamic-module=../ngx_brotli \
-	--with-openssl=/usr/src/libressl-4.0.0 \
+	--with-openssl=/usr/src/libressl-4.1.0 \
 	--with-openssl-opt=enable-tls1_3 && \
 	make && make install
 
@@ -82,12 +82,12 @@ RUN addgroup -g ${GROUP_ID} -S appuser && \
 
 # Copy modules and LibreSSL from builder
 COPY --from=builder /usr/lib/nginx/modules/*.so /usr/lib/nginx/modules/
-COPY --from=builder /usr/local/libressl-4.0.0 /usr/local/libressl-4.0.0
+COPY --from=builder /usr/local/libressl-4.1.0 /usr/local/libressl-4.1.0
 COPY --from=builder /usr/sbin/nginx /usr/sbin/nginx
 
 # Set up environment for LibreSSL
-ENV LD_LIBRARY_PATH=/usr/local/libressl-4.0.0/lib:$LD_LIBRARY_PATH
-ENV PATH=/usr/local/libressl-4.0.0/bin:$PATH
+ENV LD_LIBRARY_PATH=/usr/local/libressl-4.1.0/lib:$LD_LIBRARY_PATH
+ENV PATH=/usr/local/libressl-4.1.0/bin:$PATH
 
 RUN rm /etc/nginx/conf.d/default.conf
 
