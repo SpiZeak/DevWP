@@ -156,7 +156,7 @@ export function getDockerContainers(): Promise<Container[]> {
 // Helper function to get container version
 function getContainerVersion(containerId: string): Promise<string | undefined> {
   return new Promise((resolve) => {
-    // First, get the container name to identify if it's the web/nginx container
+    // Get the container name to identify special cases
     exec(`docker inspect --format='{{.Name}}' ${containerId}`, (nameError, nameStdout) => {
       if (nameError) {
         console.error(`Error getting container name for ${containerId}:`, nameError)
@@ -164,44 +164,52 @@ function getContainerVersion(containerId: string): Promise<string | undefined> {
         return
       }
 
-      const containerName = nameStdout.trim().replace(/^\//, '') // Remove leading slash if present
+      const containerName = nameStdout.trim().replace(/^\//, '')
 
-      // Special handling for nginx (web) container
-      if (containerName === 'devwp_web') {
-        // Execute nginx -v inside the container to get its version
-        exec(`docker exec ${containerId} nginx -v`, (nginxError, nginxStderr, stderr) => {
-          if (nginxError) {
-            console.error(`Error getting Nginx version for container ${containerId}:`, nginxError)
-            resolve(undefined)
-            return
-          }
-
+      switch (containerName) {
+        case 'devwp_web':
           // Nginx outputs version to stderr
-          const output = stderr || nginxStderr
-          const versionMatch = output.match(/nginx\/(\d+\.\d+\.\d+)/)
-          const version = versionMatch ? versionMatch[1] : undefined
-
-          resolve(version)
-        })
-      } else {
-        // For other containers, use the original image tag extraction method
-        exec(
-          `docker inspect --format='{{index .Config.Image}}' ${containerId}`,
-          (error, stdout) => {
-            if (error) {
-              console.error(`Error getting version for container ${containerId}:`, error)
+          exec(`docker exec ${containerId} nginx -v`, (nginxError, _stdout, nginxStderr) => {
+            if (nginxError) {
+              console.error(`Error getting Nginx version for container ${containerId}:`, nginxError)
               resolve(undefined)
               return
             }
+            const output = nginxStderr
+            const versionMatch = output.match(/nginx\/(\d+\.\d+\.\d+)/)
+            resolve(versionMatch ? versionMatch[1] : undefined)
+          })
+          break
 
-            const image = stdout.trim()
-            // Parse version from image tag if available
-            const versionMatch = image.match(/:([^:]+)$/)
-            const version = versionMatch ? versionMatch[1] : 'latest'
+        case 'devwp_php':
+          // PHP outputs version to stdout, extract only the version number
+          exec(`docker exec ${containerId} php --version`, (phpError, phpStdout) => {
+            if (phpError) {
+              console.error(`Error getting PHP version for container ${containerId}:`, phpError)
+              resolve(undefined)
+              return
+            }
+            // Extract version number from the first line, e.g. "PHP 8.1.2 (cli) ..."
+            const match = phpStdout.match(/PHP\s+(\d+\.\d+\.\d+)/)
+            resolve(match ? match[1] : undefined)
+          })
+          break
 
-            resolve(version)
-          }
-        )
+        default:
+          // For other containers, use the image tag
+          exec(
+            `docker inspect --format='{{index .Config.Image}}' ${containerId}`,
+            (error, stdout) => {
+              if (error) {
+                console.error(`Error getting version for container ${containerId}:`, error)
+                resolve(undefined)
+                return
+              }
+              const image = stdout.trim()
+              const versionMatch = image.match(/:([^:]+)$/)
+              resolve(versionMatch ? versionMatch[1] : 'latest')
+            }
+          )
       }
     })
   })
