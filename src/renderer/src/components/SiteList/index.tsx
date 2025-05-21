@@ -26,6 +26,13 @@ const SiteList: React.FC = () => {
       type: 'subdirectory'
     }
   })
+  const [wpCliModal, setWpCliModal] = useState<{ open: boolean; site: Site | null }>({
+    open: false,
+    site: null
+  })
+  const [wpCliCommand, setWpCliCommand] = useState<string>('')
+  const [wpCliResult, setWpCliResult] = useState<{ output?: string; error?: string } | null>(null)
+  const [wpCliLoading, setWpCliLoading] = useState<boolean>(false)
 
   const openSiteUrl = (url: string): void => {
     window.electron.ipcRenderer.invoke('open-external', url)
@@ -89,6 +96,31 @@ const SiteList: React.FC = () => {
       alert(`Failed to trigger SonarQube scan for ${site.name}.`)
     } finally {
       setScanningSite(null)
+    }
+  }
+
+  const handleOpenWpCliModal = (site: Site) => {
+    setWpCliModal({ open: true, site })
+    setWpCliCommand('')
+    setWpCliResult(null)
+  }
+
+  const handleCloseWpCliModal = () => {
+    setWpCliModal({ open: false, site: null })
+    setWpCliCommand('')
+    setWpCliResult(null)
+  }
+
+  const handleRunWpCli = async () => {
+    setWpCliLoading(true)
+    setWpCliResult(null)
+    try {
+      const result = await window.electronAPI.runWpCliCommand(wpCliModal.site, wpCliCommand)
+      setWpCliResult(result)
+    } catch (e) {
+      setWpCliResult({ error: String(e) })
+    } finally {
+      setWpCliLoading(false)
     }
   }
 
@@ -171,6 +203,13 @@ const SiteList: React.FC = () => {
                   title="Delete Site"
                 >
                   <span className="icon"></span>
+                </button>
+                <button
+                  onClick={() => handleOpenWpCliModal(site)}
+                  className="wpcli-button"
+                  title="Run WP-CLI Command"
+                >
+                  <span className="icon"></span>
                 </button>
               </div>
             </li>
@@ -296,6 +335,64 @@ const SiteList: React.FC = () => {
                 Create
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {wpCliModal.open && wpCliModal.site && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 className="modal-title">
+              Run WP-CLI Command for <span className="bold-text">{wpCliModal.site.name}</span>
+            </h3>
+            <div className="form-group">
+              <label className="form-label">Command</label>
+              <input
+                type="text"
+                className="form-input"
+                value={wpCliCommand}
+                onChange={(e) => setWpCliCommand(e.target.value)}
+                placeholder="e.g. plugin list"
+                disabled={wpCliLoading}
+              />
+              <div className="form-help-text">
+                Only enter the command after <span className="bold-text">wp</span>, e.g.{' '}
+                <code>plugin list</code>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                onClick={handleCloseWpCliModal}
+                className="cancel-button"
+                disabled={wpCliLoading}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRunWpCli}
+                className="create-button"
+                disabled={!wpCliCommand.trim() || wpCliLoading}
+              >
+                {wpCliLoading ? 'Running...' : 'Run'}
+              </button>
+            </div>
+            {wpCliResult && (
+              <div className="form-group">
+                <label className="form-label">Result</label>
+                <pre
+                  style={{
+                    background: '#222',
+                    color: '#fff',
+                    padding: '10px',
+                    borderRadius: '4px',
+                    maxHeight: '200px',
+                    overflow: 'auto'
+                  }}
+                >
+                  {wpCliResult.output || wpCliResult.error}
+                </pre>
+              </div>
+            )}
           </div>
         </div>
       )}

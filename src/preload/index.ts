@@ -37,7 +37,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
   scanSiteWithSonarQube: (siteDomain: string) =>
-    ipcRenderer.invoke('scan-site-sonarqube', siteDomain)
+    ipcRenderer.invoke('scan-site-sonarqube', siteDomain),
+  runWpCliCommand: (site, command) => ipcRenderer.invoke('run-wp-cli', { site, command })
 })
 
 // Custom APIs for renderer

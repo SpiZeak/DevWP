@@ -9,10 +9,12 @@ import {
   REACT_DEVELOPER_TOOLS,
   REDUX_DEVTOOLS
 } from 'electron-devtools-installer'
+import { registerIpcHandlers } from './ipcHandlers'
 
 // Register all IPC handlers
 registerContainerHandlers()
 registerSiteHandlers()
+registerIpcHandlers()
 
 app.commandLine.appendSwitch('gtk-version', '3')
 
