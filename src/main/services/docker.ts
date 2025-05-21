@@ -195,6 +195,52 @@ function getContainerVersion(containerId: string): Promise<string | undefined> {
           })
           break
 
+        case 'devwp_database':
+          // MySQL outputs version to stdout, extract only the version number
+          exec(`docker exec ${containerId} mysql --version`, (mysqlError, mysqlStdout) => {
+            if (mysqlError) {
+              console.error(`Error getting MySQL version for container ${containerId}:`, mysqlError)
+              resolve(undefined)
+              return
+            }
+            // Example output: "mysql  Ver 8.0.32 for Linux on x86_64 (MySQL Community Server - GPL)"
+            const match = mysqlStdout.match(/Ver\s+(\d+\.\d+\.\d+)/)
+            resolve(match ? match[1] : undefined)
+          })
+          break
+
+        case 'devwp_cache':
+          // Redis outputs version to stdout, extract only the version number
+          exec(`docker exec ${containerId} redis-server --version`, (redisError, redisStdout) => {
+            if (redisError) {
+              console.error(`Error getting Redis version for container ${containerId}:`, redisError)
+              resolve(undefined)
+              return
+            }
+            // Example output: "Redis server v=7.0.5 sha=... ..."
+            const match = redisStdout.match(/v=([\d.]+)/)
+            resolve(match ? match[1] : undefined)
+          })
+          break
+
+        case 'devwp_sonarqube':
+          // SonarQube outputs version to stdout with 'sonar-scanner --version'
+          exec(
+            `docker exec ${containerId} curl http://localhost:9000/api/server/version`,
+            (sonarError, sonarStdout) => {
+              if (sonarError) {
+                console.error(
+                  `Error getting SonarQube version for container ${containerId}:`,
+                  sonarError
+                )
+                resolve(undefined)
+                return
+              }
+              resolve(sonarStdout)
+            }
+          )
+          break
+
         default:
           // For other containers, use the image tag
           exec(
