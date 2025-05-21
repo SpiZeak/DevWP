@@ -136,7 +136,8 @@ export function getDockerContainers(): Promise<Container[]> {
         .map((line) => {
           const [id, name, state] = line.split('|')
           return { id, name, state: state.toLowerCase(), version: undefined }
-        }) as Container[]
+        })
+        .filter((container) => container.name !== 'devwp_certs') as Container[]
 
       // Fetch version information for each container
       try {
