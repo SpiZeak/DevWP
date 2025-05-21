@@ -199,31 +199,41 @@ const SiteList: React.FC = () => {
               </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Multisite</label>
+            <div className="form-group multisite-group">
               <div className="checkbox-container">
-                <input
-                  type="checkbox"
-                  id="multisite-enabled"
-                  checked={newSite.multisite.enabled}
-                  onChange={(e) =>
-                    setNewSite({
-                      ...newSite,
-                      multisite: {
-                        ...newSite.multisite,
-                        enabled: e.target.checked
-                      }
-                    })
-                  }
-                  className="form-checkbox"
-                />
-                <label htmlFor="multisite-enabled">Enable WordPress Multisite</label>
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    id="multisite-enabled"
+                    checked={newSite.multisite.enabled}
+                    onChange={(e) =>
+                      setNewSite({
+                        ...newSite,
+                        multisite: {
+                          ...newSite.multisite,
+                          enabled: e.target.checked
+                        }
+                      })
+                    }
+                  />
+                  <span className="slider round"></span>
+                </label>
+                <label
+                  htmlFor="multisite-enabled"
+                  className="checkbox-label"
+                  style={{ marginLeft: 12 }}
+                >
+                  Enable WordPress Multisite
+                </label>
               </div>
 
               {newSite.multisite.enabled && (
                 <div className="radio-group">
-                  <div className="radio-option">
+                  <div
+                    className={`radio-option${newSite.multisite.type === 'subdirectory' ? ' selected' : ''}`}
+                  >
                     <input
+                      hidden
                       type="radio"
                       id="multisite-subdirectory"
                       name="multisite-type"
@@ -241,12 +251,15 @@ const SiteList: React.FC = () => {
                       className="form-radio"
                     />
                     <label htmlFor="multisite-subdirectory">
-                      Subdirectory (example.test/site2)
+                      Subdirectory <span className="example">(example.test/site2)</span>
                     </label>
                   </div>
 
-                  <div className="radio-option">
+                  <div
+                    className={`radio-option${newSite.multisite.type === 'subdomain' ? ' selected' : ''}`}
+                  >
                     <input
+                      hidden
                       type="radio"
                       id="multisite-subdomain"
                       name="multisite-type"
@@ -263,7 +276,9 @@ const SiteList: React.FC = () => {
                       }
                       className="form-radio"
                     />
-                    <label htmlFor="multisite-subdomain">Subdomain (site2.example.test)</label>
+                    <label htmlFor="multisite-subdomain">
+                      Subdomain <span className="example">(site2.example.test)</span>
+                    </label>
                   </div>
                 </div>
               )}
@@ -275,7 +290,7 @@ const SiteList: React.FC = () => {
               </button>
               <button
                 onClick={handleSubmitNewSite}
-                disabled={!newSite.domain}
+                disabled={!newSite.domain.replace('.test', '')}
                 className={`create-button ${!newSite.domain ? 'disabled' : ''}`}
               >
                 Create
