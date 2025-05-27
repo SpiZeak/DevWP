@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import './SiteList.scss'
 
 export interface Site {
@@ -33,6 +33,16 @@ const SiteList: React.FC = () => {
   const [wpCliCommand, setWpCliCommand] = useState<string>('')
   const [wpCliResult, setWpCliResult] = useState<{ output?: string; error?: string } | null>(null)
   const [wpCliLoading, setWpCliLoading] = useState<boolean>(false)
+  const sitesListRef = useRef<HTMLUListElement>(null)
+  const [scrollBar, setScrollBar] = useState({
+    top: 0,
+    height: 0,
+    visible: false
+  })
+  const barTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [barEverShown, setBarEverShown] = useState(false)
+  const [isScrolling, setIsScrolling] = useState(false)
+  const SCROLLBAR_MARGIN = 16
 
   const openSiteUrl = (url: string): void => {
     window.electron.ipcRenderer.invoke('open-external', url)
@@ -145,9 +155,69 @@ const SiteList: React.FC = () => {
     return domain
   }
 
+  const showScrollBar = (barTop: number, barHeight: number) => {
+    setScrollBar({
+      top: barTop,
+      height: barHeight,
+      visible: true
+    })
+    setBarEverShown(true)
+    setIsScrolling(true)
+    if (barTimeoutRef.current) clearTimeout(barTimeoutRef.current)
+    barTimeoutRef.current = setTimeout(() => {
+      setScrollBar((b) => ({ ...b, visible: false }))
+      setIsScrolling(false)
+    }, 800)
+  }
+
+  const updateScrollBar = () => {
+    const el = sitesListRef.current
+    if (!el) return
+    const { scrollTop, scrollHeight, clientHeight } = el
+    if (scrollHeight <= clientHeight) {
+      setScrollBar({ top: 0, height: 0, visible: false })
+      setIsScrolling(false)
+      return
+    }
+    const availableHeight = clientHeight - SCROLLBAR_MARGIN * 2
+    const barHeight = Math.max((clientHeight / scrollHeight) * availableHeight, 24)
+    const maxBarTop = SCROLLBAR_MARGIN + (availableHeight - barHeight)
+    const barTop =
+      SCROLLBAR_MARGIN + (scrollTop / (scrollHeight - clientHeight)) * (availableHeight - barHeight)
+    showScrollBar(barTop, barHeight)
+  }
+
+  // Use a ref to always clear and restart the fade-out timer immediately on scroll
+  useEffect(() => {
+    const el = sitesListRef.current
+    if (!el) return
+    let ticking = false
+    const onScroll = () => {
+      // Always show the bar immediately on scroll
+      if (!ticking) {
+        ticking = true
+        window.requestAnimationFrame(() => {
+          updateScrollBar()
+          ticking = false
+        })
+      }
+    }
+    el.addEventListener('scroll', onScroll)
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      if (barTimeoutRef.current) clearTimeout(barTimeoutRef.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   useEffect(() => {
     fetchSites()
   }, [])
+
+  useEffect(() => {
+    updateScrollBar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sites, loading])
 
   return (
     <div className="SiteList">
@@ -157,65 +227,86 @@ const SiteList: React.FC = () => {
           <span className="icon"></span> New Site
         </button>
       </div>
-      <ul className="sites-list">
-        {loading ? (
-          <li className="site-list-message">Loading sites...</li>
-        ) : sites.length === 0 ? (
-          <li className="site-list-message">No sites configured</li>
-        ) : (
-          sites.map((site, index) => (
-            <li
-              key={site.name}
-              className={`site-item ${index < sites.length - 1 ? 'with-border' : ''}`}
-            >
-              <div className="site-info">
-                <div className="site-name-container">
-                  {site.name}
-                  {site.status === 'provisioning' && (
-                    <span className="provisioning-spinner" title="Site is being provisioned" />
-                  )}
+      <div style={{ position: 'relative' }}>
+        <ul className="sites-list" ref={sitesListRef} style={{ position: 'relative' }}>
+          {loading ? (
+            <li className="site-list-message">Loading sites...</li>
+          ) : sites.length === 0 ? (
+            <li className="site-list-message">No sites configured</li>
+          ) : (
+            sites.map((site, index) => (
+              <li
+                key={site.name}
+                className={`site-item ${index < sites.length - 1 ? 'with-border' : ''}`}
+              >
+                <div className="site-info">
+                  <div className="site-name-container">
+                    {site.name}
+                    {site.status === 'provisioning' && (
+                      <span className="provisioning-spinner" title="Site is being provisioned" />
+                    )}
+                  </div>
+                  <div className="site-path">{site.path}</div>
                 </div>
-                <div className="site-path">{site.path}</div>
-              </div>
-              <div className="site-actions">
-                <button
-                  onClick={() => openSiteUrl(site.url)}
-                  className="open-button"
-                  title="Open Site"
-                >
-                  <span className="icon"></span>
-                </button>
-                <button
-                  onClick={() => handleScanSite(site)}
-                  className={`scan-button ${scanningSite === site.name ? 'scanning' : ''}`}
-                  disabled={scanningSite === site.name} // Disable while scanning this site
-                  title={scanningSite === site.name ? 'Scan in progress...' : 'Run SonarQube Scan'}
-                >
-                  {scanningSite === site.name ? (
-                    <span className="provisioning-spinner" title="Site is being provisioned" />
-                  ) : (
-                    <span className="icon">󱉶</span>
-                  )}
-                </button>
-                <button
-                  onClick={() => handleDeleteSite(site)}
-                  className="delete-button"
-                  title="Delete Site"
-                >
-                  <span className="icon"></span>
-                </button>
-                <button
-                  onClick={() => handleOpenWpCliModal(site)}
-                  className="wpcli-button"
-                  title="Run WP-CLI Command"
-                >
-                  <span className="icon"></span>
-                </button>
-              </div>
-            </li>
-          ))
-        )}
-      </ul>
+                <div className="site-actions">
+                  <button
+                    onClick={() => openSiteUrl(site.url)}
+                    className="open-button"
+                    title="Open Site"
+                  >
+                    <span className="icon"></span>
+                  </button>
+                  <button
+                    onClick={() => handleScanSite(site)}
+                    className={`scan-button ${scanningSite === site.name ? 'scanning' : ''}`}
+                    disabled={scanningSite === site.name} // Disable while scanning this site
+                    title={
+                      scanningSite === site.name ? 'Scan in progress...' : 'Run SonarQube Scan'
+                    }
+                  >
+                    {scanningSite === site.name ? (
+                      <span className="provisioning-spinner" title="Site is being provisioned" />
+                    ) : (
+                      <span className="icon">󱉶</span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleDeleteSite(site)}
+                    className="delete-button"
+                    title="Delete Site"
+                  >
+                    <span className="icon"></span>
+                  </button>
+                  <button
+                    onClick={() => handleOpenWpCliModal(site)}
+                    className="wpcli-button"
+                    title="Run WP-CLI Command"
+                  >
+                    <span className="icon"></span>
+                  </button>
+                </div>
+              </li>
+            ))
+          )}
+        </ul>
+        {(scrollBar.visible || isScrolling || (!scrollBar.visible && barEverShown)) &&
+          scrollBar.height > 0 && (
+            <div
+              className={`minimal-scroll-indicator${scrollBar.visible || isScrolling ? ' visible scrolling' : ''}`}
+              style={{
+                position: 'absolute',
+                top: scrollBar.top,
+                right: 2,
+                width: 3,
+                height: scrollBar.height,
+                borderRadius: 2,
+                background: 'rgba(255, 255, 255, 0.3)',
+                zIndex: 3,
+                transition: 'top 0.1s, height 0.1s, opacity 0.5s'
+              }}
+            />
+          )}
+      </div>
 
       {isModalOpen && (
         <div className="modal-overlay">
