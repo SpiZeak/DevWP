@@ -118,19 +118,19 @@ const SiteList: React.FC = () => {
     }
   }
 
-  const handleOpenWpCliModal = (site: Site) => {
+  const handleOpenWpCliModal = (site: Site): void => {
     setWpCliModal({ open: true, site })
     setWpCliCommand('')
     setWpCliResult(null)
   }
 
-  const handleCloseWpCliModal = () => {
+  const handleCloseWpCliModal = (): void => {
     setWpCliModal({ open: false, site: null })
     setWpCliCommand('')
     setWpCliResult(null)
   }
 
-  const handleRunWpCli = async () => {
+  const handleRunWpCli = async (): Promise<void> => {
     setWpCliLoading(true)
     setWpCliResult(null)
     try {
@@ -164,7 +164,7 @@ const SiteList: React.FC = () => {
     return domain
   }
 
-  const showScrollBar = (barTop: number, barHeight: number) => {
+  const showScrollBar = (barTop: number, barHeight: number): void => {
     setScrollBar({
       top: barTop,
       height: barHeight,
@@ -179,7 +179,7 @@ const SiteList: React.FC = () => {
     }, 800)
   }
 
-  const updateScrollBar = () => {
+  const updateScrollBar = (): void => {
     const el = sitesListRef.current
     if (!el) return
     const { scrollTop, scrollHeight, clientHeight } = el
@@ -190,7 +190,6 @@ const SiteList: React.FC = () => {
     }
     const availableHeight = clientHeight - SCROLLBAR_MARGIN * 2
     const barHeight = Math.max((clientHeight / scrollHeight) * availableHeight, 24)
-    const maxBarTop = SCROLLBAR_MARGIN + (availableHeight - barHeight)
     const barTop =
       SCROLLBAR_MARGIN + (scrollTop / (scrollHeight - clientHeight)) * (availableHeight - barHeight)
     showScrollBar(barTop, barHeight)
@@ -201,7 +200,7 @@ const SiteList: React.FC = () => {
     const el = sitesListRef.current
     if (!el) return
     let ticking = false
-    const onScroll = () => {
+    const onScroll = (): void => {
       // Always show the bar immediately on scroll
       if (!ticking) {
         ticking = true
@@ -335,7 +334,8 @@ const SiteList: React.FC = () => {
             </div>
             <div className="form-group">
               <label className="form-label">
-                Web Root (optional, relative to site directory e.g. "public", "dist")
+                Web Root (optional, relative to site directory e.g. &quot;public&quot;,
+                &quot;dist&quot;)
               </label>
               <div className="input-container">
                 <input
