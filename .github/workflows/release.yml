@@ -1,0 +1,88 @@
+name: Build and Release Electron App
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # Trigger on tags like v1.0.0, v1.2.3, etc.
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  contents: write # Required to create releases and upload artifacts
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build application
+        shell: bash # Ensure consistent shell for script execution
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            bun run build:win
+          elif [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            bun run build:mac
+          elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            bun run build:linux
+          fi
+        env:
+          # For macOS signing, if you set up notarization later
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # For Windows signing, if you set up later
+          # CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          # CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # electron-builder might use this
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-${{ matrix.os }}
+          path: dist/ # electron-builder outputs to 'dist' directory
+
+  create_release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build # Run after all build jobs are successful
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Optional: if you need repo files for release notes
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-build-artifacts # Downloads into this directory, with subdirs per artifact name
+          # pattern: build-artifacts-* # Optional: if you want to be more specific
+          # merge-multiple: true # Optional: if you want to merge all artifacts into one directory
+
+      - name: List downloaded artifacts (for debugging)
+        run: ls -R all-build-artifacts
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }} # Use the pushed tag name
+          name: Release ${{ github.ref_name }}
+          # body_path: CHANGELOG.md # Optional: Path to a file with release notes
+          draft: false
+          prerelease: contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') # Mark as pre-release if tag contains -beta or -alpha
+          files: |
+            all-build-artifacts/build-artifacts-windows-latest/*
+            all-build-artifacts/build-artifacts-macos-latest/*
+            all-build-artifacts/build-artifacts-linux-latest/*
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
