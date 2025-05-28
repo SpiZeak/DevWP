@@ -15,12 +15,14 @@ const SiteList: React.FC = () => {
   const [scanningSite, setScanningSite] = useState<string | null>(null)
   const [newSite, setNewSite] = useState<{
     domain: string
+    webRoot: string
     multisite: {
       enabled: boolean
       type: 'subdomain' | 'subdirectory'
     }
   }>({
     domain: 'example.test',
+    webRoot: '',
     multisite: {
       enabled: false,
       type: 'subdirectory'
@@ -54,24 +56,31 @@ const SiteList: React.FC = () => {
 
   const handleCloseModal = (): void => {
     setIsModalOpen(false)
-    setNewSite({ domain: '', multisite: { enabled: false, type: 'subdirectory' } })
+    setNewSite({ domain: '', webRoot: '', multisite: { enabled: false, type: 'subdirectory' } })
   }
 
   const handleSubmitNewSite = async (): Promise<void> => {
+    const siteNameToCreate = formatDomain(newSite.domain)
+
     setSites([
       {
-        name: newSite.domain,
-        path: `www/${newSite.domain}`,
-        url: `https://${newSite.domain}`,
+        name: siteNameToCreate,
+        path: `www/${siteNameToCreate}`, // Base path remains the same for display
+        url: `https://${siteNameToCreate}`,
         status: 'provisioning'
       },
       ...sites
     ])
 
     try {
-      window.electronAPI.createSite(newSite).then(fetchSites)
+      // Ensure domain in newSite object being sent is formatted
+      const siteDataToSend = {
+        ...newSite,
+        domain: siteNameToCreate
+      }
+      window.electronAPI.createSite(siteDataToSend).then(fetchSites)
       setIsModalOpen(false)
-      setNewSite({ domain: '', multisite: { enabled: false, type: 'subdirectory' } })
+      setNewSite({ domain: '', webRoot: '', multisite: { enabled: false, type: 'subdirectory' } })
     } catch (error) {
       console.error('Failed to create new site:', error)
     }
@@ -148,7 +157,7 @@ const SiteList: React.FC = () => {
 
   const formatDomain = (domain: string): string => {
     // Check if the domain ends with a period followed by at least one character
-    if (!/.+\..+$/.test(domain)) {
+    if (!/.+\..*$/.test(domain)) {
       return `${domain}.test`
     }
 
@@ -317,15 +326,47 @@ const SiteList: React.FC = () => {
               <div className="input-container">
                 <input
                   type="text"
-                  onChange={(e) => setNewSite({ ...newSite, domain: formatDomain(e.target.value) })}
+                  value={newSite.domain}
+                  onChange={(e) => setNewSite({ ...newSite, domain: e.target.value })}
                   className="form-input"
                   placeholder="example.test"
                 />
               </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">
+                Web Root (optional, relative to site directory e.g. "public", "dist")
+              </label>
+              <div className="input-container">
+                <input
+                  type="text"
+                  value={newSite.webRoot}
+                  onChange={(e) =>
+                    setNewSite({
+                      ...newSite,
+                      webRoot: e.target.value.trim().replace(/^\/+|\/+$/g, '')
+                    })
+                  }
+                  className="form-input"
+                  placeholder="public (leave blank for site root)"
+                />
+              </div>
               <div className="form-help-text">
-                This will create a site in www/
-                <span className="bold-text">{newSite.domain}</span> accessible at https://
-                <span className="bold-text">{newSite.domain}</span>
+                Site will be created in www/
+                <span className="bold-text">{formatDomain(newSite.domain)}</span>.
+                {newSite.webRoot ? (
+                  <>
+                    {' '}
+                    Web server will point to www/
+                    <span className="bold-text">{formatDomain(newSite.domain)}</span>/
+                    <span className="bold-text">{newSite.webRoot}</span>.
+                  </>
+                ) : (
+                  ' Web server will point to the site root.'
+                )}
+                <br />
+                Accessible at https://
+                <span className="bold-text">{formatDomain(newSite.domain)}</span>
               </div>
             </div>
 
@@ -421,7 +462,7 @@ const SiteList: React.FC = () => {
               <button
                 onClick={handleSubmitNewSite}
                 disabled={!newSite.domain.replace('.test', '')}
-                className={`create-button ${!newSite.domain ? 'disabled' : ''}`}
+                className={`create-button ${!newSite.domain.replace('.test', '') ? 'disabled' : ''}`}
               >
                 Create
               </button>

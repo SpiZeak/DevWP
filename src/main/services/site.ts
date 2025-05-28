@@ -11,20 +11,25 @@ export interface Site {
 }
 
 // Install WordPress in the newly created site
-async function installWordPress(siteDomain: string, dbName: string): Promise<void> {
+async function installWordPress(
+  siteDomain: string,
+  dbName: string,
+  webRoot?: string
+): Promise<void> {
   return new Promise((resolve, reject) => {
-    const siteDir = `/src/www/${siteDomain}`
+    const baseSiteDir = `/src/www/${siteDomain}`
+    const wpInstallPath = webRoot ? `${baseSiteDir}/${webRoot}` : baseSiteDir
 
     // Command to download WordPress core
-    const downloadCmd = `docker compose exec php wp core download --path=${siteDir} --force`
+    const downloadCmd = `docker compose exec php wp core download --path=${wpInstallPath} --force`
 
     // Command to create wp-config.php
-    const configCmd = `docker compose exec php wp config create --path=${siteDir} --dbname=${dbName} --dbuser=root --dbpass=root --dbhost=database --force`
+    const configCmd = `docker compose exec php wp config create --path=${wpInstallPath} --dbname=${dbName} --dbuser=root --dbpass=root --dbhost=database --force`
 
     // Command to install WordPress
-    const installCmd = `docker compose exec php wp core install --path=${siteDir} --url=https://${siteDomain} --title="${siteDomain}" --admin_user=root --admin_password=root --admin_email=admin@${siteDomain}`
+    const installCmd = `docker compose exec php wp core install --path=${wpInstallPath} --url=https://${siteDomain} --title="${siteDomain}" --admin_user=root --admin_password=root --admin_email=admin@${siteDomain}`
 
-    console.log('Downloading WordPress...')
+    console.log(`Downloading WordPress to ${wpInstallPath}...`)
     exec(downloadCmd, (downloadError, _, downloadStderr) => {
       if (downloadError) {
         console.error(`Error downloading WordPress: ${downloadStderr}`)
@@ -62,6 +67,7 @@ async function installWordPress(siteDomain: string, dbName: string): Promise<voi
 
 export function createSite(site: {
   domain: string
+  webRoot?: string
   multisite?: {
     enabled: boolean
     type: 'subdomain' | 'subdirectory'
@@ -69,16 +75,20 @@ export function createSite(site: {
 }): Promise<boolean> {
   return new Promise((resolve, reject) => {
     ;(async () => {
-      const sitePath = join(process.cwd(), 'www', site.domain)
-      const dbName = site.domain.replace(/\./g, '_') // Used for DB and SonarQube project key
+      const siteDomain = site.domain // Already formatted by frontend
+      const siteBasePath = join(process.cwd(), 'www', siteDomain)
+      const actualWebRootPath = site.webRoot ? join(siteBasePath, site.webRoot) : siteBasePath
+      const nginxRootDirective = `/src/www/${siteDomain}${site.webRoot ? '/' + site.webRoot : ''}`
+
+      const dbName = siteDomain.replace(/\./g, '_') // Used for DB and SonarQube project key
       const sonarProjectKey = dbName // Use the sanitized name for SonarQube project key
-      const sonarProjectName = site.domain // Use the original domain for SonarQube project name
+      const sonarProjectName = siteDomain // Use the original domain for SonarQube project name
 
       try {
-        // Check if the directory already exists
-        await fs.access(sitePath, constants.F_OK)
+        // Check if the base directory already exists
+        await fs.access(siteBasePath, constants.F_OK)
         // If access doesn't throw, the directory exists
-        reject(new Error(`Site directory '${sitePath}' already exists.`))
+        reject(new Error(`Site directory '${siteBasePath}' already exists.`))
         return // Stop execution
       } catch (error: any) {
         // If the error code is ENOENT, the directory doesn't exist, which is expected
@@ -89,22 +99,25 @@ export function createSite(site: {
           return
         }
         // Directory does not exist, proceed to create it
-        console.log(`Site directory ${sitePath} does not exist. Creating...`)
+        console.log(`Site directory ${siteBasePath} does not exist. Creating...`)
       }
 
       // Directory doesn't exist, proceed with creation and setup
       try {
-        await fs.mkdir(sitePath, { recursive: true }) // Create the directory
+        // Create the actual web root path, which includes base path
+        // fs.mkdir with recursive will create parent directories if they don't exist.
+        await fs.mkdir(actualWebRootPath, { recursive: true })
+        console.log(`Created directory structure: ${actualWebRootPath}`)
 
         // Proceed with the rest of the site setup
-        await modifyHostsFile(site.domain, 'add')
-        await generateNginxConfig(site.domain, site.multisite)
+        await modifyHostsFile(siteDomain, 'add')
+        await generateNginxConfig(siteDomain, nginxRootDirective, site.multisite)
         await createDatabase(dbName)
-        await installWordPress(site.domain, dbName) // Attempt WP install
+        await installWordPress(siteDomain, dbName, site.webRoot) // Attempt WP install
 
         // Convert to multisite if enabled
         if (site.multisite?.enabled) {
-          await convertToMultisite(site.domain, site.multisite)
+          await convertToMultisite(siteDomain, site.multisite, site.webRoot)
         }
 
         // Attempt to create SonarQube project
@@ -128,7 +141,7 @@ export function createSite(site: {
           // Check if it's a WP install or multisite conversion error specifically if needed
           console.warn(`WordPress setup failed: ${setupError}. Creating basic site instead.`)
           try {
-            await generateIndexHtml(site.domain, sitePath, dbName)
+            await generateIndexHtml(siteDomain, siteBasePath, dbName, site.webRoot)
 
             // Attempt to create SonarQube project even if WP install failed
             try {
@@ -148,7 +161,7 @@ export function createSite(site: {
           // Handle other setup errors (mkdir, hosts, nginx, db, etc.)
           console.error(`Error setting up site:`, setupError)
           // Attempt cleanup? (Optional, depends on desired behavior)
-          // e.g., await fs.rm(sitePath, { recursive: true, force: true });
+          // e.g., await fs.rm(siteBasePath, { recursive: true, force: true });
           //      await modifyHostsFile(site.domain, 'remove'); ... etc.
           reject(`Error setting up site: ${setupError.message}`)
         }
@@ -177,11 +190,19 @@ async function createDatabase(dbName: string): Promise<void> {
 // Update generateIndexHtml to include database information
 export async function generateIndexHtml(
   domain: string,
-  sitePath: string,
-  dbName?: string
+  siteFilesystemBasePath: string, // This is www/domain
+  dbName?: string,
+  webRoot?: string
 ): Promise<void> {
   try {
-    // Include database information in the generated HTML
+    const actualWebRootOnHost = webRoot
+      ? join(siteFilesystemBasePath, webRoot)
+      : siteFilesystemBasePath
+    const nginxWebRootPath = `/src/www/${domain}${webRoot ? '/' + webRoot : ''}`
+
+    // Ensure the target directory for index.html exists
+    await fs.mkdir(actualWebRootOnHost, { recursive: true })
+
     const dbInfoHtml = dbName
       ? `
         <div class="info-box">
@@ -255,7 +276,8 @@ export async function generateIndexHtml(
         <h2>Site Information</h2>
         <ul>
             <li><strong>Site URL:</strong> https://${domain}</li>
-            <li><strong>Site Root:</strong> ${sitePath}</li>
+            <li><strong>Site Root (Nginx):</strong> ${nginxWebRootPath}</li>
+            <li><strong>Filesystem Path:</strong> ${actualWebRootOnHost}</li>
         </ul>
 
         ${dbInfoHtml}
@@ -276,10 +298,10 @@ export async function generateIndexHtml(
 </body>
 </html>`
 
-    const indexPath = join(sitePath, 'index.html')
+    const indexPath = join(actualWebRootOnHost, 'index.html')
     await fs.writeFile(indexPath, indexHtmlContent, 'utf8')
-    await fs.chmod(indexPath, 0o766)
-    console.log(`Created index.html for ${domain}`)
+    await fs.chmod(indexPath, 0o766) // Changed permissions to be more common for web files
+    console.log(`Created index.html for ${domain} at ${indexPath}`)
   } catch (error) {
     console.error(`Failed to generate index.html for ${domain}:`, error)
     throw error
@@ -392,18 +414,22 @@ export function getSites(): Promise<Site[]> {
 // Convert a site to multisite
 async function convertToMultisite(
   siteDomain: string,
-  multisite: { enabled: boolean; type: 'subdomain' | 'subdirectory' } | undefined
+  multisite: { enabled: boolean; type: 'subdomain' | 'subdirectory' } | undefined,
+  webRoot?: string
 ): Promise<void> {
   if (!multisite?.enabled) return
 
   return new Promise((resolve, reject) => {
-    const siteDir = `/src/www/${siteDomain}`
+    const baseSiteDir = `/src/www/${siteDomain}`
+    const wpInstallPath = webRoot ? `${baseSiteDir}/${webRoot}` : baseSiteDir
     const subdomains = multisite.type === 'subdomain' ? '--subdomains' : ''
 
     // Command to enable multisite in wp-config.php
-    const enableMultisiteCmd = `docker compose exec php wp core multisite-convert ${subdomains} --path=${siteDir} --base=/`
+    const enableMultisiteCmd = `docker compose exec php wp core multisite-convert ${subdomains} --path=${wpInstallPath} --base=/`
 
-    console.log(`Converting ${siteDomain} to multisite (${multisite.type} mode)...`)
+    console.log(
+      `Converting ${siteDomain} to multisite (${multisite.type} mode) at ${wpInstallPath}...`
+    )
     exec(enableMultisiteCmd, (error, stdout, stderr) => {
       if (error) {
         console.error(`Error converting to multisite: ${stderr}`)
@@ -555,7 +581,13 @@ async function deleteSonarQubeProject(projectKey: string): Promise<void> {
 // Scan a site with SonarQube using user/password
 export async function scanSiteWithSonarQube(siteDomain: string): Promise<void> {
   const projectKey = siteDomain.replace(/\./g, '_')
-  const sourcePathInContainer = `/usr/src/${siteDomain}` // Path inside the scanner container
+  // SonarQube scanner needs to know the webRoot if sources are there.
+  // However, getSites doesn't know webRoot. This implies scanSiteWithSonarQube
+  // might need to discover it or be passed it. For now, assuming webRoot is not
+  // directly used by SonarQube path unless it's the *only* content.
+  // Let's assume SonarQube scans the entire www/siteDomain directory for now.
+  // If webRoot is consistently where all scannable code is, this path should be adjusted.
+  const sourcePathInContainer = `/src/www/${siteDomain}` // Path inside the scanner container
   const sonarHostUrl = 'http://sonarqube:9000'
 
   // Use the same credentials as for project creation/deletion

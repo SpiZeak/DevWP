@@ -5,6 +5,7 @@ import { promises as fs } from 'fs'
 
 export async function generateNginxConfig(
   domain: string,
+  nginxRootPath: string,
   multisite?: { enabled: boolean; type: 'subdomain' | 'subdirectory' }
 ): Promise<void> {
   try {
@@ -12,8 +13,13 @@ export async function generateNginxConfig(
     const templatePath = join(process.cwd(), 'config', 'nginx', 'template-site.conf')
     let configContent = await fs.readFile(templatePath, 'utf8')
 
-    // Replace the domain placeholder
-    configContent = configContent.replace(/example\.com/g, domain)
+    // Replace server_name placeholder first
+    configContent = configContent.replace(/server_name example\.com;/g, `server_name ${domain};`)
+    // Then replace root placeholder with the specific path
+    configContent = configContent.replace(
+      /root \/src\/www\/example\.com;/g,
+      `root ${nginxRootPath};`
+    )
 
     // Replace the include directive based on multisite configuration
     if (multisite?.enabled) {
@@ -57,7 +63,7 @@ export async function generateNginxConfig(
 
 export async function removeNginxConfig(domain: string): Promise<void> {
   try {
-    const configPath = join(__dirname, '../../config/nginx/sites-enabled', `${domain}.conf`)
+    const configPath = join(process.cwd(), 'config/nginx/sites-enabled', `${domain}.conf`)
 
     // Check if the file exists before trying to delete it
     try {
@@ -65,7 +71,7 @@ export async function removeNginxConfig(domain: string): Promise<void> {
       // If no error is thrown, file exists and we can delete it
       await fs.unlink(configPath)
       console.log(`Removed Nginx config for ${domain}`)
-    } catch (_) {
+    } catch {
       // File doesn't exist, so no need to delete it
       console.log(`Nginx config for ${domain} does not exist or is not accessible`)
     }
