@@ -65,12 +65,17 @@ services:
     volumes:
       - ./config/certs:/certs
 
-  mailhog:
-    container_name: devwp_mailhog
-    image: mailhog/mailhog
+  mailpit:
+    container_name: devwp_mailpit
+    image: axllent/mailpit
+    expose:
+      - '1025:1025' # smtp server
     ports:
-      - 1025:1025 # smtp server
-      - 8025:8025 # web ui
+      - '8025:8025' # web ui
+    environment:
+      - TZ=Europe/Stockholm
+      - MP_SMTP_AUTH_ACCEPT_ANY=1
+      - MP_SMTP_AUTH_ALLOW_INSECURE=1
 
   sonarqube:
     container_name: devwp_sonarqube
