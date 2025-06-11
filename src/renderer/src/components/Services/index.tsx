@@ -15,7 +15,7 @@ const containerNameMapping: Record<string, string> = {
   devwp_php: 'PHP',
   devwp_database: 'MySQL',
   devwp_cache: 'Redis',
-  devwp_mailhog: 'MailHog',
+  devwp_mailpit: 'Mailpit',
   devwp_certs: 'Certificates'
 }
 
