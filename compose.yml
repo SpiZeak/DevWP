@@ -58,6 +58,7 @@ services:
       - cache
       - certs
       - sonarqube
+      - mailpit
 
   certs:
     container_name: devwp_certs
