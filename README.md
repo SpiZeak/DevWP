@@ -7,6 +7,7 @@ DevWP is a desktop application designed to simplify local WordPress development.
 *   **Simplified Site Management**: Easily create, configure, and manage local WordPress development sites.
 *   **Isolated Environments**: Each site runs in its own Dockerized environment, ensuring no conflicts between projects.
 *   **Integrated Nginx & PHP**: Comes pre-configured with Nginx and PHP, managed via Docker Compose.
+*   **Email Testing with Mailpit**: Built-in email testing and debugging with Mailpit's web interface for capturing and viewing emails sent from your WordPress sites.
 *   **SonarQube Integration**: Includes functionality to create and delete SonarQube projects for code quality analysis of your WordPress themes and plugins. (See [`createSonarQubeProject`](src/main/services/site.ts) and [`deleteSonarQubeProject`](src/main/services/site.ts))
 *   **Automatic Placeholder Page**: Generates a default `index.html` for new sites to get you started quickly. (See [`generateIndexHtml`](src/main/services/site.ts))
 *   **Cross-Platform**: Built with Electron for compatibility with Windows, macOS, and Linux.
@@ -15,7 +16,7 @@ DevWP is a desktop application designed to simplify local WordPress development.
 
 *   **Frontend**: React, TypeScript
 *   **Backend/Desktop**: Electron, Node.js, TypeScript
-*   **Environment**: Docker, Docker Compose (Nginx, PHP, SonarQube)
+*   **Environment**: Docker, Docker Compose (Nginx, PHP, MySQL, Mailpit, SonarQube)
 *   **Package Manager**: Bun
 
 ## Prerequisites
@@ -85,12 +86,15 @@ The built application will be located in the `dist` or a similar output director
 1.  **Launch DevWP**: Start the application after installing dependencies (`bun install`) and running in development (`bun run dev`) or by running a built executable.
 2.  **Create a New Site**:
     *   Use the application's UI to define a new WordPress site (e.g., provide a domain name).
-    *   DevWP will set up the necessary Docker containers (Nginx, PHP), configure Nginx, and create a directory for your site files under `www/your-site-domain`.
+    *   DevWP will set up the necessary Docker containers (Nginx, PHP, MySQL, Mailpit), configure Nginx, and create a directory for your site files under `www/your-site-domain`.
     *   A placeholder `index.html` will be generated in the site's web root.
 3.  **Access Your Site**:
     *   The application should provide you with the local URL (e.g., `https://your-site-domain.test`).
     *   You can then proceed to install WordPress or deploy your existing WordPress files into the `www/your-site-domain` directory.
-4.  **SonarQube Integration**:
+4.  **Email Testing**:
+    *   Access the Mailpit web interface at `http://localhost:8025` to view all emails sent from your WordPress sites.
+    *   Configure your WordPress sites to use the SMTP settings: Host: `mailpit`, Port: `1025` (no authentication required).
+5.  **SonarQube Integration**:
     *   Utilize the SonarQube integration features to create a project in your SonarQube instance corresponding to your WordPress site for code analysis.
 
 ## Project Structure
