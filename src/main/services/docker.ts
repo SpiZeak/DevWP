@@ -208,7 +208,7 @@ function getContainerVersion(containerId: string): Promise<string | undefined> {
               return
             }
             // Example output: "mariadb  Ver 15.1 Distrib 11.3.2-MariaDB, for debian-linux-gnu (x86_64) using  EditLine wrapper"
-            const match = mariaDbStdout.match(/Distrib\s+([\d\.]+)-MariaDB/) // Adjusted regex for MariaDB
+            const match = mariaDbStdout.match(/\s+([\d\.]+)-MariaDB/) // Adjusted regex for MariaDB
             resolve(match ? match[1] : undefined)
           })
           break

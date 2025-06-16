@@ -13,7 +13,7 @@ interface Container {
 const containerNameMapping: Record<string, string> = {
   devwp_web: 'Nginx',
   devwp_php: 'PHP',
-  devwp_mariadb: 'MySQL',
+  devwp_mariadb: 'MariaDB',
   devwp_redis: 'Redis',
   devwp_mailpit: 'Mailpit',
   devwp_certs: 'Certificates'

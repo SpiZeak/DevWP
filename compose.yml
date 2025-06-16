@@ -21,7 +21,6 @@ services:
       MARIADB_ROOT_HOST: '%'
       MARIADB_ROOT_PASSWORD: root
       MARIADB_AUTO_UPGRADE: true
-      MARIADB_DATABASE: devwp
       TZ: Europe/Stockholm
     volumes:
       - mariadb:/var/lib/mysql

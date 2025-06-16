@@ -75,14 +75,13 @@ export function createSite(site: {
 }): Promise<boolean> {
   return new Promise((resolve, reject) => {
     ;(async () => {
-      const siteDomain = site.domain // Already formatted by frontend
+      const siteDomain = site.domain
       const siteBasePath = join(process.cwd(), 'www', siteDomain)
       const actualWebRootPath = site.webRoot ? join(siteBasePath, site.webRoot) : siteBasePath
       const nginxRootDirective = `/src/www/${siteDomain}${site.webRoot ? '/' + site.webRoot : ''}`
-
-      const dbName = siteDomain.replace(/\./g, '_') // Used for DB and SonarQube project key
-      const sonarProjectKey = dbName // Use the sanitized name for SonarQube project key
-      const sonarProjectName = siteDomain // Use the original domain for SonarQube project name
+      const dbName = siteDomain.replace(/\./g, '_')
+      const sonarProjectKey = dbName
+      const sonarProjectName = siteDomain
 
       try {
         // Check if the base directory already exists
@@ -173,7 +172,7 @@ export function createSite(site: {
 // Create a database for the site
 async function createDatabase(dbName: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const createDbCmd = `docker exec devwp_mariadb mysql -u root -proot -e "CREATE DATABASE IF NOT EXISTS ${dbName}"`
+    const createDbCmd = `docker exec devwp_mariadb mariadb -u root -proot -e "CREATE DATABASE IF NOT EXISTS ${dbName}"`
 
     exec(createDbCmd, (error, _, stderr) => {
       if (error) {
@@ -311,7 +310,7 @@ export async function generateIndexHtml(
 // Drop a database when deleting a site
 async function dropDatabase(dbName: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const dropDbCmd = `docker exec devwp_mariadb mysql -u root -proot -e "DROP DATABASE IF EXISTS ${dbName}"`
+    const dropDbCmd = `docker exec devwp_mariadb mariadb -u root -proot -e "DROP DATABASE IF EXISTS ${dbName}"`
 
     exec(dropDbCmd, (error, _, stderr) => {
       if (error) {
