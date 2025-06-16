@@ -24,7 +24,7 @@ async function installWordPress(
     const downloadCmd = `docker compose exec php wp core download --path=${wpInstallPath} --force`
 
     // Command to create wp-config.php
-    const configCmd = `docker compose exec php wp config create --path=${wpInstallPath} --dbname=${dbName} --dbuser=root --dbpass=root --dbhost=database --force`
+    const configCmd = `docker compose exec php wp config create --path=${wpInstallPath} --dbname=${dbName} --dbuser=root --dbpass=root --dbhost=mariadb --force`
 
     // Command to install WordPress
     const installCmd = `docker compose exec php wp core install --path=${wpInstallPath} --url=https://${siteDomain} --title="${siteDomain}" --admin_user=root --admin_password=root --admin_email=admin@${siteDomain}`
@@ -173,7 +173,7 @@ export function createSite(site: {
 // Create a database for the site
 async function createDatabase(dbName: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const createDbCmd = `docker exec devwp_database mysql -u root -proot -e "CREATE DATABASE IF NOT EXISTS ${dbName}"`
+    const createDbCmd = `docker exec devwp_mariadb mysql -u root -proot -e "CREATE DATABASE IF NOT EXISTS ${dbName}"`
 
     exec(createDbCmd, (error, _, stderr) => {
       if (error) {
@@ -211,7 +211,7 @@ export async function generateIndexHtml(
                 <li><strong>Database Name:</strong> ${dbName}</li>
                 <li><strong>Database User:</strong> user</li>
                 <li><strong>Database Password:</strong> password</li>
-                <li><strong>Database Host:</strong> database</li>
+                <li><strong>Database Host:</strong> mariadb</li>
             </ul>
         </div>`
       : ''
@@ -300,7 +300,7 @@ export async function generateIndexHtml(
 
     const indexPath = join(actualWebRootOnHost, 'index.html')
     await fs.writeFile(indexPath, indexHtmlContent, 'utf8')
-    await fs.chmod(indexPath, 0o766) // Changed permissions to be more common for web files
+    await fs.chmod(indexPath, 0o766)
     console.log(`Created index.html for ${domain} at ${indexPath}`)
   } catch (error) {
     console.error(`Failed to generate index.html for ${domain}:`, error)
@@ -311,7 +311,7 @@ export async function generateIndexHtml(
 // Drop a database when deleting a site
 async function dropDatabase(dbName: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const dropDbCmd = `docker exec devwp_database mysql -u root -proot -e "DROP DATABASE IF EXISTS ${dbName}"`
+    const dropDbCmd = `docker exec devwp_mariadb mysql -u root -proot -e "DROP DATABASE IF EXISTS ${dbName}"`
 
     exec(dropDbCmd, (error, _, stderr) => {
       if (error) {
@@ -329,7 +329,7 @@ async function dropDatabase(dbName: string): Promise<void> {
 async function clearRedisCache(siteDomain: string): Promise<void> {
   return new Promise((resolve, reject) => {
     // Using wildcard pattern to match any keys related to this site
-    const clearCacheCmd = `docker exec devwp_cache redis-cli KEYS "*${siteDomain}*" | xargs -r docker exec -i devwp_cache redis-cli DEL`
+    const clearCacheCmd = `docker exec devwp_redis redis-cli KEYS "*${siteDomain}*" | xargs -r docker exec -i devwp_redis redis-cli DEL`
 
     exec(clearCacheCmd, (error, _, stderr) => {
       if (error) {
@@ -369,7 +369,6 @@ export function deleteSite(site: { name: string }): Promise<boolean> {
 
           resolve(true)
         } catch (cleanupError: any) {
-          // Changed variable name for clarity
           reject(`Error cleaning up site: ${cleanupError}`)
         }
       })

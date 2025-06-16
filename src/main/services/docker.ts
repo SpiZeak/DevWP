@@ -196,21 +196,24 @@ function getContainerVersion(containerId: string): Promise<string | undefined> {
           })
           break
 
-        case 'devwp_database':
-          // MySQL outputs version to stdout, extract only the version number
-          exec(`docker exec ${containerId} mysql --version`, (mysqlError, mysqlStdout) => {
-            if (mysqlError) {
-              console.error(`Error getting MySQL version for container ${containerId}:`, mysqlError)
+        case 'devwp_mariadb':
+          // MariaDB outputs version to stdout, extract only the version number
+          exec(`docker exec ${containerId} mariadb --version`, (mariaDbError, mariaDbStdout) => {
+            if (mariaDbError) {
+              console.error(
+                `Error getting MariaDB version for container ${containerId}:`,
+                mariaDbError
+              )
               resolve(undefined)
               return
             }
-            // Example output: "mysql  Ver 8.0.32 for Linux on x86_64 (MySQL Community Server - GPL)"
-            const match = mysqlStdout.match(/Ver\s+(\d+\.\d+\.\d+)/)
+            // Example output: "mariadb  Ver 15.1 Distrib 11.3.2-MariaDB, for debian-linux-gnu (x86_64) using  EditLine wrapper"
+            const match = mariaDbStdout.match(/Distrib\s+([\d\.]+)-MariaDB/) // Adjusted regex for MariaDB
             resolve(match ? match[1] : undefined)
           })
           break
 
-        case 'devwp_cache':
+        case 'devwp_redis':
           // Redis outputs version to stdout, extract only the version number
           exec(`docker exec ${containerId} redis-server --version`, (redisError, redisStdout) => {
             if (redisError) {

@@ -16,7 +16,7 @@ DevWP is a desktop application designed to simplify local WordPress development.
 
 *   **Frontend**: React, TypeScript
 *   **Backend/Desktop**: Electron, Node.js, TypeScript
-*   **Environment**: Docker, Docker Compose (Nginx, PHP, MySQL, Mailpit, SonarQube)
+*   **Environment**: Docker, Docker Compose (Nginx, PHP, MariaDB, Mailpit, SonarQube)
 *   **Package Manager**: Bun
 
 ## Prerequisites
@@ -112,7 +112,7 @@ The built application will be located in the `dist` or a similar output director
     *   `renderer/`: Electron renderer process code (Chromium browser environment - React UI).
         *   `index.html`: Main HTML file for the renderer.
 *   `www/`: Root directory where individual WordPress site files will be stored (e.g., `www/my-site.test/`).
-*   `compose.yml`: Docker Compose configuration for managing services.
+*   `compose.yml`: Docker Compose configuration for managing services (Nginx, PHP, MariaDB, etc.).
 *   `electron.vite.config.ts`: Configuration for Electron Vite.
 *   `package.json`: Project metadata and dependencies.
 

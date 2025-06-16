@@ -14,25 +14,30 @@ services:
       - ./config/php/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
       - ./config/php/conf.d/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini
 
-  database:
-    container_name: devwp_database
-    image: mysql:innovation
+  mariadb:
+    container_name: devwp_mariadb
+    image: mariadb:12.0.1-rc
     environment:
-      MYSQL_ROOT_HOST: '%'
-      MYSQL_ROOT_PASSWORD: root
+      MARIADB_ROOT_HOST: '%'
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_AUTO_UPGRADE: true
+      MARIADB_DATABASE: devwp
+      TZ: Europe/Stockholm
     volumes:
-      - database:/var/lib/mysql
+      - mariadb:/var/lib/mysql
     ports:
       - '3306:3306'
+    command: --bind-address=0.0.0.0 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    restart: unless-stopped
 
-  cache:
-    container_name: devwp_cache
+  redis:
+    container_name: devwp_redis
     image: redis:alpine
     ports:
       - '6379:6379'
     command: redis-server
     volumes:
-      - cache:/data
+      - redis:/data
 
   web:
     container_name: devwp_web
@@ -54,8 +59,8 @@ services:
       - ./www:/src/www:rw
     depends_on:
       - php
-      - database
-      - cache
+      - mariadb
+      - redis
       - certs
       - sonarqube
       - mailpit
@@ -105,8 +110,8 @@ services:
     #   "-Dsonar.token=sqp_7469b2ba5c18b21d78ded586c997fff84dd7c73d"
     # ]
 volumes:
-  database:
-  cache:
+  mariadb:
+  redis:
   sonarqube_data:
   sonarqube_logs:
   sonarqube_extensions:
