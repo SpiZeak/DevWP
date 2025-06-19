@@ -61,6 +61,19 @@ code {
     &:last-child {
       border: none;
     }
+
+    &.developer-credit {
+      opacity: 1;
+
+      a {
+        color: white;
+        text-decoration: none;
+
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
   }
 }
 
