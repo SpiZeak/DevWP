@@ -4,9 +4,8 @@
   .header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
     width: 100%;
-    margin-bottom: 10px;
+    margin-bottom: 0.25rem;
 
     h3 {
       margin: 0;
@@ -36,7 +35,7 @@
 
   .sites-list {
     width: 100%;
-    margin: 20px 0;
+    margin: 1rem 0;
     padding: 0;
     border-radius: 8px;
     overflow-y: auto;

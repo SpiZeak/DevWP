@@ -51,7 +51,7 @@ function XdebugSwitch(): JSX.Element {
   return (
     <div className="xdebug-switch-container">
       <div className="xdebug-switch-label">
-        <img src={xdebugIcon} alt="Xdebug Icon" />
+        <h3>{xdebugEnabled ? 'Debug' : 'Performance'}</h3>
       </div>
       <label className="xdebug-switch">
         <input

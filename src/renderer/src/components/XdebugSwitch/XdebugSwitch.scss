@@ -1,8 +1,7 @@
 .xdebug-switch-container {
   display: flex;
   justify-content: space-between;
-  margin: 0.25rem 0;
-  margin: 1rem 0;
+  margin-bottom: 1rem;
   border-radius: 6px;
   background-color: var(--color-bg-secondary);
 }
@@ -22,28 +21,6 @@
   span {
     font-weight: 500;
   }
-
-  .xdebug-status {
-    font-size: 0.85em;
-    padding: 2px 8px;
-    border-radius: 4px;
-
-    &.enabled {
-      background-color: #4caf50;
-      color: white;
-    }
-
-    &.disabled {
-      background-color: #f44336;
-      color: white;
-    }
-  }
-
-  .xdebug-status-loading {
-    font-size: 0.85em;
-    font-style: italic;
-    color: var(--color-text-secondary);
-  }
 }
 
 .xdebug-switch {
@@ -58,16 +35,24 @@
     width: 0;
     height: 0;
 
-    &:checked + .xdebug-slider {
+    + .xdebug-slider {
       background-color: #4caf50;
+    }
+
+    &:checked + .xdebug-slider {
+      background-color: #ffc107;
 
       &:before {
         transform: translateX(calc(40px - 14px - 6px));
       }
     }
 
-    &:focus + .xdebug-slider {
+    &:focus:not(:checked) + .xdebug-slider {
       box-shadow: 0 0 1px #4caf50;
+    }
+
+    &:focus:checked + .xdebug-slider {
+      box-shadow: 0 0 1px #ffc107;
     }
 
     &:disabled + .xdebug-slider {
