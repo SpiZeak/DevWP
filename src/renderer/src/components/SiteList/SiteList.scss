@@ -62,11 +62,6 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    transition: background-color 0.12s ease;
-
-    &:hover {
-      background-color: var(--ev-c-gray-1);
-    }
 
     &.with-border {
       border-bottom: 1px solid var(--ev-c-gray-2);
@@ -104,7 +99,7 @@
   .site-actions {
     display: flex;
 
-    button {
+    > button {
       background-color: var(--ev-c-red);
       border: none;
       border-radius: 4px;
@@ -112,12 +107,27 @@
       color: white;
       cursor: pointer;
       font-size: 1.5rem;
-      transition: background-color 0.2s;
+      transition:
+        color 0.12s ease,
+        transform 0.12s ease;
 
       &:hover {
-        background-color: var(--ev-c-red-dark);
+        color: var(--accent-color);
+        transform: scale(1.2);
       }
     }
+  }
+
+  button.open-button {
+    font-size: 1.6rem;
+  }
+
+  button.scan-button {
+    font-size: 1.7rem;
+  }
+
+  button.wpcli-button {
+    font-size: 1.8rem;
   }
 
   .modal-overlay {

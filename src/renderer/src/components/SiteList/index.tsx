@@ -290,7 +290,7 @@ const SiteList: React.FC = () => {
                     className="wpcli-button"
                     title="Run WP-CLI Command"
                   >
-                    <span className="icon"></span>
+                    <span className="icon"></span>
                   </button>
                 </div>
               </li>
