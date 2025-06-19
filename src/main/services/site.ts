@@ -328,7 +328,9 @@ async function dropDatabase(dbName: string): Promise<void> {
 async function clearRedisCache(siteDomain: string): Promise<void> {
   return new Promise((resolve, reject) => {
     // Using wildcard pattern to match any keys related to this site
-    const clearCacheCmd = `docker exec devwp_redis redis-cli KEYS "*${siteDomain}*" | xargs -r docker exec -i devwp_redis redis-cli DEL`
+    // This command uses a Redis EVAL script to find and delete keys on the server-side,
+    // avoiding shell-specific piping (like | and xargs) which is not compatible with Windows cmd.
+    const clearCacheCmd = `docker exec devwp_redis redis-cli EVAL "local keys = redis.call('KEYS', ARGV[1]); if #keys > 0 then return redis.call('DEL', unpack(keys)) else return 0 end" 0 "*${siteDomain}*"`
 
     exec(clearCacheCmd, (error, _, stderr) => {
       if (error) {
