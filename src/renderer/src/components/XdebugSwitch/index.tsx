@@ -1,6 +1,5 @@
 import { useState, useEffect, JSX } from 'react'
 import './XdebugSwitch.scss'
-import xdebugIcon from '../../assets/xdebug.svg'
 
 function XdebugSwitch(): JSX.Element {
   const [xdebugEnabled, setXdebugEnabled] = useState<boolean>(false)

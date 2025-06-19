@@ -95,7 +95,7 @@
   flex-shrink: 0;
 
   &:hover:not(:disabled) {
-    background-color: var(--accent-color);
+    background-color: var(--color-accent);
     color: #000;
     transform: rotate(30deg) scale(1.1);
   }
@@ -107,7 +107,7 @@
 
   &.restarting {
     background-color: var(--ev-c-brand-light);
-    color: white;
+    color: var(--ev-c-white);
   }
 }
 
@@ -182,4 +182,14 @@
     color: #b0b0b0;
     margin-top: 2px;
   }
+}
+
+.service-icon {
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.5rem;
 }

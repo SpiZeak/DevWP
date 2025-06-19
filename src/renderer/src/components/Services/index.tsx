@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
 import './Services.scss'
 import XdebugSwitch from '../XdebugSwitch'
+import phpIcon from '../../assets/icons/php.svg'
+import mailpitIcon from '../../assets/icons/mailpit.svg'
+import mariaDBIcon from '../../assets/icons/mariadb.svg'
+import redisIcon from '../../assets/icons/redis.svg'
+import sonarCubeIcon from '../../assets/icons/sonarqube.svg'
+import nginxIcon from '../../assets/icons/nginx.svg'
 
 interface Container {
   id: string
@@ -16,7 +22,18 @@ const containerNameMapping: Record<string, string> = {
   devwp_mariadb: 'MariaDB',
   devwp_redis: 'Redis',
   devwp_mailpit: 'Mailpit',
-  devwp_certs: 'Certificates'
+  devwp_certs: 'Certificates',
+  devwp_sonarqube: 'SonarQube'
+}
+
+const containerIconMapping: Record<string, JSX.Element> = {
+  devwp_web: <img className="service-icon" src={nginxIcon} alt="Nginx" />,
+  devwp_php: <img className="service-icon" src={phpIcon} alt="PHP" />,
+  devwp_mariadb: <img className="service-icon" src={mariaDBIcon} alt="MariaDB" />,
+  devwp_redis: <img className="service-icon" src={redisIcon} alt="Redis" />,
+  devwp_mailpit: <img className="service-icon" src={mailpitIcon} alt="Mailpit" />,
+  devwp_certs: '🔒',
+  devwp_sonarqube: <img className="service-icon" src={sonarCubeIcon} alt="SonarQube" />
 }
 
 const Services: React.FC = () => {
@@ -73,10 +90,7 @@ const Services: React.FC = () => {
             containerMap.map((container) => (
               <li key={container.id} className={`service-item ${container.state}`}>
                 <div className="service-info">
-                  <div
-                    className="service-status-indicator"
-                    title={`Status: ${container.state}`}
-                  ></div>
+                  {containerIconMapping[container.name] || '🔧'}
                   <div className="service-details">
                     <span className="service-name">{getDisplayName(container.name)}</span>
                     {container.version && (
