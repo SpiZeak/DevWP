@@ -232,7 +232,8 @@ const SiteList: React.FC = () => {
       <div className="header">
         <h3>My Sites</h3>
         <button onClick={handleCreateSite} className="new-site-button">
-          <span className="icon"></span> New Site
+          <span className="icon"></span>
+          New Site
         </button>
       </div>
       <div style={{ position: 'relative' }}>

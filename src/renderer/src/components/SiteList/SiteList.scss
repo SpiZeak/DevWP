@@ -29,7 +29,8 @@
     transition: background-color 0.2s;
 
     &:hover {
-      background-color: var(--ev-c-gray-1);
+      background-color: var(--accent-color);
+      color: #000;
     }
   }
 
@@ -62,6 +63,11 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: var(--ev-c-gray-2);
+    }
 
     &.with-border {
       border-bottom: 1px solid var(--ev-c-gray-2);

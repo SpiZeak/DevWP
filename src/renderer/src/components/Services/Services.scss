@@ -88,13 +88,16 @@
   color: var(--ev-c-text-1);
   cursor: pointer;
   font-size: 16px;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.3s ease;
   flex-shrink: 0;
 
   &:hover:not(:disabled) {
-    background-color: var(--ev-c-brand-light);
-    color: white;
-    transform: rotate(30deg);
+    background-color: var(--accent-color);
+    color: #000;
+    transform: rotate(30deg) scale(1.1);
   }
 
   &:disabled {
