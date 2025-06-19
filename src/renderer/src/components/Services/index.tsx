@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import './Services.scss'
 import XdebugSwitch from '../XdebugSwitch'
 import phpIcon from '../../assets/icons/php.svg'
@@ -26,7 +26,7 @@ const containerNameMapping: Record<string, string> = {
   devwp_sonarqube: 'SonarQube'
 }
 
-const containerIconMapping: Record<string, JSX.Element> = {
+const containerIconMapping: Record<string, React.ReactNode> = {
   devwp_web: <img className="service-icon" src={nginxIcon} alt="Nginx" />,
   devwp_php: <img className="service-icon" src={phpIcon} alt="PHP" />,
   devwp_mariadb: <img className="service-icon" src={mariaDBIcon} alt="MariaDB" />,

@@ -101,7 +101,7 @@ const SiteList: React.FC = () => {
     if (scanningSite) return
     setScanningSite(site.name)
     try {
-      const result = await window.electronAPI.scanSiteWithSonarQube(site.name)
+      const result = await window.electron.ipcRenderer.invoke('scanSiteWithSonarQube', site.name)
       if (result.success) {
         alert(
           `SonarQube scan initiated successfully for ${site.name}. Check SonarQube UI for progress.`
@@ -134,7 +134,11 @@ const SiteList: React.FC = () => {
     setWpCliLoading(true)
     setWpCliResult(null)
     try {
-      const result = await window.electronAPI.runWpCliCommand(wpCliModal.site, wpCliCommand)
+      const result = await window.electron.ipcRenderer.invoke(
+        'runWpCliCommand',
+        wpCliModal.site,
+        wpCliCommand
+      )
       setWpCliResult(result)
     } catch (e) {
       setWpCliResult({ error: String(e) })
