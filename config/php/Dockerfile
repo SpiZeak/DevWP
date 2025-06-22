@@ -12,6 +12,7 @@ RUN apk update && \
     libjpeg-turbo-dev \
     libpng-dev \
     libwebp-dev \
+    libavif-dev \
     freetype-dev \
     libzip-dev \
     icu-dev \
@@ -35,7 +36,7 @@ RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli
     mv wp-cli.phar /usr/local/bin/wp
 
 # Install PHP extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp && \
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp --with-avif && \
     docker-php-ext-install -j$(nproc) \
     mysqli \
     pdo_mysql \

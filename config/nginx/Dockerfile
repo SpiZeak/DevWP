@@ -22,9 +22,9 @@ RUN apk add --no-cache --virtual .build-deps \
 # Create required directory
 RUN mkdir -p /usr/src
 
-# Download and compile LibreSSL 4.1.0
+# Download and compile LibreSSL 4.1.0 from Swedish FTP mirror
 RUN cd /usr/src && \
-	curl -sSL https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-4.1.0.tar.gz -o libressl-4.1.0.tar.gz && \
+	curl -sSL https://ftp.lysator.liu.se/pub/OpenBSD/LibreSSL/libressl-4.1.0.tar.gz -o libressl-4.1.0.tar.gz && \
 	tar -zxf libressl-4.1.0.tar.gz && \
 	cd libressl-4.1.0 && \
 	mkdir build && \
