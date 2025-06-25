@@ -26,6 +26,10 @@ jobs:
       - name: Install updated dependencies and generate bun.lock
         run: bun install
 
+      - name: Run development server
+        # This step is optional, but can be useful to ensure everything works after updates
+        run: bun run dev
+
       - name: Commit changes
         id: commit # Add an id to check output later
         run: |
