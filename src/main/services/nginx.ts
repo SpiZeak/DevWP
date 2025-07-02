@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { promises as fs } from 'fs'
-import { exec } from 'child_process'
+import { exec, spawn } from 'child_process'
 
 const nginxConfigPath = join(process.cwd(), 'config', 'nginx')
 const sitesEnabledPath = join(nginxConfigPath, 'sites-enabled')
@@ -74,7 +74,7 @@ export async function removeNginxConfig(domain: string): Promise<void> {
 
 async function reloadNginx(): Promise<void> {
   return new Promise((resolve, reject) => {
-    exec('docker compose exec nginx nginx -s reload', (error, stdout, stderr) => {
+    exec('docker compose exec nginx nginx -s reload', (error, _, stderr) => {
       if (error) {
         console.error(`Error reloading Nginx: ${stderr}`)
         reject(error)
