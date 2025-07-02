@@ -16,6 +16,7 @@ const SiteList: React.FC = () => {
   const [newSite, setNewSite] = useState<{
     domain: string
     webRoot: string
+    aliases: string
     multisite: {
       enabled: boolean
       type: 'subdomain' | 'subdirectory'
@@ -23,6 +24,7 @@ const SiteList: React.FC = () => {
   }>({
     domain: 'example.test',
     webRoot: '',
+    aliases: '',
     multisite: {
       enabled: false,
       type: 'subdirectory'
@@ -56,11 +58,17 @@ const SiteList: React.FC = () => {
 
   const handleCloseModal = (): void => {
     setIsModalOpen(false)
-    setNewSite({ domain: '', webRoot: '', multisite: { enabled: false, type: 'subdirectory' } })
+    setNewSite({
+      domain: '',
+      webRoot: '',
+      aliases: '',
+      multisite: { enabled: false, type: 'subdirectory' }
+    })
   }
 
   const handleSubmitNewSite = async (): Promise<void> => {
     const siteNameToCreate = formatDomain(newSite.domain)
+    const aliasesToCreate = newSite.aliases.split(' ').filter(Boolean).map(formatDomain)
 
     setSites([
       {
@@ -76,11 +84,17 @@ const SiteList: React.FC = () => {
       // Ensure domain in newSite object being sent is formatted
       const siteDataToSend = {
         ...newSite,
-        domain: siteNameToCreate
+        domain: siteNameToCreate,
+        aliases: aliasesToCreate.join(' ')
       }
       window.electronAPI.createSite(siteDataToSend).then(fetchSites)
       setIsModalOpen(false)
-      setNewSite({ domain: '', webRoot: '', multisite: { enabled: false, type: 'subdirectory' } })
+      setNewSite({
+        domain: '',
+        webRoot: '',
+        aliases: '',
+        multisite: { enabled: false, type: 'subdirectory' }
+      })
     } catch (error) {
       console.error('Failed to create new site:', error)
     }
@@ -334,6 +348,18 @@ const SiteList: React.FC = () => {
                   onChange={(e) => setNewSite({ ...newSite, domain: e.target.value })}
                   className="form-input"
                   placeholder="example.test"
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Aliases (optional, space-separated)</label>
+              <div className="input-container">
+                <input
+                  type="text"
+                  value={newSite.aliases}
+                  onChange={(e) => setNewSite({ ...newSite, aliases: e.target.value })}
+                  className="form-input"
+                  placeholder="alias1.test alias2.test"
                 />
               </div>
             </div>

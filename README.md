@@ -5,6 +5,7 @@ DevWP is a desktop application designed to simplify local WordPress development.
 ## Features
 
 *   **Simplified Site Management**: Easily create, configure, and manage local WordPress development sites.
+*   **Site Aliases**: Assign multiple domains to a single site for flexible development and testing.
 *   **Isolated Environments**: Each site runs in its own Dockerized environment, ensuring no conflicts between projects.
 *   **Integrated Nginx & PHP**: Comes pre-configured with Nginx and PHP, managed via Docker Compose.
 *   **Email Testing with Mailpit**: Built-in email testing and debugging with Mailpit's web interface for capturing and viewing emails sent from your WordPress sites.

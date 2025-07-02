@@ -8,6 +8,7 @@ export interface Site {
   name: string
   path: string
   url: string
+  status?: string
 }
 
 // Install WordPress in the newly created site
@@ -68,6 +69,7 @@ async function installWordPress(
 export function createSite(site: {
   domain: string
   webRoot?: string
+  aliases?: string
   multisite?: {
     enabled: boolean
     type: 'subdomain' | 'subdirectory'
@@ -76,6 +78,8 @@ export function createSite(site: {
   return new Promise((resolve, reject) => {
     ;(async () => {
       const siteDomain = site.domain
+      const siteAliases = site.aliases ? site.aliases.split(' ').filter(Boolean) : []
+      const allDomains = [siteDomain, ...siteAliases]
       const siteBasePath = join(process.cwd(), 'www', siteDomain)
       const actualWebRootPath = site.webRoot ? join(siteBasePath, site.webRoot) : siteBasePath
       const nginxRootDirective = `/src/www/${siteDomain}${site.webRoot ? '/' + site.webRoot : ''}`
@@ -109,8 +113,10 @@ export function createSite(site: {
         console.log(`Created directory structure: ${actualWebRootPath}`)
 
         // Proceed with the rest of the site setup
-        await modifyHostsFile(siteDomain, 'add')
-        await generateNginxConfig(siteDomain, nginxRootDirective, site.multisite)
+        for (const domain of allDomains) {
+          await modifyHostsFile(domain, 'add')
+        }
+        await generateNginxConfig(siteDomain, nginxRootDirective, site.aliases, site.multisite)
         await createDatabase(dbName)
         await installWordPress(siteDomain, dbName, site.webRoot) // Attempt WP install
 
@@ -353,6 +359,8 @@ export function deleteSite(site: { name: string }): Promise<boolean> {
     fs.rm(sitePath, { recursive: true, force: true })
       .then(async () => {
         try {
+          // Note: This doesn't know about aliases. Deleting a site will only remove the primary domain from hosts/nginx.
+          // This could be improved by storing site metadata (like aliases) in a file.
           await modifyHostsFile(site.name, 'remove')
           await removeNginxConfig(site.name)
           await dropDatabase(dbName)

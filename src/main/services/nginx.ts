@@ -1,60 +1,55 @@
 import { join } from 'path'
-import { spawn } from 'child_process'
-import { modifyHostsFile } from './hosts'
 import { promises as fs } from 'fs'
+import { exec } from 'child_process'
+
+const nginxConfigPath = join(process.cwd(), 'config', 'nginx')
+const sitesEnabledPath = join(nginxConfigPath, 'sites-enabled')
+const templatePath = join(nginxConfigPath, 'template-site.conf')
 
 export async function generateNginxConfig(
   domain: string,
-  nginxRootPath: string,
-  multisite?: { enabled: boolean; type: 'subdomain' | 'subdirectory' }
+  webRoot: string,
+  aliases?: string,
+  multisite?: {
+    enabled: boolean
+    type: 'subdomain' | 'subdirectory'
+  }
 ): Promise<void> {
   try {
-    // Read the template file
-    const templatePath = join(process.cwd(), 'config', 'nginx', 'template-site.conf')
-    let configContent = await fs.readFile(templatePath, 'utf8')
+    const templateContent = await fs.readFile(templatePath, 'utf8')
+    const allDomains = [domain, ...(aliases?.split(' ') || [])].filter(Boolean).join(' ')
 
-    // Replace server_name placeholder first
-    configContent = configContent.replace(/server_name example\.com;/g, `server_name ${domain};`)
-    // Then replace root placeholder with the specific path
-    configContent = configContent.replace(
-      /root \/src\/www\/example\.com;/g,
-      `root ${nginxRootPath};`
-    )
+    let finalConfig = templateContent
+      .replace(/server_name example\.com;/g, `server_name ${allDomains};`)
+      .replace(/root \/src\/www\/example\.com;/g, `root ${webRoot};`)
 
-    // Replace the include directive based on multisite configuration
     if (multisite?.enabled) {
-      const includeDirective =
-        multisite.type === 'subdomain'
-          ? 'include global/wordpress-ms-subdomain.conf;'
-          : 'include global/wordpress-ms-subdir.conf;'
-
-      // Replace the WordPress include directive
-      configContent = configContent.replace(
-        '# include global/wordpress-ms-subdir.conf;',
-        '# include global/wordpress-ms-subdir.conf;'
-      )
-      configContent = configContent.replace(
-        '# include global/wordpress-ms-subdomain.conf;',
-        '# include global/wordpress-ms-subdomain.conf;'
-      )
-      configContent = configContent.replace('include global/wordpress.conf;', includeDirective)
+      if (multisite.type === 'subdirectory') {
+        finalConfig = finalConfig.replace(
+          '# include global/wordpress-ms-subdir.conf;',
+          'include global/wordpress-ms-subdir.conf;'
+        )
+        finalConfig = finalConfig.replace(
+          'include global/wordpress.conf;',
+          '# include global/wordpress.conf;'
+        )
+      } else {
+        // subdomain
+        finalConfig = finalConfig.replace(
+          '# include global/wordpress-ms-subdomain.conf;',
+          'include global/wordpress-ms-subdomain.conf;'
+        )
+        finalConfig = finalConfig.replace(
+          'include global/wordpress.conf;',
+          '# include global/wordpress.conf;'
+        )
+      }
     }
 
-    // Write the configuration file
-    const sitesEnabledPath = join(process.cwd(), 'config', 'nginx', 'sites-enabled')
-    await fs.mkdir(sitesEnabledPath, { recursive: true })
-    await fs.writeFile(join(sitesEnabledPath, `${domain}.conf`), configContent, 'utf8')
-
-    console.log(`Created Nginx configuration for ${domain}`)
-
-    // For subdomain multisite, we need to add wildcard entry to hosts file
-    if (multisite?.enabled && multisite.type === 'subdomain') {
-      await modifyHostsFile(`*.${domain}`, 'add')
-    }
-
-    console.log(`Reloading Nginx configuration...`)
-
-    await reloadNginxConfig()
+    const newConfigPath = join(sitesEnabledPath, `${domain}.conf`)
+    await fs.writeFile(newConfigPath, finalConfig, 'utf8')
+    console.log(`Generated Nginx config for ${domain}`)
+    await reloadNginx()
   } catch (error) {
     console.error(`Failed to generate Nginx config for ${domain}:`, error)
     throw error
@@ -63,22 +58,32 @@ export async function generateNginxConfig(
 
 export async function removeNginxConfig(domain: string): Promise<void> {
   try {
-    const configPath = join(process.cwd(), 'config/nginx/sites-enabled', `${domain}.conf`)
-
-    // Check if the file exists before trying to delete it
-    try {
-      await fs.access(configPath)
-      // If no error is thrown, file exists and we can delete it
-      await fs.unlink(configPath)
-      console.log(`Removed Nginx config for ${domain}`)
-    } catch {
-      // File doesn't exist, so no need to delete it
-      console.log(`Nginx config for ${domain} does not exist or is not accessible`)
+    const configPath = join(sitesEnabledPath, `${domain}.conf`)
+    await fs.unlink(configPath)
+    console.log(`Removed Nginx config for ${domain}`)
+    await reloadNginx()
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      console.log(`Nginx config for ${domain} not found, skipping removal.`)
+      return
     }
-  } catch (error) {
     console.error(`Failed to remove Nginx config for ${domain}:`, error)
     throw error
   }
+}
+
+async function reloadNginx(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    exec('docker compose exec nginx nginx -s reload', (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error reloading Nginx: ${stderr}`)
+        reject(error)
+        return
+      }
+      console.log('Nginx reloaded successfully.')
+      resolve()
+    })
+  })
 }
 
 export async function reloadNginxConfig(): Promise<void> {
