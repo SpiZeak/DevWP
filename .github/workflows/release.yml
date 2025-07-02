@@ -82,7 +82,7 @@ jobs:
           files: |
             all-build-artifacts/build-artifacts-windows-latest/*
             all-build-artifacts/build-artifacts-macos-latest/*
-            all-build-artifacts/build-artifacts-linux-latest/*
+            all-build-artifacts/build-artifacts-ubuntu-latest/*
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
