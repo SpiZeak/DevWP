@@ -29,6 +29,8 @@ declare global {
       deleteSite: (siteName: Site) => Promise<void>
       createSite: (site: {
         domain: string
+        webRoot?: string
+        aliases?: string
         multisite: {
           enabled: boolean
           type: 'subdomain' | 'subdirectory'
