@@ -7,8 +7,6 @@ DevWP is a desktop application designed to simplify local WordPress development.
 
 ![Screenshot From 2025-07-03 15-01-44](https://github.com/user-attachments/assets/f9410831-6048-4f46-87f3-e2c3ac8d5136)
 
-
-
 ## Table of Contents
 
 - [DevWP](#devwp)
@@ -126,8 +124,8 @@ You can find the latest releases and download installers on the [**GitHub Releas
     - The application should provide you with the local URL (e.g., `https://your-site-domain.test`).
     - You can then proceed to install WordPress or deploy your existing WordPress files into the `www/your-site-domain` directory.
 4.  **Email Testing**:
+    - Mailpit SMTP is already pre-configured in Nginx. No manual SMTP setup is required in WordPress.
     - Access the Mailpit web interface at `http://localhost:8025` to view all emails sent from your WordPress sites.
-    - Configure your WordPress sites to use the SMTP settings: Host: `mailpit`, Port: `1025` (no authentication required).
 5.  **SonarQube Integration**:
     - Utilize the SonarQube integration features to create a project in your SonarQube instance corresponding to your WordPress site for code analysis.
 
