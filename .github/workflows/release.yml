@@ -87,6 +87,7 @@ jobs:
             all-build-artifacts/build-artifacts-windows-latest/*
             all-build-artifacts/build-artifacts-macos-latest/*
             all-build-artifacts/build-artifacts-ubuntu-latest/*
+            !**/builder-debug.yml
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
