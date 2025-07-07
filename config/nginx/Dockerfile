@@ -1,4 +1,4 @@
-FROM nginx:stable-alpine AS builder
+FROM nginx:mainline-alpine AS builder
 
 # For latest build deps, see https://github.com/nginxinc/docker-nginx/blob/master/mainline/alpine/Dockerfile
 RUN apk add --no-cache --virtual .build-deps \
