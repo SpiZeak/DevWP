@@ -1,3 +1,3 @@
 [submodule "config/seonaut"]
-	path = config/seonaut
-	url = https://github.com/StJudeWasHere/seonaut
+path = config/seonaut
+url = https://github.com/SpiZeak/seonaut
