@@ -108,6 +108,21 @@ services:
     #   "-Dsonar.host.url=http://sonarqube:9000",
     #   "-Dsonar.token=sqp_7469b2ba5c18b21d78ded586c997fff84dd7c73d"
     # ]
+
+  seonaut:
+    build:
+      context: ./config/seonaut
+    container_name: 'devwp_seonaut'
+    ports:
+      - '9001:9001'
+    depends_on:
+      - mariadb
+    command: sh -c "/bin/wait && /app/seonaut"
+    environment:
+      - WAIT_HOSTS=mariadb:3306
+      - WAIT_HOSTS_TIMEOUT=300
+      - WAIT_SLEEP_INTERVAL=30
+      - WAIT_HOST_CONNECT_TIMEOUT=30
 volumes:
   mariadb:
   redis:
