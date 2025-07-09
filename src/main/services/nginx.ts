@@ -88,7 +88,7 @@ async function reloadNginx(): Promise<void> {
 
 export async function reloadNginxConfig(): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    const reloadProcess = spawn('docker', ['compose', 'exec', 'web', 'nginx', '-s', 'reload'])
+    const reloadProcess = spawn('docker', ['compose', 'exec', 'nginx', 'nginx', '-s', 'reload'])
 
     reloadProcess.on('close', (code) => {
       if (code === 0) {

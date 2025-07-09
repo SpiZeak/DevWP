@@ -38,8 +38,8 @@ services:
     volumes:
       - redis:/data
 
-  web:
-    container_name: devwp_web
+  nginx:
+    container_name: devwp_nginx
     build:
       context: ./config/nginx
       args:

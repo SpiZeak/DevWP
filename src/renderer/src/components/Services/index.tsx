@@ -17,7 +17,7 @@ interface Container {
 
 // Container name mapping for user-friendly display
 const containerNameMapping: Record<string, string> = {
-  devwp_web: 'Nginx',
+  devwp_nginx: 'Nginx',
   devwp_php: 'PHP',
   devwp_mariadb: 'MariaDB',
   devwp_redis: 'Redis',
@@ -27,7 +27,7 @@ const containerNameMapping: Record<string, string> = {
 }
 
 const containerIconMapping: Record<string, React.ReactNode> = {
-  devwp_web: <img className="service-icon" src={nginxIcon} alt="Nginx" />,
+  devwp_nginx: <img className="service-icon" src={nginxIcon} alt="Nginx" />,
   devwp_php: <img className="service-icon" src={phpIcon} alt="PHP" />,
   devwp_mariadb: <img className="service-icon" src={mariaDBIcon} alt="MariaDB" />,
   devwp_redis: <img className="service-icon" src={redisIcon} alt="Redis" />,

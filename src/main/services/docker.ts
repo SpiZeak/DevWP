@@ -7,7 +7,7 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
   return new Promise((resolve, reject) => {
     const isWin = platform() === 'win32'
     const command = isWin ? 'docker-compose.exe' : 'docker-compose'
-    const dockerProcess = spawn(command, ['up', '-d', '--build', 'web'])
+    const dockerProcess = spawn(command, ['up', '-d', '--build', 'nginx'])
 
     // Send initial status if window exists
     if (mainWindow) {
@@ -160,106 +160,106 @@ function getContainerVersion(containerId: string): Promise<string | undefined> {
     // Get the container name to identify special cases
     exec(`docker inspect --format="{{.Name}}" ${containerId}`, (nameError, nameStdout) => {
       if (nameError) {
-      console.error(`Error getting container name for ${containerId}:`, nameError)
-      resolve(undefined)
-      return
+        console.error(`Error getting container name for ${containerId}:`, nameError)
+        resolve(undefined)
+        return
       }
 
       const containerName = nameStdout.trim().replace(/^\//, '')
 
       switch (containerName) {
-      case 'devwp_web':
-        // Nginx outputs version to stderr
-        exec(`docker exec ${containerId} nginx -v`, (nginxError, _stdout, nginxStderr) => {
-        if (nginxError) {
-          console.error(`Error getting Nginx version for container ${containerId}:`, nginxError)
-          resolve(undefined)
-          return
-        }
-        const output = nginxStderr
-        const versionMatch = output.match(/nginx\/(\d+\.\d+\.\d+)/)
-        resolve(versionMatch ? versionMatch[1] : undefined)
-        })
-        break
+        case 'devwp_nginx':
+          // Nginx outputs version to stderr
+          exec(`docker exec ${containerId} nginx -v`, (nginxError, _stdout, nginxStderr) => {
+            if (nginxError) {
+              console.error(`Error getting Nginx version for container ${containerId}:`, nginxError)
+              resolve(undefined)
+              return
+            }
+            const output = nginxStderr
+            const versionMatch = output.match(/nginx\/(\d+\.\d+\.\d+)/)
+            resolve(versionMatch ? versionMatch[1] : undefined)
+          })
+          break
 
-      case 'devwp_php':
-        // PHP outputs version to stdout, extract only the version number
-        exec(`docker exec ${containerId} php --version`, (phpError, phpStdout) => {
-        if (phpError) {
-          console.error(`Error getting PHP version for container ${containerId}:`, phpError)
-          resolve(undefined)
-          return
-        }
-        // Extract version number from the first line, e.g. "PHP 8.1.2 (cli) ..."
-        const match = phpStdout.match(/PHP\s+(\d+\.\d+\.\d+)/)
-        resolve(match ? match[1] : undefined)
-        })
-        break
+        case 'devwp_php':
+          // PHP outputs version to stdout, extract only the version number
+          exec(`docker exec ${containerId} php --version`, (phpError, phpStdout) => {
+            if (phpError) {
+              console.error(`Error getting PHP version for container ${containerId}:`, phpError)
+              resolve(undefined)
+              return
+            }
+            // Extract version number from the first line, e.g. "PHP 8.1.2 (cli) ..."
+            const match = phpStdout.match(/PHP\s+(\d+\.\d+\.\d+)/)
+            resolve(match ? match[1] : undefined)
+          })
+          break
 
-      case 'devwp_mariadb':
-        // MariaDB outputs version to stdout, extract only the version number
-        exec(`docker exec ${containerId} mariadb --version`, (mariaDbError, mariaDbStdout) => {
-        if (mariaDbError) {
-          console.error(
-          `Error getting MariaDB version for container ${containerId}:`,
-          mariaDbError
+        case 'devwp_mariadb':
+          // MariaDB outputs version to stdout, extract only the version number
+          exec(`docker exec ${containerId} mariadb --version`, (mariaDbError, mariaDbStdout) => {
+            if (mariaDbError) {
+              console.error(
+                `Error getting MariaDB version for container ${containerId}:`,
+                mariaDbError
+              )
+              resolve(undefined)
+              return
+            }
+            // Example output: "mariadb  Ver 15.1 Distrib 11.3.2-MariaDB, for debian-linux-gnu (x86_64) using  EditLine wrapper"
+            const match = mariaDbStdout.match(/\s+([\d\.]+)-MariaDB/) // Adjusted regex for MariaDB
+            resolve(match ? match[1] : undefined)
+          })
+          break
+
+        case 'devwp_redis':
+          // Redis outputs version to stdout, extract only the version number
+          exec(`docker exec ${containerId} redis-server --version`, (redisError, redisStdout) => {
+            if (redisError) {
+              console.error(`Error getting Redis version for container ${containerId}:`, redisError)
+              resolve(undefined)
+              return
+            }
+            // Example output: "Redis server v=7.0.5 sha=... ..."
+            const match = redisStdout.match(/v=([\d.]+)/)
+            resolve(match ? match[1] : undefined)
+          })
+          break
+
+        case 'devwp_sonarqube':
+          // SonarQube outputs version to stdout with 'sonar-scanner --version'
+          exec(
+            `docker exec ${containerId} curl http://localhost:9000/api/server/version`,
+            (sonarError, sonarStdout) => {
+              if (sonarError) {
+                console.error(
+                  `Error getting SonarQube version for container ${containerId}:`,
+                  sonarError
+                )
+                resolve(undefined)
+                return
+              }
+              resolve(sonarStdout)
+            }
           )
-          resolve(undefined)
-          return
-        }
-        // Example output: "mariadb  Ver 15.1 Distrib 11.3.2-MariaDB, for debian-linux-gnu (x86_64) using  EditLine wrapper"
-        const match = mariaDbStdout.match(/\s+([\d\.]+)-MariaDB/) // Adjusted regex for MariaDB
-        resolve(match ? match[1] : undefined)
-        })
-        break
+          break
 
-      case 'devwp_redis':
-        // Redis outputs version to stdout, extract only the version number
-        exec(`docker exec ${containerId} redis-server --version`, (redisError, redisStdout) => {
-        if (redisError) {
-          console.error(`Error getting Redis version for container ${containerId}:`, redisError)
-          resolve(undefined)
-          return
-        }
-        // Example output: "Redis server v=7.0.5 sha=... ..."
-        const match = redisStdout.match(/v=([\d.]+)/)
-        resolve(match ? match[1] : undefined)
-        })
-        break
-
-      case 'devwp_sonarqube':
-        // SonarQube outputs version to stdout with 'sonar-scanner --version'
-        exec(
-        `docker exec ${containerId} curl http://localhost:9000/api/server/version`,
-        (sonarError, sonarStdout) => {
-          if (sonarError) {
-          console.error(
-            `Error getting SonarQube version for container ${containerId}:`,
-            sonarError
+        default:
+          // For other containers, use the image tag
+          exec(
+            `docker inspect --format="{{index .Config.Image}}" ${containerId}`,
+            (error, stdout) => {
+              if (error) {
+                console.error(`Error getting version for container ${containerId}:`, error)
+                resolve(undefined)
+                return
+              }
+              const image = stdout.trim()
+              const versionMatch = image.match(/:([^:]+)$/)
+              resolve(versionMatch ? versionMatch[1] : 'latest')
+            }
           )
-          resolve(undefined)
-          return
-          }
-          resolve(sonarStdout)
-        }
-        )
-        break
-
-      default:
-        // For other containers, use the image tag
-        exec(
-        `docker inspect --format="{{index .Config.Image}}" ${containerId}`,
-        (error, stdout) => {
-          if (error) {
-          console.error(`Error getting version for container ${containerId}:`, error)
-          resolve(undefined)
-          return
-          }
-          const image = stdout.trim()
-          const versionMatch = image.match(/:([^:]+)$/)
-          resolve(versionMatch ? versionMatch[1] : 'latest')
-        }
-        )
       }
     })
   })
