@@ -30,6 +30,13 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
     }
   }
 
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
+    e.preventDefault()
+    if (!wpCliLoading && wpCliCommand.trim()) {
+      handleRunWpCli()
+    }
+  }
+
   const handleClose = (): void => {
     setWpCliCommand('')
     setWpCliResult(null)
@@ -42,33 +49,41 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
         <h3 className="modal-title">
           Run WP-CLI Command for <span className="bold-text">{site.name}</span>
         </h3>
-        <div className="form-group">
-          <label className="form-label">Command</label>
-          <input
-            type="text"
-            className="form-input"
-            value={wpCliCommand}
-            onChange={(e): void => setWpCliCommand(e.target.value)}
-            placeholder="e.g. plugin list"
-            disabled={wpCliLoading}
-          />
-          <div className="form-help-text">
-            Only enter the command after <span className="bold-text">wp</span>, e.g.{' '}
-            <code>plugin list</code>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="form-label">Command</label>
+            <input
+              type="text"
+              className="form-input"
+              value={wpCliCommand}
+              onChange={(e): void => setWpCliCommand(e.target.value)}
+              placeholder="e.g. plugin list"
+              disabled={wpCliLoading}
+              autoFocus
+            />
+            <div className="form-help-text">
+              Only enter the command after <span className="bold-text">wp</span>, e.g.{' '}
+              <code>plugin list</code>
+            </div>
           </div>
-        </div>
-        <div className="modal-actions">
-          <button onClick={handleClose} className="cancel-button" disabled={wpCliLoading}>
-            Cancel
-          </button>
-          <button
-            onClick={handleRunWpCli}
-            className="create-button"
-            disabled={!wpCliCommand.trim() || wpCliLoading}
-          >
-            {wpCliLoading ? 'Running...' : 'Run'}
-          </button>
-        </div>
+          <div className="modal-actions">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="cancel-button"
+              disabled={wpCliLoading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="create-button"
+              disabled={!wpCliCommand.trim() || wpCliLoading}
+            >
+              {wpCliLoading ? 'Running...' : 'Run'}
+            </button>
+          </div>
+        </form>
         {wpCliResult && (
           <div className="form-group">
             <label className="form-label">Result</label>

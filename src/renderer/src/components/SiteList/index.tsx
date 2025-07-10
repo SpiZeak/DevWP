@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import './SiteList.scss'
+import WpCliModal from './WpCliModal'
 
 export interface Site {
   name: string
@@ -502,61 +503,11 @@ const SiteList: React.FC = () => {
       )}
 
       {wpCliModal.open && wpCliModal.site && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3 className="modal-title">
-              Run WP-CLI Command for <span className="bold-text">{wpCliModal.site.name}</span>
-            </h3>
-            <div className="form-group">
-              <label className="form-label">Command</label>
-              <input
-                type="text"
-                className="form-input"
-                value={wpCliCommand}
-                onChange={(e) => setWpCliCommand(e.target.value)}
-                placeholder="e.g. plugin list"
-                disabled={wpCliLoading}
-              />
-              <div className="form-help-text">
-                Only enter the command after <span className="bold-text">wp</span>, e.g.{' '}
-                <code>plugin list</code>
-              </div>
-            </div>
-            <div className="modal-actions">
-              <button
-                onClick={handleCloseWpCliModal}
-                className="cancel-button"
-                disabled={wpCliLoading}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRunWpCli}
-                className="create-button"
-                disabled={!wpCliCommand.trim() || wpCliLoading}
-              >
-                {wpCliLoading ? 'Running...' : 'Run'}
-              </button>
-            </div>
-            {wpCliResult && (
-              <div className="form-group">
-                <label className="form-label">Result</label>
-                <pre
-                  style={{
-                    background: '#222',
-                    color: '#fff',
-                    padding: '10px',
-                    borderRadius: '4px',
-                    maxHeight: '200px',
-                    overflow: 'auto'
-                  }}
-                >
-                  {wpCliResult.output || wpCliResult.error}
-                </pre>
-              </div>
-            )}
-          </div>
-        </div>
+        <WpCliModal
+          isOpen={wpCliModal.open}
+          site={wpCliModal.site}
+          onClose={handleCloseWpCliModal}
+        />
       )}
     </div>
   )
