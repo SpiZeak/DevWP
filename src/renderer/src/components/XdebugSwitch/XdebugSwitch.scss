@@ -1,6 +1,7 @@
 .xdebug-switch-container {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 1rem;
   border-radius: 6px;
   background-color: var(--color-bg-secondary);
@@ -9,8 +10,14 @@
 
 .xdebug-switch-label {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  flex: 1;
+  margin-right: 1rem;
+
+  h3 {
+    margin: 0 0 0.5rem 0;
+    font-weight: 500;
+  }
 
   img {
     display: block;
@@ -27,7 +34,8 @@
 .xdebug-switch-info {
   font-size: 0.85rem;
   color: var(--color-text-secondary);
-  margin-top: 0.25rem;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .xdebug-switch {
@@ -35,7 +43,7 @@
   display: inline-block;
   width: 40px;
   height: 20px;
-  align-self: center;
+  flex-shrink: 0;
 
   input {
     opacity: 0;
