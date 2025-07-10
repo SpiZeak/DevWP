@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import { startDockerCompose } from './services/docker'
 import { startContainerMonitoring } from './ipc/container'
 import { registerXdebugHandlers } from './ipc/xdebug'
+import { registerWpCliHandlers } from './ipc/wpCli'
 
 export function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -46,6 +47,9 @@ export function createWindow(): BrowserWindow {
 
     // Register Xdebug handlers
     registerXdebugHandlers(mainWindow)
+
+    // Register WP-CLI handlers
+    registerWpCliHandlers()
   })
 
   // HMR for renderer base on electron-vite cli.

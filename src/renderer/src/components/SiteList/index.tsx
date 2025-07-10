@@ -148,11 +148,10 @@ const SiteList: React.FC = () => {
     setWpCliLoading(true)
     setWpCliResult(null)
     try {
-      const result = await window.electron.ipcRenderer.invoke(
-        'runWpCliCommand',
-        wpCliModal.site,
-        wpCliCommand
-      )
+      const result = await window.electron.ipcRenderer.invoke('run-wp-cli', {
+        site: wpCliModal.site,
+        command: wpCliCommand
+      })
       setWpCliResult(result)
     } catch (e) {
       setWpCliResult({ error: String(e) })
