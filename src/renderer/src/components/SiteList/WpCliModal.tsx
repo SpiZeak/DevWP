@@ -1,5 +1,5 @@
 import { Site } from '@renderer/env'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface WpCliModalProps {
   isOpen: boolean
@@ -9,24 +9,66 @@ interface WpCliModalProps {
 
 const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
   const [wpCliCommand, setWpCliCommand] = useState<string>('')
-  const [wpCliResult, setWpCliResult] = useState<{ output?: string; error?: string } | null>(null)
+  const [wpCliOutput, setWpCliOutput] = useState<string>('')
+  const [wpCliError, setWpCliError] = useState<string>('')
   const [wpCliLoading, setWpCliLoading] = useState<boolean>(false)
+  const [isComplete, setIsComplete] = useState<boolean>(false)
+  const outputRef = useRef<HTMLPreElement>(null)
+
+  useEffect(() => {
+    if (!isOpen || !site) return
+
+    // Set up streaming listener
+    const removeListener = window.electronAPI.onWpCliStream((data) => {
+      // Only handle streams for the current site
+      if (data.siteId !== site.name) return
+
+      switch (data.type) {
+        case 'stdout':
+          setWpCliOutput((prev) => prev + data.data)
+          break
+        case 'stderr':
+          setWpCliError((prev) => prev + data.data)
+          break
+        case 'complete':
+          setWpCliLoading(false)
+          setIsComplete(true)
+          break
+        case 'error':
+          setWpCliError((prev) => prev + data.error)
+          setWpCliLoading(false)
+          setIsComplete(true)
+          break
+      }
+    })
+
+    return removeListener
+  }, [isOpen, site])
+
+  // Auto-scroll to bottom when output changes
+  useEffect(() => {
+    if (outputRef.current) {
+      outputRef.current.scrollTop = outputRef.current.scrollHeight
+    }
+  }, [wpCliOutput, wpCliError])
 
   if (!isOpen || !site) return null
 
   const handleRunWpCli = async (): Promise<void> => {
     setWpCliLoading(true)
-    setWpCliResult(null)
+    setWpCliOutput('')
+    setWpCliError('')
+    setIsComplete(false)
+
     try {
-      const result = await window.electron.ipcRenderer.invoke('run-wp-cli', {
+      await window.electron.ipcRenderer.invoke('run-wp-cli', {
         site: site,
         command: wpCliCommand
       })
-      setWpCliResult(result)
     } catch (e) {
-      setWpCliResult({ error: String(e) })
-    } finally {
+      setWpCliError(String(e))
       setWpCliLoading(false)
+      setIsComplete(true)
     }
   }
 
@@ -39,9 +81,13 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
 
   const handleClose = (): void => {
     setWpCliCommand('')
-    setWpCliResult(null)
+    setWpCliOutput('')
+    setWpCliError('')
+    setIsComplete(false)
     onClose()
   }
+
+  const hasOutput = wpCliOutput || wpCliError
 
   return (
     <div className="modal-overlay">
@@ -73,7 +119,7 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
               className="cancel-button"
               disabled={wpCliLoading}
             >
-              Cancel
+              {wpCliLoading ? 'Close' : 'Cancel'}
             </button>
             <button
               type="submit"
@@ -84,20 +130,29 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
             </button>
           </div>
         </form>
-        {wpCliResult && (
+        {hasOutput && (
           <div className="form-group">
-            <label className="form-label">Result</label>
+            <label className="form-label">
+              Output {wpCliLoading && <span className="loading-indicator">●</span>}
+            </label>
             <pre
+              ref={outputRef}
               style={{
                 background: '#222',
                 color: '#fff',
                 padding: '10px',
                 borderRadius: '4px',
-                maxHeight: '200px',
-                overflow: 'auto'
+                maxHeight: '300px',
+                overflow: 'auto',
+                fontSize: '12px',
+                fontFamily: 'monospace',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word'
               }}
             >
-              {wpCliResult.output || wpCliResult.error}
+              {wpCliOutput && <span style={{ color: '#90EE90' }}>{wpCliOutput}</span>}
+              {wpCliError && <span style={{ color: '#FF6B6B' }}>{wpCliError}</span>}
+              {wpCliLoading && <span style={{ color: '#FFD700' }}>▊</span>}
             </pre>
           </div>
         )}

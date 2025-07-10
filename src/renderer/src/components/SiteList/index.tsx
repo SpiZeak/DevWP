@@ -35,9 +35,6 @@ const SiteList: React.FC = () => {
     open: false,
     site: null
   })
-  const [wpCliCommand, setWpCliCommand] = useState<string>('')
-  const [wpCliResult, setWpCliResult] = useState<{ output?: string; error?: string } | null>(null)
-  const [wpCliLoading, setWpCliLoading] = useState<boolean>(false)
   const sitesListRef = useRef<HTMLUListElement>(null)
   const [scrollBar, setScrollBar] = useState({
     top: 0,
@@ -135,30 +132,10 @@ const SiteList: React.FC = () => {
 
   const handleOpenWpCliModal = (site: Site): void => {
     setWpCliModal({ open: true, site })
-    setWpCliCommand('')
-    setWpCliResult(null)
   }
 
   const handleCloseWpCliModal = (): void => {
     setWpCliModal({ open: false, site: null })
-    setWpCliCommand('')
-    setWpCliResult(null)
-  }
-
-  const handleRunWpCli = async (): Promise<void> => {
-    setWpCliLoading(true)
-    setWpCliResult(null)
-    try {
-      const result = await window.electron.ipcRenderer.invoke('run-wp-cli', {
-        site: wpCliModal.site,
-        command: wpCliCommand
-      })
-      setWpCliResult(result)
-    } catch (e) {
-      setWpCliResult({ error: String(e) })
-    } finally {
-      setWpCliLoading(false)
-    }
   }
 
   const fetchSites = async (): Promise<void> => {
