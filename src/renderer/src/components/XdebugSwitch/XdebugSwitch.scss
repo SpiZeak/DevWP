@@ -4,6 +4,7 @@
   margin-bottom: 1rem;
   border-radius: 6px;
   background-color: var(--color-bg-secondary);
+  padding: 1rem;
 }
 
 .xdebug-switch-label {
@@ -21,6 +22,12 @@
   span {
     font-weight: 500;
   }
+}
+
+.xdebug-switch-info {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-top: 0.25rem;
 }
 
 .xdebug-switch {

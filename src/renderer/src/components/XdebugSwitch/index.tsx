@@ -52,11 +52,11 @@ function XdebugSwitch(): JSX.Element {
       <div className="xdebug-switch-label">
         <div>
           <h3>{xdebugEnabled ? 'Debug' : 'Performance'}</h3>
-          {/* <p>
+          <p className="xdebug-switch-info">
             {xdebugEnabled
               ? 'Debug mode enables Xdebug for step debugging and profiling PHP code.'
               : 'Performance mode disables Xdebug for faster PHP execution and activates JIT (Just-In-Time) compilation.'}
-          </p> */}
+          </p>
         </div>
       </div>
       <label className="xdebug-switch">

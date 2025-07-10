@@ -26,13 +26,9 @@ export async function getXdebugStatus(): Promise<boolean> {
     })
 
     if (isDisabled) {
-      console.log(`Xdebug status determined: disabled (found '${modeLineDisable}')`)
       xdebugEnabled = false
       return false
     } else {
-      console.log(
-        `Xdebug status determined: enabled ('${modeLineDisable}' not found or commented out)`
-      )
       xdebugEnabled = true
       return true
     }
@@ -92,7 +88,7 @@ export async function toggleXdebug(mainWindow?: BrowserWindow): Promise<boolean>
     const modeDirective = 'xdebug.mode'
 
     // Filter out all existing xdebug.mode lines and empty lines
-    let filteredLines = lines.filter(
+    const filteredLines = lines.filter(
       (line) => !line.trim().startsWith(modeDirective) && line.trim() !== ''
     )
 
