@@ -50,7 +50,14 @@ function XdebugSwitch(): JSX.Element {
   return (
     <div className="xdebug-switch-container">
       <div className="xdebug-switch-label">
-        <h3>{xdebugEnabled ? 'Debug' : 'Performance'}</h3>
+        <div>
+          <h3>{xdebugEnabled ? 'Debug' : 'Performance'}</h3>
+          {/* <p>
+            {xdebugEnabled
+              ? 'Debug mode enables Xdebug for step debugging and profiling PHP code.'
+              : 'Performance mode disables Xdebug for faster PHP execution and activates JIT (Just-In-Time) compilation.'}
+          </p> */}
+        </div>
       </div>
       <label className="xdebug-switch">
         <input

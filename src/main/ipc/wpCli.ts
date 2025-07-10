@@ -4,7 +4,7 @@ import { ipcMain } from 'electron'
 export function registerWpCliHandlers(): void {
   ipcMain.handle('run-wp-cli', async (_, { site, command }) => {
     return new Promise((resolve) => {
-      const dockerCmd = `docker exec devwp_php wp --path=/src/www/${site.name} ${command}`
+      const dockerCmd = `docker exec -w /src/www/${site.name} devwp_php php -d error_reporting="E_ALL & ~E_DEPRECATED & ~E_WARNING" /usr/local/bin/wp ${command} 2>/dev/null`
       exec(dockerCmd, (error, stdout, stderr) => {
         if (error) {
           resolve({ success: false, error: stderr || error.message })
