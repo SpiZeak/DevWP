@@ -6,6 +6,7 @@ import mariaDBIcon from '../assets/icons/mariadb.svg'
 import redisIcon from '../assets/icons/redis.svg'
 import sonarCubeIcon from '../assets/icons/sonarqube.svg'
 import nginxIcon from '../assets/icons/nginx.svg'
+import Spinner from './ui/Spinner'
 
 interface Container {
   id: string
@@ -26,13 +27,13 @@ const containerNameMapping: Record<string, string> = {
 }
 
 const containerIconMapping: Record<string, React.ReactNode> = {
-  devwp_nginx: <img className="service-icon" src={nginxIcon} alt="Nginx" />,
-  devwp_php: <img className="service-icon" src={phpIcon} alt="PHP" />,
-  devwp_mariadb: <img className="service-icon" src={mariaDBIcon} alt="MariaDB" />,
-  devwp_redis: <img className="service-icon" src={redisIcon} alt="Redis" />,
-  devwp_mailpit: <img className="service-icon" src={mailpitIcon} alt="Mailpit" />,
+  devwp_nginx: <img className="w-10 h-8 object-contain" src={nginxIcon} alt="Nginx" />,
+  devwp_php: <img className="w-10 h-8 object-contain" src={phpIcon} alt="PHP" />,
+  devwp_mariadb: <img className="w-10 h-8 object-contain" src={mariaDBIcon} alt="MariaDB" />,
+  devwp_redis: <img className="w-10 h-8 object-contain" src={redisIcon} alt="Redis" />,
+  devwp_mailpit: <img className="w-10 h-8 object-contain" src={mailpitIcon} alt="Mailpit" />,
   devwp_certs: '🔒',
-  devwp_sonarqube: <img className="service-icon" src={sonarCubeIcon} alt="SonarQube" />
+  devwp_sonarqube: <img className="w-10 h-8 object-contain" src={sonarCubeIcon} alt="SonarQube" />
 }
 
 const Services: React.FC = () => {
@@ -89,7 +90,7 @@ const Services: React.FC = () => {
             containerMap.map((container) => (
               <li
                 key={container.id}
-                className={`flex justify-between items-center px-3 py-1.5 bg-gray-600 rounded-md transition-colors hover:bg-gray-500 ${container.state === 'running' ? 'border-l-3 border-green-500' : container.state === 'exited' || container.state === 'stopped' ? 'border-l-3 border-red-500' : ''}`}
+                className={`flex justify-between items-center px-3 py-1.5 bg-gray-600 rounded-md transition-colors hover:bg-gray-500 ${container.state === 'running' ? 'border-l-3 border-success-500' : container.state === 'exited' || container.state === 'stopped' ? 'border-l-3 border-danger-500' : ''}`}
               >
                 <div className="flex items-center gap-2.5">
                   {containerIconMapping[container.name] || '🔧'}
@@ -103,16 +104,12 @@ const Services: React.FC = () => {
                   </div>
                 </div>
                 <button
-                  className={`flex items-center justify-center min-w-7 h-7 rounded-full border-1 bg-gray-500 cursor-pointer text-seasalt transition-all duration-200 flex-shrink-0 hover:bg-pumpkin400 hover:text-black hover:scale-110 hover:rotate-30 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pumpkin hover:text-rich-black ${restarting[container.id] ? 'bg-blue-400 text-seasalt' : ''}`}
+                  className={`flex flex-shrink-0 justify-center items-center bg-gray-500 disabled:opacity-50 rounded-full size-7 text-2xl text-seasalt hover:text-black transition-all duration-200 cursor-pointer disabled:cursor-not-allowed icon ${restarting[container.id] ? '' : 'hover:rotate-30 hover:bg-pumpkin hover:text-rich-black hover:scale-110'}`}
                   onClick={() => restartContainer(container.id, container.name)}
                   disabled={restarting[container.id]}
                   title="Restart service"
                 >
-                  {restarting[container.id] ? (
-                    <span className="inline-block border-2 border-white/30 border-t-white rounded-full w-3.5 h-3.5 animate-spin"></span>
-                  ) : (
-                    <span>↻</span>
-                  )}
+                  {restarting[container.id] ? <Spinner /> : <span>↻</span>}
                 </button>
               </li>
             ))

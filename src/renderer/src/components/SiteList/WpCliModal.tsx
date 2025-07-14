@@ -139,8 +139,8 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
               ref={outputRef}
               className="bg-gray-900 p-2.5 rounded max-h-[300px] overflow-auto font-mono text-seasalt text-xs break-words whitespace-pre-wrap"
             >
-              {wpCliOutput && <span className="text-green-400">{wpCliOutput}</span>}
-              {wpCliError && <span className="text-red-400">{wpCliError}</span>}
+              {wpCliOutput && <span className="text-success-400">{wpCliOutput}</span>}
+              {wpCliError && <span className="text-danger-400">{wpCliError}</span>}
               {wpCliLoading && <span className="text-yellow-400">▊</span>}
             </pre>
           </div>

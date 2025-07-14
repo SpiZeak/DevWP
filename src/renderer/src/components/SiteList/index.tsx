@@ -227,7 +227,7 @@ const SiteList: React.FC = () => {
         <h3 className="m-0">My Sites</h3>
         <button
           onClick={handleCreateSite}
-          className="flex items-center gap-1.5 bg-gray-600 hover:bg-pumpkin hover:bg-pumpkin400 px-3 py-2 border-1 rounded font-bold text-seasalt hover:text-black hover:text-rich-black text-sm leading-normal transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 bg-gray-600 hover:bg-pumpkin hover:bg-pumpkin px-3 py-2 border-1 rounded font-bold text-seasalt hover:text-black hover:text-rich-black text-sm leading-normal transition-colors cursor-pointer"
         >
           <span className="icon"></span>
           New Site

@@ -35,7 +35,7 @@ function DockerLoader(): JSX.Element | null {
         <h3>Starting Docker Environment</h3>
         <p className="mt-4 h-15 overflow-y-auto text-seasalt text-sm">{dockerStatus.message}</p>
         {dockerStatus.status === 'error' && (
-          <div className="mt-4 text-red-400">
+          <div className="mt-4 text-danger-400">
             There was an error starting Docker. Check the logs for details.
           </div>
         )}
