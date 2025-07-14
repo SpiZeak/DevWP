@@ -100,7 +100,7 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
             <label className="block mb-1 text-sm">Command</label>
             <input
               type="text"
-              className="bg-gray-600 p-2 border border-gray-500 rounded w-full text-white"
+              className="bg-gray-600 p-2 border border-gray-500 rounded w-full text-seasalt"
               value={wpCliCommand}
               onChange={(e): void => setWpCliCommand(e.target.value)}
               placeholder="e.g. plugin list"
@@ -123,7 +123,7 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
             </button>
             <button
               type="submit"
-              className="bg-blue-500 disabled:bg-gray-500 px-4 py-2 border-0 rounded text-white cursor-pointer disabled:cursor-not-allowed"
+              className="bg-blue-500 disabled:bg-gray-500 px-4 py-2 border-0 rounded text-seasalt cursor-pointer disabled:cursor-not-allowed"
               disabled={!wpCliCommand.trim() || wpCliLoading}
             >
               {wpCliLoading ? 'Running...' : 'Run'}
@@ -137,7 +137,7 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
             </label>
             <pre
               ref={outputRef}
-              className="bg-gray-900 p-2.5 rounded max-h-[300px] overflow-auto font-mono text-white text-xs break-words whitespace-pre-wrap"
+              className="bg-gray-900 p-2.5 rounded max-h-[300px] overflow-auto font-mono text-seasalt text-xs break-words whitespace-pre-wrap"
             >
               {wpCliOutput && <span className="text-green-400">{wpCliOutput}</span>}
               {wpCliError && <span className="text-red-400">{wpCliError}</span>}

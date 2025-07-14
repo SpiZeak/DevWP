@@ -103,7 +103,7 @@ const Services: React.FC = () => {
                   </div>
                 </div>
                 <button
-                  className={`flex items-center justify-center min-w-7 h-7 rounded-full border-0 bg-gray-500 text-rich-black-100 cursor-pointer text-base transition-all duration-200 flex-shrink-0 hover:bg-green-400 hover:text-black hover:scale-110 hover:rotate-30 disabled:opacity-50 disabled:cursor-not-allowed ${restarting[container.id] ? 'bg-blue-400 text-white' : ''}`}
+                  className={`flex items-center justify-center min-w-7 h-7 rounded-full border-1 bg-gray-500 cursor-pointer text-seasalt transition-all duration-200 flex-shrink-0 hover:bg-pumpkin400 hover:text-black hover:scale-110 hover:rotate-30 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-pumpkin hover:text-rich-black ${restarting[container.id] ? 'bg-blue-400 text-seasalt' : ''}`}
                   onClick={() => restartContainer(container.id, container.name)}
                   disabled={restarting[container.id]}
                   title="Restart service"

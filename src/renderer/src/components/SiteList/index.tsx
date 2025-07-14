@@ -227,7 +227,7 @@ const SiteList: React.FC = () => {
         <h3 className="m-0">My Sites</h3>
         <button
           onClick={handleCreateSite}
-          className="flex items-center gap-1.5 bg-gray-600 hover:bg-green-400 px-3 py-2 border-0 rounded font-bold text-white hover:text-black text-sm leading-normal transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 bg-gray-600 hover:bg-pumpkin hover:bg-pumpkin400 px-3 py-2 border-1 rounded font-bold text-seasalt hover:text-black hover:text-rich-black text-sm leading-normal transition-colors cursor-pointer"
         >
           <span className="icon"></span>
           New Site
@@ -263,14 +263,14 @@ const SiteList: React.FC = () => {
                 <div className="flex">
                   <button
                     onClick={() => openSiteUrl(site.url)}
-                    className="bg-red-500 p-2 border-0 rounded text-white hover:text-green-400 text-2xl hover:scale-120 transition-all cursor-pointer"
+                    className="p-2 border-0 rounded text-seasalt hover:text-pumpkin text-2xl hover:scale-120 transition-all cursor-pointer"
                     title="Open Site"
                   >
                     <span className="icon"></span>
                   </button>
                   <button
                     onClick={() => handleScanSite(site)}
-                    className={`bg-red-500 border-0 rounded p-2 text-white cursor-pointer text-3xl transition-all hover:text-green-400 hover:scale-120 ${scanningSite === site.name ? 'opacity-50' : ''}`}
+                    className={`border-0 rounded p-2 text-seasalt cursor-pointer text-3xl transition-all hover:text-pumpkin hover:scale-120 ${scanningSite === site.name ? 'opacity-50' : ''}`}
                     disabled={scanningSite === site.name}
                     title={
                       scanningSite === site.name ? 'Scan in progress...' : 'Run SonarQube Scan'
@@ -284,14 +284,14 @@ const SiteList: React.FC = () => {
                   </button>
                   <button
                     onClick={() => handleDeleteSite(site)}
-                    className="bg-red-500 p-2 border-0 rounded text-white hover:text-green-400 text-2xl hover:scale-120 transition-all cursor-pointer"
+                    className="p-2 border-0 rounded text-seasalt hover:text-pumpkin text-2xl hover:scale-120 transition-all cursor-pointer"
                     title="Delete Site"
                   >
                     <span className="icon"></span>
                   </button>
                   <button
                     onClick={() => handleOpenWpCliModal(site)}
-                    className="bg-red-500 p-2 border-0 rounded text-white hover:text-green-400 text-3xl hover:scale-120 transition-all cursor-pointer"
+                    className="p-2 border-0 rounded text-seasalt hover:text-pumpkin text-3xl hover:scale-120 transition-all cursor-pointer"
                     title="Run WP-CLI Command"
                   >
                     <span className="icon"></span>
@@ -325,7 +325,7 @@ const SiteList: React.FC = () => {
                 type="text"
                 value={newSite.domain}
                 onChange={(e) => setNewSite({ ...newSite, domain: e.target.value })}
-                className="bg-gray-600 p-2 border border-gray-500 rounded w-full text-white"
+                className="bg-gray-600 p-2 border border-gray-500 rounded w-full text-seasalt"
                 placeholder="example.test"
               />
             </div>
@@ -335,7 +335,7 @@ const SiteList: React.FC = () => {
                 type="text"
                 value={newSite.aliases}
                 onChange={(e) => setNewSite({ ...newSite, aliases: e.target.value })}
-                className="bg-gray-600 p-2 border border-gray-500 rounded w-full text-white"
+                className="bg-gray-600 p-2 border border-gray-500 rounded w-full text-seasalt"
                 placeholder="alias1.test alias2.test"
               />
             </div>
@@ -352,7 +352,7 @@ const SiteList: React.FC = () => {
                     webRoot: e.target.value.trim().replace(/^\/+|\/+$/g, '')
                   })
                 }
-                className="bg-gray-600 p-2 border border-gray-500 rounded w-full text-white"
+                className="bg-gray-600 p-2 border border-gray-500 rounded w-full text-seasalt"
                 placeholder="public (leave blank for site root)"
               />
               <div className="mt-1 text-seasalt text-xs">
@@ -403,7 +403,7 @@ const SiteList: React.FC = () => {
               {newSite.multisite.enabled && (
                 <div className="flex gap-4">
                   <div
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer transition-all ${newSite.multisite.type === 'subdirectory' ? 'bg-blue-500 text-white shadow-sm font-semibold' : 'bg-gray-600 hover:bg-gray-500'}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer transition-all ${newSite.multisite.type === 'subdirectory' ? 'bg-blue-500 text-seasalt shadow-sm font-semibold' : 'bg-gray-600 hover:bg-gray-500'}`}
                     onClick={() =>
                       setNewSite({
                         ...newSite,
@@ -430,7 +430,7 @@ const SiteList: React.FC = () => {
                   </div>
 
                   <div
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer transition-all ${newSite.multisite.type === 'subdomain' ? 'bg-blue-500 text-white shadow-sm font-semibold' : 'bg-gray-600 hover:bg-gray-500'}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer transition-all ${newSite.multisite.type === 'subdomain' ? 'bg-blue-500 text-seasalt shadow-sm font-semibold' : 'bg-gray-600 hover:bg-gray-500'}`}
                     onClick={() =>
                       setNewSite({
                         ...newSite,
@@ -469,7 +469,7 @@ const SiteList: React.FC = () => {
               <button
                 onClick={handleSubmitNewSite}
                 disabled={!newSite.domain.replace('.test', '')}
-                className="bg-blue-500 disabled:bg-gray-500 px-4 py-2 border-0 rounded text-white cursor-pointer disabled:cursor-not-allowed"
+                className="bg-blue-500 disabled:bg-gray-500 px-4 py-2 border-0 rounded text-seasalt cursor-pointer disabled:cursor-not-allowed"
               >
                 Create
               </button>
