@@ -1,0 +1,56 @@
+@theme {
+	/* Fonts */
+	--font-sans: 'Montserrat', sans-serif;
+	--font-body: 'Open Sans', sans-serif;
+
+	/* Colors */
+	--color-*: initial;
+
+	/* Gunmetal */
+	--color-gunmetal: #1f2937;
+	--color-gunmetal-100: #06080b;
+	--color-gunmetal-200: #0c1116;
+	--color-gunmetal-300: #131921;
+	--color-gunmetal-400: #19212c;
+	--color-gunmetal-500: #1f2937;
+	--color-gunmetal-600: #3e526e;
+	--color-gunmetal-700: #5c7aa4;
+	--color-gunmetal-800: #93a6c2;
+	--color-gunmetal-900: #c9d3e1;
+
+	/* Rich Black */
+	--color-rich-black: #111827;
+	--color-rich-black-100: #030508;
+	--color-rich-black-200: #070a10;
+	--color-rich-black-300: #0a0e17;
+	--color-rich-black-400: #0e131f;
+	--color-rich-black-500: #111827;
+	--color-rich-black-600: #2d3f66;
+	--color-rich-black-700: #4866a5;
+	--color-rich-black-800: #8197c8;
+	--color-rich-black-900: #c0cbe3;
+
+	/* Seasalt */
+	--color-seasalt: #f9fafb;
+	--color-seasalt-100: #28323c;
+	--color-seasalt-200: #506478;
+	--color-seasalt-300: #8196ab;
+	--color-seasalt-400: #bdc8d3;
+	--color-seasalt-500: #f9fafb;
+	--color-seasalt-600: #fafbfc;
+	--color-seasalt-700: #fbfcfd;
+	--color-seasalt-800: #fdfdfd;
+	--color-seasalt-900: #fefefe;
+
+	/* Pumpkin */
+	--color-pumpkin: #ff6b00;
+	--color-pumpkin-100: #331500;
+	--color-pumpkin-200: #662b00;
+	--color-pumpkin-300: #994000;
+	--color-pumpkin-400: #cc5500;
+	--color-pumpkin-500: #ff6b00;
+	--color-pumpkin-600: #ff8833;
+	--color-pumpkin-700: #ffa666;
+	--color-pumpkin-800: #ffc499;
+	--color-pumpkin-900: #ffe1cc;
+}

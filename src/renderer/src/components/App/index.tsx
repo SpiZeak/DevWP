@@ -3,12 +3,11 @@ import { JSX } from 'react'
 import DockerLoader from '../DockerLoader'
 import SiteList from '../SiteList'
 import Services from '../Services'
-import './App.scss'
 
 function App(): JSX.Element {
   return (
     <>
-      <div className="App">
+      <div className="flex gap-6 p-6 w-full">
         <Services />
         <SiteList />
       </div>

@@ -90,40 +90,40 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
   const hasOutput = wpCliOutput || wpCliError
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <h3 className="modal-title">
-          Run WP-CLI Command for <span className="bold-text">{site.name}</span>
+    <div className="z-50 fixed inset-0 flex justify-center items-center bg-black/70">
+      <div className="bg-gray-700 shadow-xl p-5 rounded-lg w-[90%] max-w-lg">
+        <h3 className="mt-0 mb-5">
+          Run WP-CLI Command for <span className="font-bold">{site.name}</span>
         </h3>
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label">Command</label>
+          <div className="mb-5">
+            <label className="block mb-1 text-sm">Command</label>
             <input
               type="text"
-              className="form-input"
+              className="bg-gray-600 p-2 border border-gray-500 rounded w-full text-white"
               value={wpCliCommand}
               onChange={(e): void => setWpCliCommand(e.target.value)}
               placeholder="e.g. plugin list"
               disabled={wpCliLoading}
               autoFocus
             />
-            <div className="form-help-text">
-              Only enter the command after <span className="bold-text">wp</span>, e.g.{' '}
-              <code>plugin list</code>
+            <div className="mt-1 text-rich-black-400 text-xs">
+              Only enter the command after <span className="font-bold">wp</span>, e.g.{' '}
+              <code className="bg-gray-600 px-1 rounded">plugin list</code>
             </div>
           </div>
-          <div className="modal-actions">
+          <div className="flex justify-end gap-2.5">
             <button
               type="button"
               onClick={handleClose}
-              className="cancel-button"
+              className="bg-gray-600 px-4 py-2 border-0 rounded text-rich-black-100 cursor-pointer"
               disabled={wpCliLoading}
             >
               {wpCliLoading ? 'Close' : 'Cancel'}
             </button>
             <button
               type="submit"
-              className="create-button"
+              className="bg-blue-500 disabled:bg-gray-500 px-4 py-2 border-0 rounded text-white cursor-pointer disabled:cursor-not-allowed"
               disabled={!wpCliCommand.trim() || wpCliLoading}
             >
               {wpCliLoading ? 'Running...' : 'Run'}
@@ -131,28 +131,17 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
           </div>
         </form>
         {hasOutput && (
-          <div className="form-group">
-            <label className="form-label">
-              Output {wpCliLoading && <span className="loading-indicator">●</span>}
+          <div className="mb-5">
+            <label className="block mb-1 text-sm">
+              Output {wpCliLoading && <span className="text-yellow-400">●</span>}
             </label>
             <pre
               ref={outputRef}
-              style={{
-                background: '#222',
-                color: '#fff',
-                padding: '10px',
-                borderRadius: '4px',
-                maxHeight: '300px',
-                overflow: 'auto',
-                fontSize: '12px',
-                fontFamily: 'monospace',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word'
-              }}
+              className="bg-gray-900 p-2.5 rounded max-h-[300px] overflow-auto font-mono text-white text-xs break-words whitespace-pre-wrap"
             >
-              {wpCliOutput && <span style={{ color: '#90EE90' }}>{wpCliOutput}</span>}
-              {wpCliError && <span style={{ color: '#FF6B6B' }}>{wpCliError}</span>}
-              {wpCliLoading && <span style={{ color: '#FFD700' }}>▊</span>}
+              {wpCliOutput && <span className="text-green-400">{wpCliOutput}</span>}
+              {wpCliError && <span className="text-red-400">{wpCliError}</span>}
+              {wpCliLoading && <span className="text-yellow-400">▊</span>}
             </pre>
           </div>
         )}

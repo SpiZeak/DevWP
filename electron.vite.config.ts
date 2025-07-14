@@ -1,7 +1,8 @@
 import { resolve } from 'path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
-// @ts-ignore: Weird import error
 import react from '@vitejs/plugin-react'
+// @ts-ignore: https://github.com/tailwindlabs/tailwindcss/discussions/16250
+import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   main: {
@@ -16,6 +17,6 @@ export default defineConfig({
         '@renderer': resolve('src/renderer/src')
       }
     },
-    plugins: [react()]
+    plugins: [react(), tailwindcss()]
   }
 })

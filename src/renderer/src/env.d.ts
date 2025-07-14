@@ -46,6 +46,17 @@ declare global {
       onContainerStatus: (callback: (containers: any[]) => void) => () => void
       restartContainer: (containerId: string) => Promise<void>
       getSites: () => Promise<Site[]>
+      onWpCliStream: (
+        callback: (data: {
+          type: 'stdout' | 'stderr' | 'complete' | 'error'
+          data?: string
+          error?: string
+          siteId?: string
+        }) => void
+      ) => () => void
+      onNotification: (
+        callback: (data: { type: 'success' | 'error'; message: string }) => void
+      ) => () => void
     }
   }
 }

@@ -125,13 +125,13 @@ export async function toggleXdebug(mainWindow?: BrowserWindow): Promise<boolean>
       }
 
       const projectRoot = process.cwd()
-      console.log(`Restarting PHP container in: ${projectRoot}`)
       const restartProcess = spawn('docker', ['compose', 'restart', 'php'], {
         cwd: projectRoot,
         shell: false
       })
 
       let restartErrorOutput = ''
+
       restartProcess.stderr.on('data', (data) => {
         restartErrorOutput += data.toString()
         console.error('Docker restart stderr:', data.toString())
