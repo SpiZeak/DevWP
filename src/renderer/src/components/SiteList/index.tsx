@@ -235,7 +235,7 @@ const SiteList: React.FC = () => {
       </div>
       <div className="relative">
         <ul
-          className="bg-gray-700 shadow-lg my-4 p-0 rounded-lg w-full max-h-[500px] overflow-y-auto scrollbar-hide"
+          className="bg-gray-700 shadow-lg my-4 p-0 rounded-lg w-full max-h-[75vh] overflow-y-auto scrollbar-hide"
           ref={sitesListRef}
         >
           {loading ? (
