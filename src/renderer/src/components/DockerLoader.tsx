@@ -1,6 +1,7 @@
 import { JSX } from 'react'
 import dockerLogo from '../assets/docker.svg'
 import { useState, useEffect } from 'react'
+import Spinner from './ui/Spinner'
 
 function DockerLoader(): JSX.Element | null {
   const [dockerStatus, setDockerStatus] = useState({
@@ -26,12 +27,14 @@ function DockerLoader(): JSX.Element | null {
   if (!isVisible) return null
 
   return (
-    <div className="z-50 fixed inset-0 flex justify-center items-center bg-black/85">
-      <div className="bg-gray-800 shadow-xl p-8 rounded-lg w-[90%] max-w-lg text-rich-black-200 text-center">
-        <img src={dockerLogo} alt="Docker Logo" className="mx-auto my-10 ml-4 w-20 h-20" />
-        {dockerStatus.status !== 'error' && (
-          <div className="mx-auto mb-4 border-4 border-gray-600 border-t-blue-400 rounded-full w-10 h-10 animate-spin"></div>
-        )}
+    <div className="z-50 fixed inset-0 flex justify-center items-center bg-rich-black/90">
+      <div className="bg-rich-black-400 shadow-xl p-8 rounded-lg w-[90%] max-w-lg text-seasalt-200 text-center">
+        <img
+          src={dockerLogo}
+          alt="Docker Logo"
+          className="left-1.5 relative mx-auto my-10 w-20 h-20"
+        />
+        {dockerStatus.status !== 'error' && <Spinner className="mb-4" svgClass="size-10" />}
         <h3>Starting Docker Environment</h3>
         <p className="mt-4 h-15 overflow-y-auto text-seasalt text-sm">{dockerStatus.message}</p>
         {dockerStatus.status === 'error' && (
