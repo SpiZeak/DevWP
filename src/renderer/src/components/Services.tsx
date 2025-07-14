@@ -112,7 +112,7 @@ const Services: React.FC = () => {
                   disabled={restarting[container.id]}
                   title="Restart service"
                 >
-                  {restarting[container.id] ? <Spinner /> : <span>↻</span>}
+                  {restarting[container.id] ? <Spinner svgClass="size-6" /> : <span>↻</span>}
                 </button>
               </li>
             ))
