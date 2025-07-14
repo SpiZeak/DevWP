@@ -1,4 +1,5 @@
 import { Site } from '@renderer/env'
+import Spinner from '../ui/Spinner'
 
 interface SiteItemProps {
   site: Site
@@ -25,7 +26,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
         <div className="site-name-container">
           {site.name}
           {site.status === 'provisioning' && (
-            <span className="provisioning-spinner" title="Site is being provisioned" />
+            <Spinner svgClass="size-4 ml-2" title="Site is being provisioned" />
           )}
         </div>
         <div className="site-path">{site.path}</div>
@@ -41,7 +42,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
           title={scanningSite === site.name ? 'Scan in progress...' : 'Run SonarQube Scan'}
         >
           {scanningSite === site.name ? (
-            <span className="provisioning-spinner" title="Site is being provisioned" />
+            <Spinner svgClass="size-4" title="Site is being scanned" />
           ) : (
             <span className="icon">󱉶</span>
           )}

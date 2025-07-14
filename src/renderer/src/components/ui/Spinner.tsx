@@ -3,10 +3,14 @@ import { JSX } from 'react'
 type SpinnerProps = {
   className?: string
   svgClass?: string
+  title?: string
 }
 
 const Spinner = (props: SpinnerProps): JSX.Element => (
-  <div className={`place-items-center grid rounded-lg w-full ${props.className}`}>
+  <div
+    className={`place-items-center grid rounded-lg w-full ${props.className}`}
+    title={props.title}
+  >
     <svg
       className={`text-seasalt-300 animate-spin ${props.svgClass || 'size-10'}`}
       viewBox="0 0 64 64"
