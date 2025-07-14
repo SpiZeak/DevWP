@@ -258,7 +258,7 @@ const SiteList: React.FC = () => {
                       />
                     )}
                   </div>
-                  <div className="text-rich-black-400 text-xs leading-none">{site.path}</div>
+                  <div className="text-seasalt text-xs leading-none">{site.path}</div>
                 </div>
                 <div className="flex">
                   <button
@@ -355,7 +355,7 @@ const SiteList: React.FC = () => {
                 className="bg-gray-600 p-2 border border-gray-500 rounded w-full text-white"
                 placeholder="public (leave blank for site root)"
               />
-              <div className="mt-1 text-rich-black-400 text-xs">
+              <div className="mt-1 text-seasalt text-xs">
                 Site will be created in www/
                 <span className="font-bold">{formatDomain(newSite.domain)}</span>.
                 {newSite.webRoot ? (

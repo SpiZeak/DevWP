@@ -4,7 +4,7 @@ function Versions(): JSX.Element {
   const [versions] = useState(window.electron.process.versions)
 
   return (
-    <ul className="inline-flex bottom-8 fixed items-center bg-[#202127] backdrop-blur-lg mx-auto py-4 rounded-3xl overflow-hidden font-mono">
+    <ul className="inline-flex bottom-8 left-1/2 fixed justify-center items-center bg-[#202127] backdrop-blur-lg mx-auto py-4 rounded-3xl overflow-hidden font-mono -translate-x-1/2 transform">
       <li className="block float-left opacity-80 px-4 border-gray-600 border-r text-xs leading-3">
         Electron v{versions.electron}
       </li>
@@ -20,7 +20,7 @@ function Versions(): JSX.Element {
           href="https://trewhitt.au"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-green-400 hover:underline no-underline"
+          className="text-pumpkin hover:underline no-underline"
         >
           Trewhitt
         </a>

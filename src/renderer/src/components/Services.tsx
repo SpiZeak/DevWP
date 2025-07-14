@@ -98,9 +98,7 @@ const Services: React.FC = () => {
                       {getDisplayName(container.name)}
                     </span>
                     {container.version && (
-                      <span className="mt-0.5 text-rich-black-400 text-xs">
-                        {container.version}
-                      </span>
+                      <span className="mt-0.5 text-seasalt text-xs">{container.version}</span>
                     )}
                   </div>
                 </div>
@@ -120,7 +118,7 @@ const Services: React.FC = () => {
             ))
           ) : (
             <li className="col-span-full py-6">
-              <div className="flex flex-col items-center text-rich-black-400">
+              <div className="flex flex-col items-center text-seasalt">
                 <div className="mb-2 text-2xl">🔧</div>
                 <span>No containers running</span>
               </div>

@@ -51,7 +51,7 @@ function XdebugSwitch(): JSX.Element {
       <div className="flex flex-col flex-1 mr-4">
         <div>
           <h3 className="m-0 mb-2 font-medium">{xdebugEnabled ? 'Debug' : 'Performance'}</h3>
-          <p className="m-0 text-rich-black-400 text-sm leading-relaxed">
+          <p className="m-0 text-seasalt text-sm leading-relaxed">
             {xdebugEnabled
               ? 'Debug mode enables Xdebug for step debugging and profiling PHP code.'
               : 'Performance mode disables Xdebug for faster PHP execution and activates JIT (Just-In-Time) compilation.'}

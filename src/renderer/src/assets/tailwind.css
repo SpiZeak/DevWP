@@ -1,21 +1,5 @@
 @import "tailwindcss";
-@import './theme.css'
-
-@layer base {
-  :root {
-    --color-accent: #94fbab;
-  }
-
-  body {
-    @apply flex justify-center items-center bg-gunmetal-900 overflow-hidden text-rich-black-100 scheme-dark select-none dark;
-    background-image: url('./wavy-lines.svg');
-    background-size: cover;
-  }
-
-  code {
-    @apply bg-gunmetal-700 px-1 py-0.5 rounded font-mono font-semibold text-xs;
-  }
-}
+@import './theme.css';
 
 @layer components {
   .icon {

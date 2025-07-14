@@ -107,7 +107,7 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
               disabled={wpCliLoading}
               autoFocus
             />
-            <div className="mt-1 text-rich-black-400 text-xs">
+            <div className="mt-1 text-seasalt text-xs">
               Only enter the command after <span className="font-bold">wp</span>, e.g.{' '}
               <code className="bg-gray-600 px-1 rounded">plugin list</code>
             </div>
