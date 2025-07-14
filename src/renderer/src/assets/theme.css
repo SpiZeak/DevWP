@@ -66,6 +66,18 @@
 	--color-success-800: #8ee1cc;
 	--color-success-900: #b7eee5;
 
+	/* Info */
+	--color-info: #f59e0b;
+	--color-info-100: #1f1606;
+	--color-info-200: #3e2d0c;
+	--color-info-300: #5d4313;
+	--color-info-400: #7c5a19;
+	--color-info-500: #f59e0b;
+	--color-info-600: #f7b13c;
+	--color-info-700: #f9c36d;
+	--color-info-800: #fbd69e;
+	--color-info-900: #fdeace;
+
 	/* Danger */
 	--color-danger: #ef4444;
 	--color-danger-100: #1f0e0e;

@@ -133,7 +133,7 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
         {hasOutput && (
           <div className="mb-5">
             <label className="block mb-1 text-sm">
-              Output {wpCliLoading && <span className="text-yellow-400">●</span>}
+              Output {wpCliLoading && <span className="text-info-400">●</span>}
             </label>
             <pre
               ref={outputRef}
@@ -141,7 +141,7 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
             >
               {wpCliOutput && <span className="text-success-400">{wpCliOutput}</span>}
               {wpCliError && <span className="text-danger-400">{wpCliError}</span>}
-              {wpCliLoading && <span className="text-yellow-400">▊</span>}
+              {wpCliLoading && <span className="text-info-400">▊</span>}
             </pre>
           </div>
         )}

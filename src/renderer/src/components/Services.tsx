@@ -80,7 +80,7 @@ const Services: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-700 shadow-lg mr-6 mb-5 rounded-lg">
+    <div className="mr-6 mb-5 rounded-lg">
       <XdebugSwitch />
       {loading ? (
         <div className="flex flex-col items-center">
