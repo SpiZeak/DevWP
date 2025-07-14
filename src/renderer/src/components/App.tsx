@@ -1,8 +1,8 @@
-import Versions from '../Versions'
+import Versions from './Versions'
 import { JSX } from 'react'
-import DockerLoader from '../DockerLoader'
-import SiteList from '../SiteList'
-import Services from '../Services'
+import DockerLoader from './DockerLoader'
+import SiteList from './SiteList'
+import Services from './Services'
 
 function App(): JSX.Element {
   return (

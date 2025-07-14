@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import XdebugSwitch from '../XdebugSwitch'
-import phpIcon from '../../assets/icons/php.svg'
-import mailpitIcon from '../../assets/icons/mailpit.svg'
-import mariaDBIcon from '../../assets/icons/mariadb.svg'
-import redisIcon from '../../assets/icons/redis.svg'
-import sonarCubeIcon from '../../assets/icons/sonarqube.svg'
-import nginxIcon from '../../assets/icons/nginx.svg'
+import XdebugSwitch from './XdebugSwitch'
+import phpIcon from '../assets/icons/php.svg'
+import mailpitIcon from '../assets/icons/mailpit.svg'
+import mariaDBIcon from '../assets/icons/mariadb.svg'
+import redisIcon from '../assets/icons/redis.svg'
+import sonarCubeIcon from '../assets/icons/sonarqube.svg'
+import nginxIcon from '../assets/icons/nginx.svg'
 
 interface Container {
   id: string

@@ -1,5 +1,5 @@
 import { JSX } from 'react'
-import dockerLogo from '../../assets/docker.svg'
+import dockerLogo from '../assets/docker.svg'
 import { useState, useEffect } from 'react'
 
 function DockerLoader(): JSX.Element | null {
