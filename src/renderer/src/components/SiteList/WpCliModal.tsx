@@ -91,7 +91,7 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
 
   return (
     <div className="z-50 fixed inset-0 flex justify-center items-center bg-black/70">
-      <div className="bg-gray-700 shadow-xl p-5 rounded-lg w-[90%] max-w-lg">
+      <div className="bg-rich-black-700 shadow-xl p-5 rounded-lg w-[90%] max-w-lg">
         <h3 className="mt-0 mb-5">
           Run WP-CLI Command for <span className="font-bold">{site.name}</span>
         </h3>
@@ -100,7 +100,7 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
             <label className="block mb-1 text-sm">Command</label>
             <input
               type="text"
-              className="bg-gray-600 p-2 border border-gray-500 rounded w-full text-seasalt"
+              className="bg-rich-black-600 p-2 border border-rich-black-500 rounded w-full text-seasalt"
               value={wpCliCommand}
               onChange={(e): void => setWpCliCommand(e.target.value)}
               placeholder="e.g. plugin list"
@@ -109,21 +109,21 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
             />
             <div className="mt-1 text-seasalt text-xs">
               Only enter the command after <span className="font-bold">wp</span>, e.g.{' '}
-              <code className="bg-gray-600 px-1 rounded">plugin list</code>
+              <code className="bg-rich-black-600 px-1 rounded">plugin list</code>
             </div>
           </div>
           <div className="flex justify-end gap-2.5">
             <button
               type="button"
               onClick={handleClose}
-              className="bg-gray-600 px-4 py-2 border-0 rounded text-rich-black-100 cursor-pointer"
+              className="bg-rich-black-600 px-4 py-2 border-0 rounded text-seasalt-400 cursor-pointer"
               disabled={wpCliLoading}
             >
               {wpCliLoading ? 'Close' : 'Cancel'}
             </button>
             <button
               type="submit"
-              className="bg-blue-500 disabled:bg-gray-500 px-4 py-2 border-0 rounded text-seasalt cursor-pointer disabled:cursor-not-allowed"
+              className="bg-pumpkin-500 disabled:bg-rich-black-500 px-4 py-2 border-0 rounded text-rich-black disabled:text-seasalt cursor-pointer disabled:cursor-not-allowed"
               disabled={!wpCliCommand.trim() || wpCliLoading}
             >
               {wpCliLoading ? 'Running...' : 'Run'}
@@ -137,7 +137,7 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
             </label>
             <pre
               ref={outputRef}
-              className="bg-gray-900 p-2.5 rounded max-h-[300px] overflow-auto font-mono text-seasalt text-xs break-words whitespace-pre-wrap"
+              className="bg-rich-black-900 p-2.5 rounded max-h-[300px] overflow-auto font-mono text-seasalt text-xs break-words whitespace-pre-wrap"
             >
               {wpCliOutput && <span className="text-success-400">{wpCliOutput}</span>}
               {wpCliError && <span className="text-danger-400">{wpCliError}</span>}

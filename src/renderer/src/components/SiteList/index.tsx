@@ -276,7 +276,11 @@ const SiteList: React.FC = () => {
                       scanningSite === site.name ? 'Scan in progress...' : 'Run SonarQube Scan'
                     }
                   >
-                    {scanningSite === site.name ? <Spinner /> : <span className="icon">󱉶</span>}
+                    {scanningSite === site.name ? (
+                      <Spinner svgClass="size-4" />
+                    ) : (
+                      <span className="icon">󱉶</span>
+                    )}
                   </button>
                   <button
                     onClick={() => handleDeleteSite(site)}
