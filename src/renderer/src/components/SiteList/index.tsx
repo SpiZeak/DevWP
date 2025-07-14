@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import WpCliModal from './WpCliModal'
+import Spinner from '../ui/Spinner'
 
 export interface Site {
   name: string
@@ -263,10 +264,10 @@ const SiteList: React.FC = () => {
                 <div className="flex">
                   <button
                     onClick={() => openSiteUrl(site.url)}
-                    className="p-2 border-0 rounded text-seasalt hover:text-pumpkin text-2xl hover:scale-120 transition-all cursor-pointer"
+                    className="p-2 border-0 rounded text-seasalt hover:text-pumpkin text-3xl hover:scale-120 transition-all cursor-pointer"
                     title="Open Site"
                   >
-                    <span className="icon"></span>
+                    <span className="icon"></span>
                   </button>
                   <button
                     onClick={() => handleScanSite(site)}
@@ -276,25 +277,21 @@ const SiteList: React.FC = () => {
                       scanningSite === site.name ? 'Scan in progress...' : 'Run SonarQube Scan'
                     }
                   >
-                    {scanningSite === site.name ? (
-                      <span className="inline-block border-2 border-white/30 border-t-blue-500 rounded-full w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <span className="icon">󱉶</span>
-                    )}
+                    {scanningSite === site.name ? <Spinner /> : <span className="icon">󱉶</span>}
                   </button>
                   <button
                     onClick={() => handleDeleteSite(site)}
                     className="p-2 border-0 rounded text-seasalt hover:text-pumpkin text-2xl hover:scale-120 transition-all cursor-pointer"
                     title="Delete Site"
                   >
-                    <span className="icon"></span>
+                    <span className="icon">󰧧</span>
                   </button>
                   <button
                     onClick={() => handleOpenWpCliModal(site)}
                     className="p-2 border-0 rounded text-seasalt hover:text-pumpkin text-3xl hover:scale-120 transition-all cursor-pointer"
                     title="Run WP-CLI Command"
                   >
-                    <span className="icon"></span>
+                    <span className="icon"></span>
                   </button>
                 </div>
               </li>
