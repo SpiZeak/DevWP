@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import '../SiteList/SiteList.scss'
 
 interface Notification {
   id: number

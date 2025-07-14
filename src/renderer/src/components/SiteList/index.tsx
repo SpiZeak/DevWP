@@ -1,5 +1,4 @@
 import { useEffect, useState, useRef } from 'react'
-import './SiteList.scss'
 import WpCliModal from './WpCliModal'
 
 export interface Site {
