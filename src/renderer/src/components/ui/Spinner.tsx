@@ -1,7 +1,7 @@
 import { JSX } from 'react'
 
-const Spinner = (): JSX.Element => (
-  <div className="place-items-center grid rounded-lg w-full min-h-[140px] lg:overflow-visible overflow-x-scroll">
+const Spinner = (props: { className?: string }): JSX.Element => (
+  <div className={`place-items-center grid rounded-lg w-full ${props.className}`}>
     <svg
       className="text-seasalt-300 animate-spin"
       viewBox="0 0 64 64"

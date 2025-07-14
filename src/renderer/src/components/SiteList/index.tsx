@@ -225,13 +225,12 @@ const SiteList: React.FC = () => {
   return (
     <div className="w-full">
       <div className="flex justify-between mb-1 w-full">
-        <h3 className="m-0">My Sites</h3>
+        <h3>Sites</h3>
         <button
           onClick={handleCreateSite}
-          className="flex items-center gap-1.5 bg-gray-600 hover:bg-pumpkin hover:bg-pumpkin px-3 py-2 border-1 rounded font-bold text-seasalt hover:text-black hover:text-rich-black text-sm leading-normal transition-colors cursor-pointer"
+          className="flex justify-center items-center gap-1.5 bg-gray-600 hover:bg-pumpkin border-1 rounded size-10 text-seasalt hover:text-black hover:text-rich-black text-sm leading-normal transition-colors cursor-pointer"
         >
-          <span className="icon"></span>
-          New Site
+          <span className="text-xl icon"></span>
         </button>
       </div>
       <div className="relative">

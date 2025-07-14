@@ -40,7 +40,10 @@ const Services: React.FC = () => {
   const [containers, setContainers] = useState([] as Container[])
   const [loading, setLoading] = useState(true)
   const [restarting, setRestarting] = useState({})
-  const containerMap = containers.filter((container) => container.name.includes('devwp_'))
+  const excludedContainers = ['devwp_seonaut', 'devwp_sonarqube-scanner']
+  const containerMap = containers.filter(
+    (container) => container.name.includes('devwp_') && !excludedContainers.includes(container.name)
+  )
 
   useEffect(() => {
     // Set up a listener for container status updates
@@ -77,11 +80,11 @@ const Services: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-700 shadow-lg mr-6 mb-5 p-4 rounded-lg">
+    <div className="bg-gray-700 shadow-lg mr-6 mb-5 rounded-lg">
       <XdebugSwitch />
       {loading ? (
-        <div className="flex flex-col items-center py-5">
-          <div className="mb-3 border-3 border-gray-600 border-t-blue-500 rounded-full w-6 h-6 animate-spin"></div>
+        <div className="flex flex-col items-center">
+          <Spinner className="p-4" />
           <p>Loading services...</p>
         </div>
       ) : (

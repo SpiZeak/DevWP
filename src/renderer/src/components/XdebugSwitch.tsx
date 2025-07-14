@@ -34,7 +34,7 @@ function XdebugSwitch(): JSX.Element {
     return removeListener
   }, [])
 
-  const handleToggle = async () => {
+  const handleToggle = async (): Promise<void> => {
     if (isToggling) return
 
     setIsToggling(true)
@@ -47,7 +47,7 @@ function XdebugSwitch(): JSX.Element {
   }
 
   return (
-    <div className="flex justify-between items-start bg-gray-700 mb-4 p-4 rounded-md">
+    <div className="flex justify-between items-start bg-gray-700 mb-6 rounded-md">
       <div className="flex flex-col flex-1 mr-4">
         <div>
           <h3 className="m-0 mb-2 font-medium">{xdebugEnabled ? 'Debug' : 'Performance'}</h3>
