@@ -1,5 +1,6 @@
 import { Site } from '@renderer/env'
 import Spinner from '../ui/Spinner'
+import Icon from '../ui/Icon'
 
 interface SiteItemProps {
   site: Site
@@ -41,7 +42,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
             )}
           </div>
           <div className="flex items-center gap-2 text-seasalt-400 text-sm">
-            <span className="text-base icon">󰉋</span>
+            <Icon className="text-base" content="󰉋" />
             <span className="truncate">{site.path}</span>
           </div>
         </div>
@@ -51,7 +52,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
             className="group/btn relative bg-gunmetal-600 hover:bg-pumpkin hover:shadow-lg p-3 rounded-lg hover:scale-105 transition-all duration-200 cursor-pointer"
             title="Open Site"
           >
-            <span className="text-seasalt group-hover/btn:text-rich-black text-xl icon"></span>
+            <Icon className="text-2xl" content="" />
           </button>
           <button
             onClick={(): void => onScan(site)}
@@ -66,7 +67,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
             {scanningSite === site.name ? (
               <Spinner svgClass="size-5 text-info" title="Site is being scanned" />
             ) : (
-              <span className="text-seasalt group-hover/btn:text-rich-black text-xl icon">󱉶</span>
+              <Icon className="text-seasalt group-hover/btn:text-rich-black text-2xl" content="󱉶" />
             )}
           </button>
           <button
@@ -74,14 +75,14 @@ const SiteItem: React.FC<SiteItemProps> = ({
             className="group/btn relative bg-gunmetal-600 hover:bg-danger hover:shadow-lg p-3 rounded-lg hover:scale-105 transition-all duration-200 cursor-pointer"
             title="Delete Site"
           >
-            <span className="text-seasalt group-hover/btn:text-rich-black text-xl icon">󰧧</span>
+            <Icon className="text-seasalt group-hover/btn:text-rich-black text-xl" content="󰧧" />
           </button>
           <button
             onClick={(): void => onOpenWpCli(site)}
             className="group/btn relative bg-gunmetal-600 hover:bg-success hover:shadow-lg p-3 rounded-lg hover:scale-105 transition-all duration-200 cursor-pointer"
             title="Run WP-CLI Command"
           >
-            <span className="text-seasalt group-hover/btn:text-rich-black text-xl icon">󰆍</span>
+            <Icon className="text-seasalt group-hover/btn:text-rich-black text-xl" content="󰆍" />
           </button>
         </div>
       </div>
