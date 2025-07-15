@@ -6,7 +6,7 @@ type IconProps = {
 }
 
 const Icon = ({ className, content }: IconProps): JSX.Element => (
-  <span className={`text-seasalt ${className || ''} icon`}>{content || '󰖟'}</span>
+  <span className={`font-mono ${className || ''}`}>{content || '󰖟'}</span>
 )
 
 export default Icon

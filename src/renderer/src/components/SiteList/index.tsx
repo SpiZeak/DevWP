@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import WpCliModal from './WpCliModal'
 import Spinner from '../ui/Spinner'
 import SiteItem from './SiteItem'
+import Icon from '../ui/Icon'
 
 export interface Site {
   name: string
@@ -228,7 +229,7 @@ const SiteList: React.FC = () => {
       <div className="flex justify-between items-center mb-6 w-full">
         <div className="flex items-center gap-3">
           <div className="flex justify-center items-center bg-gradient-to-br from-pumpkin to-pumpkin-600 rounded-lg w-8 h-8">
-            <span className="text-rich-black text-lg icon">󰌨</span>
+            <Icon className="text-rich-black text-lg" content="󰌨" />
           </div>
           <h3 className="font-bold text-seasalt text-2xl">Sites</h3>
           {sites.length > 0 && (
@@ -241,7 +242,7 @@ const SiteList: React.FC = () => {
           onClick={handleCreateSite}
           className="group flex justify-center items-center gap-2 bg-pumpkin hover:bg-pumpkin-600 hover:shadow-lg px-4 py-3 rounded-lg font-semibold text-rich-black hover:scale-105 transition-all duration-200 cursor-pointer"
         >
-          <span className="text-xl icon">󰆤</span>
+          <Icon className="text-xl" content="󰆤" />
           <span className="hidden sm:inline">New Site</span>
         </button>
       </div>
@@ -259,7 +260,7 @@ const SiteList: React.FC = () => {
             ) : sites.length === 0 ? (
               <li className="flex flex-col justify-center items-center px-6 py-16 text-center">
                 <div className="flex justify-center items-center bg-gunmetal-600 mb-4 rounded-full w-16 h-16">
-                  <span className="text-seasalt-400 text-3xl icon">󰌨</span>
+                  <Icon className="text-seasalt-400 text-3xl" content="󰌨" />
                 </div>
                 <h4 className="mb-2 font-semibold text-seasalt text-xl">No sites yet</h4>
                 <p className="max-w-xs text-seasalt-400 text-sm">

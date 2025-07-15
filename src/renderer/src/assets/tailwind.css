@@ -9,10 +9,6 @@
 }
 
 @layer components {
-  .icon {
-    font-family: 'Monaspace Neon', monospace;
-  }
-
   /* Enhanced site item animations */
   .site-item-enter {
     @apply opacity-0 translate-y-2;
