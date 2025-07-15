@@ -50,29 +50,21 @@ function XdebugSwitch(): JSX.Element {
   return (
     <div className="flex justify-between items-start mb-6 rounded-md">
       <div className="flex flex-col flex-1 mr-4">
-        <div>
-          <h3 className="m-0 mb-2 font-medium">{xdebugEnabled ? 'Debug' : 'Performance'}</h3>
-          <p className="m-0 text-seasalt text-sm leading-relaxed">
-            {xdebugEnabled
-              ? 'Debug mode enables Xdebug for step debugging and profiling PHP code.'
-              : 'Performance mode disables Xdebug for faster PHP execution and activates JIT (Just-In-Time) compilation.'}
-          </p>
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="m-0 mb-2 font-medium">{xdebugEnabled ? 'Debug' : 'Performance'} mode</h3>
+          <Toggle
+            checked={xdebugEnabled}
+            onChange={handleToggle}
+            disabled={isToggling}
+            title={xdebugEnabled ? 'Switch to Performance Mode' : 'Switch to Debug Mode'}
+          />
         </div>
+        <p className="m-0 text-seasalt text-sm leading-relaxed">
+          {xdebugEnabled
+            ? 'Debug mode enables Xdebug for step debugging and profiling PHP code.'
+            : 'Performance mode disables Xdebug for faster PHP execution and activates JIT (Just-In-Time) compilation.'}
+        </p>
       </div>
-      <label className="inline-block relative flex-shrink-0 w-10 h-5">
-        <input
-          type="checkbox"
-          checked={xdebugEnabled}
-          onChange={handleToggle}
-          disabled={isLoading || isToggling}
-          className="peer opacity-0 w-0 h-0"
-        />
-        <Toggle
-          checked={xdebugEnabled}
-          onChange={handleToggle}
-          title={xdebugEnabled ? 'Disable Debug Mode' : 'Enable Debug Mode'}
-        />
-      </label>
     </div>
   )
 }
