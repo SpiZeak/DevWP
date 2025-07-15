@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import WpCliModal from './WpCliModal'
 import Spinner from '../ui/Spinner'
+import SiteItem from './SiteItem'
 
 export interface Site {
   name: string
@@ -224,88 +225,69 @@ const SiteList: React.FC = () => {
 
   return (
     <div className="w-full">
-      <div className="flex justify-between mb-1 w-full">
-        <h3>Sites</h3>
+      <div className="flex justify-between items-center mb-6 w-full">
+        <div className="flex items-center gap-3">
+          <div className="flex justify-center items-center bg-gradient-to-br from-pumpkin to-pumpkin-600 rounded-lg w-8 h-8">
+            <span className="text-rich-black text-lg icon">󰌨</span>
+          </div>
+          <h3 className="font-bold text-seasalt text-2xl">Sites</h3>
+          {sites.length > 0 && (
+            <span className="bg-gunmetal-600 px-3 py-1 rounded-full font-medium text-seasalt-300 text-sm">
+              {sites.length}
+            </span>
+          )}
+        </div>
         <button
           onClick={handleCreateSite}
-          className="flex justify-center items-center gap-1.5 bg-gray-600 hover:bg-pumpkin border-1 rounded size-10 text-seasalt hover:text-black hover:text-rich-black text-sm leading-normal transition-colors cursor-pointer"
+          className="group flex justify-center items-center gap-2 bg-pumpkin hover:bg-pumpkin-600 hover:shadow-lg px-4 py-3 rounded-lg font-semibold text-rich-black hover:scale-105 transition-all duration-200 cursor-pointer"
         >
-          <span className="text-xl icon"></span>
+          <span className="text-xl icon">󰆤</span>
+          <span className="hidden sm:inline">New Site</span>
         </button>
       </div>
+
       <div className="relative">
-        <ul
-          className="bg-gray-700 shadow-lg my-4 p-0 rounded-lg w-full max-h-[75vh] overflow-y-auto scrollbar-hide"
-          ref={sitesListRef}
-        >
-          {loading ? (
-            <li className="p-4 text-center">Loading sites...</li>
-          ) : sites.length === 0 ? (
-            <li className="p-4 text-center">No sites configured</li>
-          ) : (
-            sites.map((site, index) => (
-              <li
-                key={site.name}
-                className={`px-4 py-2 flex justify-between items-center transition-colors hover:bg-gray-600 ${index < sites.length - 1 ? 'border-b border-gray-600' : ''}`}
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1 font-bold">
-                    {site.name}
-                    {site.status === 'provisioning' && (
-                      <span
-                        className="inline-block border-2 border-white/30 border-t-blue-500 rounded-full w-3.5 h-3.5 animate-spin"
-                        title="Site is being provisioned"
-                      />
-                    )}
-                  </div>
-                  <div className="text-seasalt text-xs leading-none">{site.path}</div>
-                </div>
-                <div className="flex">
-                  <button
-                    onClick={() => openSiteUrl(site.url)}
-                    className="p-2 border-0 rounded text-seasalt hover:text-pumpkin text-3xl hover:scale-120 transition-all cursor-pointer"
-                    title="Open Site"
-                  >
-                    <span className="icon"></span>
-                  </button>
-                  <button
-                    onClick={() => handleScanSite(site)}
-                    className={`border-0 rounded p-2 text-seasalt cursor-pointer text-3xl transition-all hover:text-pumpkin hover:scale-120 ${scanningSite === site.name ? 'opacity-50' : ''}`}
-                    disabled={scanningSite === site.name}
-                    title={
-                      scanningSite === site.name ? 'Scan in progress...' : 'Run SonarQube Scan'
-                    }
-                  >
-                    {scanningSite === site.name ? (
-                      <Spinner svgClass="size-4" />
-                    ) : (
-                      <span className="icon">󱉶</span>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => handleDeleteSite(site)}
-                    className="p-2 border-0 rounded text-seasalt hover:text-pumpkin text-2xl hover:scale-120 transition-all cursor-pointer"
-                    title="Delete Site"
-                  >
-                    <span className="icon">󰧧</span>
-                  </button>
-                  <button
-                    onClick={() => handleOpenWpCliModal(site)}
-                    className="p-2 border-0 rounded text-seasalt hover:text-pumpkin text-3xl hover:scale-120 transition-all cursor-pointer"
-                    title="Run WP-CLI Command"
-                  >
-                    <span className="icon"></span>
-                  </button>
+        <div className="bg-gunmetal-700 shadow-2xl rounded-xl overflow-hidden">
+          <ul className="py-2 max-h-[75vh] overflow-y-auto scrollbar-hide" ref={sitesListRef}>
+            {loading ? (
+              <li className="flex justify-center items-center py-12">
+                <div className="flex items-center gap-3">
+                  <Spinner svgClass="size-6 text-pumpkin" />
+                  <span className="text-seasalt-300 text-lg">Loading sites...</span>
                 </div>
               </li>
-            ))
-          )}
-        </ul>
-        {/* Scroll indicator */}
+            ) : sites.length === 0 ? (
+              <li className="flex flex-col justify-center items-center px-6 py-16 text-center">
+                <div className="flex justify-center items-center bg-gunmetal-600 mb-4 rounded-full w-16 h-16">
+                  <span className="text-seasalt-400 text-3xl icon">󰌨</span>
+                </div>
+                <h4 className="mb-2 font-semibold text-seasalt text-xl">No sites yet</h4>
+                <p className="max-w-xs text-seasalt-400 text-sm">
+                  Create your first WordPress development site to get started
+                </p>
+              </li>
+            ) : (
+              sites.map((site, index) => (
+                <SiteItem
+                  key={site.name}
+                  site={site}
+                  isLast={index === sites.length - 1}
+                  onOpenUrl={openSiteUrl}
+                  onScan={handleScanSite}
+                  onDelete={handleDeleteSite}
+                  onOpenWpCli={handleOpenWpCliModal}
+                  scanningSite={scanningSite}
+                />
+              ))
+            )}
+          </ul>
+        </div>
+
+        {/* Enhanced scroll indicator */}
         {(scrollBar.visible || isScrolling || (!scrollBar.visible && barEverShown)) &&
           scrollBar.height > 0 && (
             <div
-              className={`absolute right-0.5 w-0.5 rounded-sm bg-white/30 z-10 transition-all duration-100 ${scrollBar.visible || isScrolling ? 'opacity-100' : 'opacity-0'}`}
+              className={`absolute right-2 w-1 rounded-full bg-gradient-to-b from-pumpkin to-pumpkin-600 z-10 transition-all duration-200 ${scrollBar.visible || isScrolling ? 'opacity-80' : 'opacity-0'}`}
               style={{
                 top: scrollBar.top,
                 height: scrollBar.height

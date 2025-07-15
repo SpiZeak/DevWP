@@ -12,4 +12,32 @@
   .icon {
     font-family: 'Monaspace Neon', monospace;
   }
+
+  /* Enhanced site item animations */
+  .site-item-enter {
+    @apply opacity-0 translate-y-2;
+  }
+
+  .site-item-enter-active {
+    @apply opacity-100 transition-all translate-y-0 duration-300;
+  }
+
+  /* Custom scrollbar for webkit browsers */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Hover effects for buttons */
+  .btn-hover-lift {
+    @apply transition-all duration-200;
+  }
+
+  .btn-hover-lift:hover {
+    @apply shadow-lg -translate-y-0.5;
+  }
 }
