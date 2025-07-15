@@ -2,6 +2,7 @@
 
 [![Build Status](https://github.com/SpiZeak/DevWP/actions/workflows/release.yml/badge.svg)](https://github.com/SpiZeak/DevWP/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/SpiZeak)
 
 DevWP is a desktop application designed to simplify local WordPress development. It leverages Electron, React, and TypeScript to provide a user-friendly interface for managing WordPress sites within a Docker-powered Nginx and PHP environment.
 
@@ -25,6 +26,7 @@ DevWP is a desktop application designed to simplify local WordPress development.
   - [How to Use](#how-to-use)
   - [Project Structure](#project-structure)
   - [Contributing](#contributing)
+    - [Support the Project](#support-the-project)
   - [License](#license)
 
 ## Features
@@ -157,6 +159,14 @@ Contributions are welcome! Please feel free to submit a pull request or open an 
 3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
 4.  Push to the branch (`git push origin feature/AmazingFeature`).
 5.  Open a Pull Request.
+
+### Support the Project
+
+If you find DevWP useful and would like to support its development, consider buying me a coffee:
+
+[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/SpiZeak)
+
+Your support helps maintain and improve DevWP for the WordPress development community!
 
 ## License
 
