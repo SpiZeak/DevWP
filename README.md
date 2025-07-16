@@ -31,6 +31,7 @@ DevWP is a desktop application designed to simplify local WordPress development.
   - [Services \& Tools](#services--tools)
     - [Email Testing](#email-testing)
     - [Code Quality](#code-quality)
+    - [Service Versions](#service-versions)
   - [Project Structure](#project-structure)
   - [Troubleshooting](#troubleshooting)
     - [Common Issues](#common-issues)
@@ -210,6 +211,19 @@ DevWP includes several pre-configured services:
 - SonarQube projects are automatically created for each site
 - Access SonarQube at `http://localhost:9000`
 - Default credentials: `admin` / `newAdminPassword1<`
+
+### Service Versions
+
+DevWP uses the latest mainline/edge versions of all services to provide cutting-edge features and optimal performance:
+
+- **Nginx**: Built from mainline source with LibreSSL 4.1.0, HTTP/3, and Brotli compression
+- **PHP**: Latest FPM Alpine image with all essential extensions (GD, MySQLi, Redis, Xdebug, etc.)
+- **MariaDB**: Latest stable release with optimized configuration
+- **Redis**: Latest Alpine-based image for high-performance object caching
+- **Mailpit**: Latest version for modern email testing capabilities
+- **SonarQube**: Latest Community Edition for comprehensive code analysis
+
+This ensures you're always developing with the most current features and security updates available.
 
 ## Project Structure
 
