@@ -228,27 +228,27 @@ const SiteList: React.FC = () => {
     <div className="w-full">
       <div className="flex justify-between items-center mb-6 w-full">
         <div className="flex items-center gap-3">
-          <div className="flex justify-center items-center bg-gradient-to-br from-pumpkin to-pumpkin-600 rounded-lg w-8 h-8">
-            <Icon className="text-rich-black text-lg" content="󰌨" />
+          <div className="flex justify-center items-center bg-gradient-to-br from-gunmetal-700 to-gunmetal-600 rounded-lg w-8 h-8">
+            <Icon className="text-warm-charcoal text-lg" content="󰌨" />
           </div>
           <h3 className="font-bold text-seasalt text-2xl">Sites</h3>
           {sites.length > 0 && (
-            <span className="bg-gunmetal-600 px-3 py-1 rounded-full font-medium text-seasalt-300 text-sm">
+            <span className="bg-gunmetal-500 px-3 py-1 rounded-full font-medium text-seasalt-300 text-sm">
               {sites.length}
             </span>
           )}
         </div>
         <button
           onClick={handleCreateSite}
-          className="group flex justify-center items-center gap-2 bg-pumpkin hover:bg-pumpkin-600 hover:shadow-lg px-4 py-3 rounded-lg font-semibold text-rich-black hover:scale-105 transition-all duration-200 cursor-pointer"
+          className="group flex justify-center items-center gap-2 bg-pumpkin hover:bg-pumpkin-600 hover:shadow-lg rounded-lg size-10 font-semibold text-warm-charcoal hover:scale-105 transition-all duration-200 cursor-pointer"
+          title="Create a new site"
         >
-          <Icon className="text-xl" content="󰆤" />
-          <span className="hidden sm:inline">New Site</span>
+          <Icon className="text-xl" content="" />
         </button>
       </div>
 
       <div className="relative">
-        <div className="bg-gunmetal-700 shadow-2xl rounded-xl overflow-hidden">
+        <div className="bg-gunmetal-500 shadow-2xl rounded-xl overflow-hidden">
           <ul className="py-2 max-h-[75vh] overflow-y-auto scrollbar-hide" ref={sitesListRef}>
             {loading ? (
               <li className="flex justify-center items-center py-12">
@@ -259,7 +259,7 @@ const SiteList: React.FC = () => {
               </li>
             ) : sites.length === 0 ? (
               <li className="flex flex-col justify-center items-center px-6 py-16 text-center">
-                <div className="flex justify-center items-center bg-gunmetal-600 mb-4 rounded-full w-16 h-16">
+                <div className="flex justify-center items-center bg-gunmetal-500 mb-4 rounded-full w-16 h-16">
                   <Icon className="text-seasalt-400 text-3xl" content="󰌨" />
                 </div>
                 <h4 className="mb-2 font-semibold text-seasalt text-xl">No sites yet</h4>
@@ -299,8 +299,8 @@ const SiteList: React.FC = () => {
 
       {/* Create Site Modal */}
       {isModalOpen && (
-        <div className="z-50 fixed inset-0 flex justify-center items-center bg-black/70">
-          <div className="bg-gray-700 shadow-xl p-5 rounded-lg w-[90%] max-w-lg">
+        <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70">
+          <div className="bg-gunmetal-500 shadow-xl p-5 rounded-lg w-[90%] max-w-lg">
             <h3 className="mt-0 mb-5">Create New Site</h3>
             <div className="mb-5">
               <label className="block mb-1 text-sm">Domain</label>
@@ -308,7 +308,7 @@ const SiteList: React.FC = () => {
                 type="text"
                 value={newSite.domain}
                 onChange={(e) => setNewSite({ ...newSite, domain: e.target.value })}
-                className="bg-gray-600 p-2 border border-gray-500 rounded w-full text-seasalt"
+                className="bg-gunmetal-400 p-2 border border-gunmetal-500 rounded w-full text-seasalt"
                 placeholder="example.test"
               />
             </div>
@@ -318,7 +318,7 @@ const SiteList: React.FC = () => {
                 type="text"
                 value={newSite.aliases}
                 onChange={(e) => setNewSite({ ...newSite, aliases: e.target.value })}
-                className="bg-gray-600 p-2 border border-gray-500 rounded w-full text-seasalt"
+                className="bg-gunmetal-400 p-2 border border-gunmetal-500 rounded w-full text-seasalt"
                 placeholder="alias1.test alias2.test"
               />
             </div>
@@ -335,10 +335,10 @@ const SiteList: React.FC = () => {
                     webRoot: e.target.value.trim().replace(/^\/+|\/+$/g, '')
                   })
                 }
-                className="bg-gray-600 p-2 border border-gray-500 rounded w-full text-seasalt"
+                className="bg-gunmetal-400 p-2 border border-gunmetal-500 rounded w-full text-seasalt"
                 placeholder="public (leave blank for site root)"
               />
-              <div className="mt-1 text-seasalt text-xs">
+              <div className="mt-2 text-seasalt text-xs">
                 Site will be created in www/
                 <span className="font-bold">{formatDomain(newSite.domain)}</span>.
                 {newSite.webRoot ? (
@@ -358,7 +358,7 @@ const SiteList: React.FC = () => {
             </div>
 
             {/* Multisite section */}
-            <div className="bg-gray-700 shadow-sm mb-8 rounded-md">
+            <div className="mb-8 rounded-md">
               <div className="flex items-center gap-2 mb-6">
                 <label className="inline-block relative mr-2 w-11 h-6">
                   <input
@@ -376,9 +376,9 @@ const SiteList: React.FC = () => {
                     }
                     className="peer opacity-0 w-0 h-0"
                   />
-                  <span className="top-0 right-0 bottom-0 before:bottom-0.5 left-0 before:left-0.5 absolute before:absolute bg-gray-400 before:bg-white peer-checked:bg-blue-500 peer-focus:shadow-sm rounded-3xl before:rounded-full before:w-4.5 before:h-4.5 before:content-[''] transition-all before:transition-all peer-checked:before:translate-x-5 duration-400 before:duration-400 cursor-pointer"></span>
+                  <span className="top-0 right-0 bottom-0 before:bottom-0.5 left-0 before:left-0.5 absolute before:absolute bg-gunmetal-400 before:bg-seasalt peer-checked:bg-gunmetal-500 peer-focus:shadow-sm rounded-3xl before:rounded-full before:w-4.5 before:h-4.5 before:content-[''] transition-all before:transition-all peer-checked:before:translate-x-5 duration-400 before:duration-400 cursor-pointer"></span>
                 </label>
-                <label htmlFor="multisite-enabled" className="ml-3 font-medium text-rich-black-100">
+                <label htmlFor="multisite-enabled" className="ml-3 font-medium text-seasalt">
                   Enable WordPress Multisite
                 </label>
               </div>
@@ -386,7 +386,7 @@ const SiteList: React.FC = () => {
               {newSite.multisite.enabled && (
                 <div className="flex gap-4">
                   <div
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer transition-all ${newSite.multisite.type === 'subdirectory' ? 'bg-blue-500 text-seasalt shadow-sm font-semibold' : 'bg-gray-600 hover:bg-gray-500'}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer transition-all ${newSite.multisite.type === 'subdirectory' ? 'bg-gunmetal-400 text-seasalt shadow-sm font-semibold' : 'bg-gunmetal-500 hover:bg-gunmetal-500'}`}
                     onClick={() =>
                       setNewSite({
                         ...newSite,
@@ -408,12 +408,12 @@ const SiteList: React.FC = () => {
                     />
                     <label htmlFor="multisite-subdirectory" className="cursor-pointer">
                       Subdirectory{' '}
-                      <span className="ml-1 text-rich-black-300 text-xs">(example.test/site2)</span>
+                      <span className="ml-1 text-seasalt-300 text-xs">(example.test/site2)</span>
                     </label>
                   </div>
 
                   <div
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer transition-all ${newSite.multisite.type === 'subdomain' ? 'bg-blue-500 text-seasalt shadow-sm font-semibold' : 'bg-gray-600 hover:bg-gray-500'}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer transition-all ${newSite.multisite.type === 'subdomain' ? 'bg-gunmetal-400 text-seasalt shadow-sm font-semibold' : 'bg-gunmetal-500 hover:bg-gunmetal-500'}`}
                     onClick={() =>
                       setNewSite({
                         ...newSite,
@@ -435,7 +435,7 @@ const SiteList: React.FC = () => {
                     />
                     <label htmlFor="multisite-subdomain" className="cursor-pointer">
                       Subdomain{' '}
-                      <span className="ml-1 text-rich-black-300 text-xs">(site2.example.test)</span>
+                      <span className="ml-1 text-seasalt-300 text-xs">(site2.example.test)</span>
                     </label>
                   </div>
                 </div>
@@ -445,14 +445,14 @@ const SiteList: React.FC = () => {
             <div className="flex justify-end gap-2.5">
               <button
                 onClick={handleCloseModal}
-                className="bg-gray-600 px-4 py-2 border-0 rounded text-rich-black-100 cursor-pointer"
+                className="bg-gunmetal-400 px-4 py-2 border-0 rounded text-seasalt-300 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSubmitNewSite}
                 disabled={!newSite.domain.replace('.test', '')}
-                className="bg-blue-500 disabled:bg-gray-500 px-4 py-2 border-0 rounded text-seasalt cursor-pointer disabled:cursor-not-allowed"
+                className="bg-pumpkin disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt disabled:text-seasalt-300 cursor-pointer disabled:cursor-not-allowed"
               >
                 Create
               </button>

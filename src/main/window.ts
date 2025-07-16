@@ -9,14 +9,22 @@ import { registerWpCliHandlers } from './ipc/wpCli'
 
 export function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1200,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
     show: false,
     autoHideMenuBar: true,
+    titleBarStyle: 'default',
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false
     }
   })
 

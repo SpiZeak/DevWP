@@ -21,7 +21,7 @@ const Toggle = (props: ToggleProps): JSX.Element => (
       className="sr-only peer"
     />
     <div
-      className={`peer after:top-[2px] after:absolute relative bg-success-200 after:bg-seasalt dark:bg-success-700 dark:peer-checked:bg-info-600 peer-checked:bg-info-600 after:border after:border-success-300 dark:border-success-600 peer-checked:after:border-white rounded-full after:rounded-full peer-focus:outline-none dark:peer-focus:ring-info-800 w-11 after:w-5 h-6 after:h-5 after:content-[''] after:transition-all rtl:peer-checked:after:-translate-x-full peer-checked:after:translate-x-full after:start-[2px] ${props.disabled ? 'pointer-events-none' : ''}`}
+      className={`peer after:top-[2px] after:absolute relative bg-emerald-200 after:bg-seasalt dark:bg-emerald-700 dark:peer-checked:bg-amber-600 peer-checked:bg-amber-600 after:border after:border-emerald-300 dark:border-emerald-600 peer-checked:after:border-seasalt rounded-full after:rounded-full peer-focus:outline-none dark:peer-focus:ring-amber-800 w-11 after:w-5 h-6 after:h-5 after:content-[''] after:transition-all rtl:peer-checked:after:-translate-x-full peer-checked:after:translate-x-full after:start-[2px] ${props.disabled ? 'pointer-events-none' : ''}`}
     ></div>
   </label>
 )

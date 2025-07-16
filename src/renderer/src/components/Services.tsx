@@ -93,7 +93,7 @@ const Services: React.FC = () => {
             containerMap.map((container) => (
               <li
                 key={container.id}
-                className={`flex justify-between items-center px-3 py-1.5 bg-gray-600 rounded-md transition-colors hover:bg-gray-500 ${container.state === 'running' ? 'border-l-3 border-success-500' : container.state === 'exited' || container.state === 'stopped' ? 'border-l-3 border-danger-500' : ''}`}
+                className={`flex justify-between items-center px-3 py-1.5 bg-gunmetal-500 rounded-md transition-colors hover:bg-gunmetal-500 ${container.state === 'running' ? 'border-l-3 border-emerald-500' : container.state === 'exited' || container.state === 'stopped' ? 'border-l-3 border-crimson-500' : ''}`}
               >
                 <div className="flex items-center gap-2.5">
                   {containerIconMapping[container.name] || '🔧'}
@@ -107,7 +107,7 @@ const Services: React.FC = () => {
                   </div>
                 </div>
                 <button
-                  className={`flex flex-shrink-0 justify-center items-center bg-gray-500 disabled:opacity-50 rounded-full size-7 text-2xl text-seasalt hover:text-black transition-all duration-200 cursor-pointer disabled:cursor-not-allowed icon ${restarting[container.id] ? '' : 'hover:rotate-30 hover:bg-pumpkin hover:text-rich-black hover:scale-110'}`}
+                  className={`flex flex-shrink-0 justify-center items-center bg-gunmetal-500 disabled:opacity-50 rounded-full size-7 text-2xl text-seasalt hover:text-warm-charcoal transition-all duration-200 cursor-pointer disabled:cursor-not-allowed icon ${restarting[container.id] ? '' : 'hover:rotate-30 hover:bg-pumpkin hover:text-warm-charcoal hover:scale-110'}`}
                   onClick={() => restartContainer(container.id, container.name)}
                   disabled={restarting[container.id]}
                   title="Restart service"

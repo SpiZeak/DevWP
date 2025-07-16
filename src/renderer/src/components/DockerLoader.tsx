@@ -27,8 +27,8 @@ function DockerLoader(): JSX.Element | null {
   if (!isVisible) return null
 
   return (
-    <div className="z-50 fixed inset-0 flex justify-center items-center bg-rich-black/90">
-      <div className="bg-rich-black-400 shadow-xl p-8 rounded-lg w-[90%] max-w-lg text-seasalt-200 text-center">
+    <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/90">
+      <div className="bg-warm-charcoal-400 shadow-xl p-8 rounded-lg w-[90%] max-w-lg text-seasalt-200 text-center">
         <img
           src={dockerLogo}
           alt="Docker Logo"
@@ -38,7 +38,7 @@ function DockerLoader(): JSX.Element | null {
         <h3>Starting Docker Environment</h3>
         <p className="mt-4 h-15 overflow-y-auto text-seasalt text-sm">{dockerStatus.message}</p>
         {dockerStatus.status === 'error' && (
-          <div className="mt-4 text-danger-400">
+          <div className="mt-4 text-crimson-400">
             There was an error starting Docker. Check the logs for details.
           </div>
         )}
