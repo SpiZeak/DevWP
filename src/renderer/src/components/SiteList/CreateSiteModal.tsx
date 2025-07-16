@@ -201,13 +201,13 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({ isOpen, onClose, onSu
                   readOnly
                 />
                 <label htmlFor="multisite-subdomain" className="cursor-pointer">
-                  Subdomain{' '}
-                  <span
-                    className={`ml-1 text-xs ${newSite.multisite.type === 'subdomain' ? 'text-warm-charcoal-300' : 'text-seasalt-300'}`}
-                  >
-                    (site2.example.test)
-                  </span>
+                  Subdomain
                 </label>
+                <div
+                  className={`ml-1 text-xs ${newSite.multisite.type === 'subdomain' ? 'text-warm-charcoal-300' : 'text-seasalt-300'}`}
+                >
+                  (site2.example.test)
+                </div>
               </div>
             </div>
           )}
