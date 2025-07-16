@@ -1,36 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+export interface NewSiteData {
+  domain: string
+  webRoot: string
+  aliases: string
+  multisite: {
+    enabled: boolean
+    type: 'subdomain' | 'subdirectory'
+  }
+}
 
 interface CreateSiteModalProps {
   isOpen: boolean
   onClose: () => void
-  onSubmit: (siteData: {
-    domain: string
-    webRoot: string
-    aliases: string
-    multisite: {
-      enabled: boolean
-      type: 'subdomain' | 'subdirectory'
-    }
-  }) => void
-}
-
-const formatDomain = (domain: string): string => {
-  if (!/.+\..*$/.test(domain)) {
-    return `${domain}.test`
-  }
-  return domain
+  onSubmit: (siteData: NewSiteData) => void
 }
 
 const CreateSiteModal: React.FC<CreateSiteModalProps> = ({ isOpen, onClose, onSubmit }) => {
-  const [newSite, setNewSite] = useState<{
-    domain: string
-    webRoot: string
-    aliases: string
-    multisite: {
-      enabled: boolean
-      type: 'subdomain' | 'subdirectory'
-    }
-  }>({
+  const [newSite, setNewSite] = useState<NewSiteData>({
     domain: 'example.test',
     webRoot: '',
     aliases: '',
@@ -40,89 +27,100 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({ isOpen, onClose, onSu
     }
   })
 
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset form when modal is closed
+      setNewSite({
+        domain: 'example.test',
+        webRoot: '',
+        aliases: '',
+        multisite: { enabled: false, type: 'subdirectory' }
+      })
+    }
+  }, [isOpen])
+
   if (!isOpen) return null
 
-  const handleSubmit = (): void => {
-    const siteNameToCreate = formatDomain(newSite.domain)
-    const aliasesToCreate = newSite.aliases.split(' ').filter(Boolean).map(formatDomain)
+  const formatDomain = (domain: string): string => {
+    if (!/.+\..*$/.test(domain)) {
+      return `${domain}.test`
+    }
+    return domain
+  }
 
+  const handleSubmit = (): void => {
     const siteDataToSend = {
       ...newSite,
-      domain: siteNameToCreate,
-      aliases: aliasesToCreate.join(' ')
+      domain: formatDomain(newSite.domain),
+      aliases: newSite.aliases.split(' ').filter(Boolean).map(formatDomain).join(' ')
     }
     onSubmit(siteDataToSend)
   }
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
-        <h3 className="modal-title">Create New Site</h3>
-        <div className="form-group">
-          <label className="form-label">Domain</label>
-          <div className="input-container">
-            <input
-              type="text"
-              value={newSite.domain}
-              onChange={(e): void => setNewSite({ ...newSite, domain: e.target.value })}
-              className="form-input"
-              placeholder="example.test"
-            />
-          </div>
+    <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70">
+      <div className="bg-gunmetal-500 shadow-xl p-5 rounded-lg w-[90%] max-w-lg">
+        <h3 className="mt-0 mb-5">Create New Site</h3>
+        <div className="mb-5">
+          <label className="block mb-1 text-sm">Domain</label>
+          <input
+            type="text"
+            value={newSite.domain}
+            onChange={(e): void => setNewSite({ ...newSite, domain: e.target.value })}
+            className="bg-gunmetal-400 p-2 border border-gunmetal-500 focus:border-pumpkin rounded focus:outline-none focus:ring-1 focus:ring-pumpkin w-full text-seasalt transition-colors"
+            placeholder="example.test"
+            autoFocus
+          />
         </div>
-        <div className="form-group">
-          <label className="form-label">Aliases (optional, space-separated)</label>
-          <div className="input-container">
-            <input
-              type="text"
-              value={newSite.aliases}
-              onChange={(e): void => setNewSite({ ...newSite, aliases: e.target.value })}
-              className="form-input"
-              placeholder="alias1.test alias2.test"
-            />
-          </div>
+        <div className="mb-5">
+          <label className="block mb-1 text-sm">Aliases (optional, space-separated)</label>
+          <input
+            type="text"
+            value={newSite.aliases}
+            onChange={(e): void => setNewSite({ ...newSite, aliases: e.target.value })}
+            className="bg-gunmetal-400 p-2 border border-gunmetal-500 focus:border-pumpkin rounded focus:outline-none focus:ring-1 focus:ring-pumpkin w-full text-seasalt transition-colors"
+            placeholder="alias1.test alias2.test"
+          />
         </div>
-        <div className="form-group">
-          <label className="form-label">
-            Web Root (optional, relative to site directory e.g. &quot;public&quot;,
-            &quot;dist&quot;)
+        <div className="mb-5">
+          <label className="block mb-1 text-sm">
+            Web Root (optional, relative to site directory e.g. "public", "dist")
           </label>
-          <div className="input-container">
-            <input
-              type="text"
-              value={newSite.webRoot}
-              onChange={(e): void =>
-                setNewSite({
-                  ...newSite,
-                  webRoot: e.target.value.trim().replace(/^\/+|\/+$/g, '')
-                })
-              }
-              className="form-input"
-              placeholder="public (leave blank for site root)"
-            />
-          </div>
-          <div className="form-help-text">
+          <input
+            type="text"
+            value={newSite.webRoot}
+            onChange={(e): void =>
+              setNewSite({
+                ...newSite,
+                webRoot: e.target.value.trim().replace(/^\/+|\/+$/g, '')
+              })
+            }
+            className="bg-gunmetal-400 p-2 border border-gunmetal-500 focus:border-pumpkin rounded focus:outline-none focus:ring-1 focus:ring-pumpkin w-full text-seasalt transition-colors"
+            placeholder="public (leave blank for site root)"
+          />
+          <div className="mt-2 text-seasalt text-xs">
             Site will be created in www/
-            <span className="bold-text">{formatDomain(newSite.domain)}</span>.
+            <span className="font-bold text-pumpkin">{formatDomain(newSite.domain)}</span>.
             {newSite.webRoot ? (
               <>
                 {' '}
                 Web server will point to www/
-                <span className="bold-text">{formatDomain(newSite.domain)}</span>/
-                <span className="bold-text">{newSite.webRoot}</span>.
+                <span className="font-bold text-pumpkin">{formatDomain(newSite.domain)}</span>/
+                <span className="font-bold text-pumpkin">{newSite.webRoot}</span>.
               </>
             ) : (
               ' Web server will point to the site root.'
             )}
             <br />
             Accessible at https://
-            <span className="bold-text">{formatDomain(newSite.domain)}</span>
+            <span className="font-bold text-pumpkin">{formatDomain(newSite.domain)}</span>
           </div>
         </div>
 
-        <div className="form-group multisite-group">
-          <div className="checkbox-container">
-            <label className="switch">
+        {/* Multisite section */}
+        <div className="mb-8 rounded-md">
+          <div className="flex items-center gap-2 mb-6">
+            <label className="inline-block relative mr-2 w-11 h-6">
               <input
                 type="checkbox"
                 id="multisite-enabled"
@@ -136,22 +134,31 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({ isOpen, onClose, onSu
                     }
                   })
                 }
+                className="peer opacity-0 w-0 h-0"
               />
-              <span className="slider round"></span>
+              <span className="top-0 right-0 bottom-0 before:bottom-0.5 left-0 before:left-0.5 absolute before:absolute bg-gunmetal-400 before:bg-seasalt peer-checked:bg-pumpkin peer-focus:shadow-sm rounded-3xl before:rounded-full before:w-4.5 before:h-4.5 before:content-[''] transition-all before:transition-all peer-checked:before:translate-x-5 duration-400 before:duration-400 cursor-pointer"></span>
             </label>
             <label
               htmlFor="multisite-enabled"
-              className="checkbox-label"
-              style={{ marginLeft: 12 }}
+              className="ml-3 font-medium text-seasalt hover:text-pumpkin transition-colors cursor-pointer"
             >
               Enable WordPress Multisite
             </label>
           </div>
 
           {newSite.multisite.enabled && (
-            <div className="radio-group">
+            <div className="flex gap-4">
               <div
-                className={`radio-option${newSite.multisite.type === 'subdirectory' ? ' selected' : ''}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer transition-all ${newSite.multisite.type === 'subdirectory' ? 'bg-pumpkin text-warm-charcoal shadow-sm font-semibold' : 'bg-gunmetal-500 hover:bg-gunmetal-400 hover:text-pumpkin'}`}
+                onClick={(): void =>
+                  setNewSite({
+                    ...newSite,
+                    multisite: {
+                      ...newSite.multisite,
+                      type: 'subdirectory'
+                    }
+                  })
+                }
               >
                 <input
                   hidden
@@ -160,24 +167,29 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({ isOpen, onClose, onSu
                   name="multisite-type"
                   value="subdirectory"
                   checked={newSite.multisite.type === 'subdirectory'}
-                  onChange={(): void =>
-                    setNewSite({
-                      ...newSite,
-                      multisite: {
-                        ...newSite.multisite,
-                        type: 'subdirectory'
-                      }
-                    })
-                  }
-                  className="form-radio"
+                  readOnly
                 />
-                <label htmlFor="multisite-subdirectory">
-                  Subdirectory <span className="example">(example.test/site2)</span>
+                <label htmlFor="multisite-subdirectory" className="cursor-pointer">
+                  Subdirectory{' '}
+                  <span
+                    className={`ml-1 text-xs ${newSite.multisite.type === 'subdirectory' ? 'text-warm-charcoal-300' : 'text-seasalt-300'}`}
+                  >
+                    (example.test/site2)
+                  </span>
                 </label>
               </div>
 
               <div
-                className={`radio-option${newSite.multisite.type === 'subdomain' ? ' selected' : ''}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer transition-all ${newSite.multisite.type === 'subdomain' ? 'bg-pumpkin text-warm-charcoal shadow-sm font-semibold' : 'bg-gunmetal-500 hover:bg-gunmetal-400 hover:text-pumpkin'}`}
+                onClick={(): void =>
+                  setNewSite({
+                    ...newSite,
+                    multisite: {
+                      ...newSite.multisite,
+                      type: 'subdomain'
+                    }
+                  })
+                }
               >
                 <input
                   hidden
@@ -186,33 +198,32 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({ isOpen, onClose, onSu
                   name="multisite-type"
                   value="subdomain"
                   checked={newSite.multisite.type === 'subdomain'}
-                  onChange={(): void =>
-                    setNewSite({
-                      ...newSite,
-                      multisite: {
-                        ...newSite.multisite,
-                        type: 'subdomain'
-                      }
-                    })
-                  }
-                  className="form-radio"
+                  readOnly
                 />
-                <label htmlFor="multisite-subdomain">
-                  Subdomain <span className="example">(site2.example.test)</span>
+                <label htmlFor="multisite-subdomain" className="cursor-pointer">
+                  Subdomain{' '}
+                  <span
+                    className={`ml-1 text-xs ${newSite.multisite.type === 'subdomain' ? 'text-warm-charcoal-300' : 'text-seasalt-300'}`}
+                  >
+                    (site2.example.test)
+                  </span>
                 </label>
               </div>
             </div>
           )}
         </div>
 
-        <div className="modal-actions">
-          <button onClick={onClose} className="cancel-button">
+        <div className="flex justify-end gap-2.5">
+          <button
+            onClick={onClose}
+            className="bg-gunmetal-400 hover:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt-300 hover:text-seasalt transition-colors cursor-pointer"
+          >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={!newSite.domain.replace('.test', '')}
-            className={`create-button ${!newSite.domain.replace('.test', '') ? 'disabled' : ''}`}
+            className="bg-pumpkin hover:bg-pumpkin-600 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt-300 transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
             Create
           </button>

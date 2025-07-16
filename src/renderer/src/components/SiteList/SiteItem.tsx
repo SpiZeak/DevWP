@@ -21,6 +21,8 @@ const SiteItem: React.FC<SiteItemProps> = ({
   onOpenWpCli,
   scanningSite
 }) => {
+  const isProvisioning = site.status === 'provisioning'
+
   return (
     <li
       className={`group relative bg-gunmetal-300 hover:bg-gunmetal-400 transition-all duration-200 rounded-lg mx-2 mb-3 ${!isLast ? 'mb-3' : 'mb-2'}`}
@@ -49,20 +51,27 @@ const SiteItem: React.FC<SiteItemProps> = ({
         <div className="flex items-center gap-1">
           <button
             onClick={(): void => onOpenUrl(site.url)}
-            className="group/btn relative bg-gunmetal-500 hover:bg-pumpkin hover:shadow-lg rounded-lg size-10 hover:scale-105 transition-all duration-200 cursor-pointer"
+            className="group/btn relative bg-gunmetal-500 hover:bg-pumpkin disabled:bg-gunmetal-300 hover:shadow-lg rounded-lg size-10 hover:scale-105 disabled:hover:scale-100 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
             title="Open Site"
+            disabled={isProvisioning}
           >
             <Icon className="text-2xl" content="" />
           </button>
           <button
             onClick={(): void => onScan(site)}
             className={`group/btn relative size-10 rounded-lg transition-all duration-200 hover:scale-105 hover:shadow-lg ${
-              scanningSite === site.name
+              scanningSite === site.name || isProvisioning
                 ? 'bg-amber/20 cursor-not-allowed'
                 : 'bg-gunmetal-500 hover:bg-amber cursor-pointer'
             }`}
-            disabled={scanningSite === site.name}
-            title={scanningSite === site.name ? 'Scan in progress...' : 'Run SonarQube Scan'}
+            disabled={scanningSite === site.name || isProvisioning}
+            title={
+              isProvisioning
+                ? 'Site is being provisioned'
+                : scanningSite === site.name
+                  ? 'Scan in progress...'
+                  : 'Run SonarQube Scan'
+            }
           >
             {scanningSite === site.name ? (
               <Spinner svgClass="size-5 text-amber" title="Site is being scanned" />
@@ -75,15 +84,17 @@ const SiteItem: React.FC<SiteItemProps> = ({
           </button>
           <button
             onClick={(): void => onDelete(site)}
-            className="group/btn relative bg-gunmetal-500 hover:bg-crimson hover:shadow-lg rounded-lg size-10 hover:scale-105 transition-all duration-200 cursor-pointer"
+            className="group/btn relative bg-gunmetal-500 hover:bg-crimson disabled:bg-gunmetal-300 hover:shadow-lg rounded-lg size-10 hover:scale-105 disabled:hover:scale-100 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
             title="Delete Site"
+            disabled={isProvisioning}
           >
             <Icon className="text-seasalt group-hover/btn:text-warm-charcoal text-xl" content="󰧧" />
           </button>
           <button
             onClick={(): void => onOpenWpCli(site)}
-            className="group/btn relative bg-gunmetal-500 hover:bg-emerald hover:shadow-lg rounded-lg size-10 hover:scale-105 transition-all duration-200 cursor-pointer"
+            className="group/btn relative bg-gunmetal-500 hover:bg-emerald disabled:bg-gunmetal-300 hover:shadow-lg rounded-lg size-10 hover:scale-105 disabled:hover:scale-100 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
             title="Run WP-CLI Command"
+            disabled={isProvisioning}
           >
             <Icon className="text-seasalt group-hover/btn:text-warm-charcoal text-xl" content="󰆍" />
           </button>
