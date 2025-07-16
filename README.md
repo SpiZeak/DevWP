@@ -31,11 +31,13 @@ DevWP is a desktop application designed to simplify local WordPress development.
   - [Services \& Tools](#services--tools)
     - [Email Testing](#email-testing)
     - [Code Quality](#code-quality)
+    - [SEO Analysis](#seo-analysis)
     - [Service Versions](#service-versions)
   - [Project Structure](#project-structure)
   - [Troubleshooting](#troubleshooting)
     - [Common Issues](#common-issues)
     - [Container Management](#container-management)
+    - [Submodule issues](#submodule-issues)
   - [Contributing](#contributing)
     - [Support the Project](#support-the-project)
   - [License](#license)
@@ -51,6 +53,7 @@ DevWP is a desktop application designed to simplify local WordPress development.
 - **WP-CLI Integration**: Run WP-CLI commands directly from the interface with real-time output streaming
 - **Email Testing with Mailpit**: Built-in email testing and debugging with Mailpit's web interface for capturing and viewing emails sent from your WordPress sites
 - **SonarQube Integration**: Includes functionality to create and delete SonarQube projects for code quality analysis of your WordPress themes and plugins
+- **SEO Analysis with Seonaut**: Integrated Seonaut submodule for comprehensive SEO auditing and optimization insights
 - **Xdebug Support**: Toggle Xdebug on/off for PHP debugging
 - **Container Management**: Monitor and restart Docker containers directly from the interface
 - **Automatic Placeholder Page**: Generates a default `index.html` for new sites to get you started quickly
@@ -88,16 +91,20 @@ cd DevWP
 
 ### 2. Install Dependencies
 
-This project uses Bun for package management.
+This project uses Bun for package management and includes the Seonaut submodule for SEO analysis.
 
 ```bash
 bun install
+
+# Initialize and update the Seonaut submodule
+git submodule update --init
 ```
 
 ### 3. Configure Environment (if necessary)
 
 - Review Docker configurations in `compose.yml` and `config/`.
 - Ensure SonarQube credentials in `src/main/services/site.ts` (specifically within `createSonarQubeProject` and `deleteSonarQubeProject`) are appropriate for your local SonarQube instance. **Note:** The current implementation uses default credentials which is insecure for non-local or production-like SonarQube setups.
+- The Seonaut submodule provides additional SEO analysis capabilities and will be automatically available after submodule initialization.
 
 ## Development
 
@@ -199,6 +206,7 @@ DevWP includes several pre-configured services:
 | **Redis**     | 6379    | Object caching              |
 | **Mailpit**   | 8025    | Email testing interface     |
 | **SonarQube** | 9000    | Code quality analysis       |
+| **Seonaut**   | -       | SEO analysis and auditing   |
 
 ### Email Testing
 
@@ -211,6 +219,12 @@ DevWP includes several pre-configured services:
 - SonarQube projects are automatically created for each site
 - Access SonarQube at `http://localhost:9000`
 - Default credentials: `admin` / `newAdminPassword1<`
+
+### SEO Analysis
+
+- Seonaut is included as a submodule for comprehensive SEO auditing
+- Provides insights into on-page optimization, technical SEO issues, and performance metrics
+- Integrated seamlessly with your WordPress development workflow
 
 ### Service Versions
 
@@ -232,6 +246,7 @@ This ensures you're always developing with the most current features and securit
 - `build/`: Icons and platform-specific build resources.
 - `config/`: Configuration files for services like Nginx and PHP used in Docker.
 - `resources/`: Static assets for the Electron application.
+- `seonaut/`: Seonaut submodule for SEO analysis and auditing tools.
 - `src/`: Application source code.
   - `main/`: Electron main process code (Node.js environment).
     - `index.ts`: Main entry point for the Electron application.
@@ -276,6 +291,18 @@ Use the container status panel to:
 - Monitor container health
 - Restart containers if needed
 - Toggle Xdebug on/off
+
+### Submodule issues
+
+- If Seonaut features are not working, ensure submodules are properly initialized:
+  ```bash
+  git submodule init
+  git submodule update
+  ```
+- To update Seonaut to the latest version:
+  ```bash
+  git submodule update --remote seonaut
+  ```
 
 ## Contributing
 
