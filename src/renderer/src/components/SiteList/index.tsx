@@ -29,6 +29,8 @@ const SiteList: React.FC = () => {
   const [barEverShown, setBarEverShown] = useState(false)
   const [isScrolling, setIsScrolling] = useState(false)
   const SCROLLBAR_MARGIN = 16
+  const [maxHeight, setMaxHeight] = useState<number>(0)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const openSiteUrl = (url: string): void => {
     window.electron.ipcRenderer.invoke('open-external', url)
@@ -144,6 +146,14 @@ const SiteList: React.FC = () => {
     showScrollBar(barTop, barHeight)
   }
 
+  const updateMaxHeight = (): void => {
+    if (containerRef.current) {
+      const containerTop = containerRef.current.getBoundingClientRect().top
+      const availableHeight = window.innerHeight - containerTop - 120 // Increased from 32px to 120px for Versions component
+      setMaxHeight(Math.max(200, availableHeight)) // Minimum 200px height
+    }
+  }
+
   // Use a ref to always clear and restart the fade-out timer immediately on scroll
   useEffect(() => {
     const el = sitesListRef.current
@@ -175,6 +185,22 @@ const SiteList: React.FC = () => {
     updateScrollBar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sites, loading])
+
+  useEffect(() => {
+    updateMaxHeight()
+
+    const handleResize = (): void => {
+      updateMaxHeight()
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Update height when sites change (in case header content changes)
+  useEffect(() => {
+    updateMaxHeight()
+  }, [sites, searchQuery])
 
   // Filter sites based on search query
   const filteredSites = useMemo(() => {
@@ -241,9 +267,13 @@ const SiteList: React.FC = () => {
         </div>
       )}
 
-      <div className="relative">
+      <div className="relative" ref={containerRef}>
         <div className="bg-gunmetal-500 shadow-2xl rounded-xl overflow-hidden">
-          <ul className="py-2 max-h-[75vh] overflow-y-auto scrollbar-hide" ref={sitesListRef}>
+          <ul
+            className="py-2 overflow-y-auto scrollbar-hide"
+            ref={sitesListRef}
+            style={{ maxHeight: `${maxHeight}px` }}
+          >
             {loading ? (
               <li className="flex justify-center items-center py-12">
                 <div className="flex items-center gap-3">
