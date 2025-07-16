@@ -179,12 +179,13 @@ const SiteList: React.FC = () => {
   // Filter sites based on search query
   const filteredSites = useMemo(() => {
     if (!searchQuery.trim()) return sites
-    
+
     const query = searchQuery.toLowerCase()
-    return sites.filter((site) => 
-      site.name.toLowerCase().includes(query) ||
-      site.path.toLowerCase().includes(query) ||
-      site.url.toLowerCase().includes(query)
+    return sites.filter(
+      (site) =>
+        site.name.toLowerCase().includes(query) ||
+        site.path.toLowerCase().includes(query) ||
+        site.url.toLowerCase().includes(query)
     )
   }, [sites, searchQuery])
 
@@ -202,7 +203,7 @@ const SiteList: React.FC = () => {
             </span>
           )}
         </div>
-        
+
         <button
           onClick={handleCreateSite}
           className="group flex justify-center items-center gap-2 bg-pumpkin hover:bg-pumpkin-600 hover:shadow-lg rounded-lg size-10 font-semibold text-warm-charcoal hover:scale-105 transition-all duration-200 cursor-pointer"
@@ -216,21 +217,21 @@ const SiteList: React.FC = () => {
       {sites.length > 0 && (
         <div className="mb-4">
           <div className="relative">
-            <Icon 
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-seasalt-400 text-lg" 
-              content="󰍉" 
+            <Icon
+              className="top-1/2 left-3 absolute text-seasalt-400 text-lg -translate-y-1/2 transform"
+              content="󰍉"
             />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search sites by name, path, or URL..."
-              className="bg-gunmetal-500 border border-gunmetal-600 focus:border-pumpkin rounded-lg pl-10 pr-4 py-2.5 w-full text-seasalt placeholder-seasalt-400 focus:outline-none focus:ring-1 focus:ring-pumpkin transition-colors"
+              className="bg-gunmetal-500 py-2.5 pr-4 pl-10 border border-gunmetal-600 focus:border-pumpkin rounded-lg focus:outline-none focus:ring-1 focus:ring-pumpkin w-full text-seasalt transition-colors placeholder-seasalt-400"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-seasalt-400 hover:text-seasalt transition-colors"
+                className="top-1/2 right-3 absolute text-seasalt-400 hover:text-seasalt transition-colors -translate-y-1/2 transform"
                 title="Clear search"
               >
                 <Icon className="text-lg" content="󰅖" />
@@ -253,16 +254,15 @@ const SiteList: React.FC = () => {
             ) : filteredSites.length === 0 ? (
               <li className="flex flex-col justify-center items-center px-6 py-16 text-center">
                 <div className="flex justify-center items-center bg-gunmetal-500 mb-4 rounded-full w-16 h-16">
-                  <Icon className="text-seasalt-400 text-3xl" content={searchQuery ? "󰍉" : "󰌨"} />
+                  <Icon className="text-seasalt-400 text-3xl" content={searchQuery ? '󰍉' : '󰌨'} />
                 </div>
                 <h4 className="mb-2 font-semibold text-seasalt text-xl">
                   {searchQuery ? 'No sites found' : 'No sites yet'}
                 </h4>
                 <p className="max-w-xs text-seasalt-400 text-sm">
-                  {searchQuery 
+                  {searchQuery
                     ? `No sites match "${searchQuery}". Try a different search term.`
-                    : 'Create your first WordPress development site to get started'
-                  }
+                    : 'Create your first WordPress development site to get started'}
                 </p>
                 {searchQuery && (
                   <button
