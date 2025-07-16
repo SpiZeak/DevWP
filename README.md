@@ -263,6 +263,11 @@ This ensures you're always developing with the most current features and securit
 
 ### Common Issues
 
+**Stuck loading popup**:
+
+- Try restarting the application by closing and reopening it
+- Check the console for any error messages
+
 **Sites not loading**:
 
 - Ensure Docker Desktop is running
