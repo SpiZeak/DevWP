@@ -235,7 +235,7 @@ const SiteList: React.FC = () => {
           className="group flex justify-center items-center gap-2 bg-pumpkin hover:bg-pumpkin-600 hover:shadow-lg rounded-lg size-10 font-semibold text-warm-charcoal hover:scale-105 transition-all duration-200 cursor-pointer"
           title="Create a new site"
         >
-          <Icon className="text-xl" content="" />
+          <Icon className="text-xl" content="" />
         </button>
       </div>
 
