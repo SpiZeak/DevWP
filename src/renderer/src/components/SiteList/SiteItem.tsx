@@ -22,6 +22,9 @@ const SiteItem: React.FC<SiteItemProps> = ({
   scanningSite
 }) => {
   const isProvisioning = site.status === 'provisioning'
+  const handleOpenDirectory = (): void => {
+    window.electron.ipcRenderer.invoke('open-directory', site.path)
+  }
 
   return (
     <li
@@ -45,7 +48,13 @@ const SiteItem: React.FC<SiteItemProps> = ({
           </div>
           <div className="flex items-center gap-2 text-seasalt-400 text-xs">
             <Icon className="text-base" content="󰉋" />
-            <span className="truncate">{site.path}</span>
+            <button
+              onClick={handleOpenDirectory}
+              className="hover:text-pumpkin text-left truncate transition-colors cursor-pointer"
+              title="Open folder in file manager"
+            >
+              {site.path}
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-1">

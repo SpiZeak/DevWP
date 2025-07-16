@@ -1,4 +1,4 @@
-import { BrowserWindow, shell, ipcMain } from 'electron'
+import { BrowserWindow, shell, ipcMain, app } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -31,6 +31,16 @@ export function createWindow(): BrowserWindow {
   // Add external URL handler
   ipcMain.handle('open-external', async (_, url) => {
     await shell.openExternal(url)
+    return true
+  })
+
+  ipcMain.handle('open-directory', async (_, directoryPath) => {
+    const fullPath = join(app.getAppPath(), directoryPath)
+    const result = await shell.openPath(fullPath)
+
+    if (result) {
+      throw new Error(`Failed to open directory: ${result}`)
+    }
     return true
   })
 
