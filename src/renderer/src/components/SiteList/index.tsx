@@ -1,5 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
-import WpCliModal from './WpCliModal'
+import { useEffect, useState, useRef, lazy, Suspense } from 'react'
 import Spinner from '../ui/Spinner'
 import SiteItem from './SiteItem'
 import Icon from '../ui/Icon'
@@ -10,6 +9,9 @@ export interface Site {
   url: string
   status: string
 }
+
+// Lazy load the WP-CLI modal
+const WpCliModal = lazy(() => import('./WpCliModal'))
 
 const SiteList: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([])
@@ -461,13 +463,15 @@ const SiteList: React.FC = () => {
         </div>
       )}
 
-      {/* WP-CLI Modal */}
+      {/* WP-CLI Modal with Suspense */}
       {wpCliModal.open && wpCliModal.site && (
-        <WpCliModal
-          isOpen={wpCliModal.open}
-          site={wpCliModal.site}
-          onClose={handleCloseWpCliModal}
-        />
+        <Suspense fallback={<div>Loading...</div>}>
+          <WpCliModal
+            isOpen={wpCliModal.open}
+            site={wpCliModal.site}
+            onClose={handleCloseWpCliModal}
+          />
+        </Suspense>
       )}
     </div>
   )

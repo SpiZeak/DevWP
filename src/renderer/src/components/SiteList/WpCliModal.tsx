@@ -1,4 +1,4 @@
-import { Site } from '@renderer/env'
+import { Site } from './index'
 import { useState, useEffect, useRef } from 'react'
 
 interface WpCliModalProps {
@@ -12,7 +12,6 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
   const [wpCliOutput, setWpCliOutput] = useState<string>('')
   const [wpCliError, setWpCliError] = useState<string>('')
   const [wpCliLoading, setWpCliLoading] = useState<boolean>(false)
-  const [isComplete, setIsComplete] = useState<boolean>(false)
   const outputRef = useRef<HTMLPreElement>(null)
 
   useEffect(() => {
@@ -32,12 +31,10 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
           break
         case 'complete':
           setWpCliLoading(false)
-          setIsComplete(true)
           break
         case 'error':
           setWpCliError((prev) => prev + data.error)
           setWpCliLoading(false)
-          setIsComplete(true)
           break
       }
     })
@@ -58,7 +55,6 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
     setWpCliLoading(true)
     setWpCliOutput('')
     setWpCliError('')
-    setIsComplete(false)
 
     try {
       await window.electron.ipcRenderer.invoke('run-wp-cli', {
@@ -68,7 +64,6 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
     } catch (e) {
       setWpCliError(String(e))
       setWpCliLoading(false)
-      setIsComplete(true)
     }
   }
 
@@ -83,7 +78,6 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
     setWpCliCommand('')
     setWpCliOutput('')
     setWpCliError('')
-    setIsComplete(false)
     onClose()
   }
 
@@ -91,39 +85,39 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
 
   return (
     <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70">
-      <div className="bg-warm-charcoal-700 shadow-xl p-5 rounded-lg w-[90%] max-w-lg">
-        <h3 className="mt-0 mb-5">
+      <div className="bg-gunmetal-400 shadow-xl p-5 rounded-lg w-[90%] max-w-lg">
+        <h3 className="mt-0 mb-5 text-seasalt">
           Run WP-CLI Command for <span className="font-bold">{site.name}</span>
         </h3>
         <form onSubmit={handleSubmit}>
           <div className="mb-5">
-            <label className="block mb-1 text-sm">Command</label>
+            <label className="block mb-1 text-seasalt text-sm">Command</label>
             <input
               type="text"
-              className="bg-warm-charcoal-600 p-2 border border-warm-charcoal-500 rounded w-full text-seasalt"
+              className="bg-gunmetal-500 p-2 border border-gunmetal-600 focus:border-pumpkin-500 rounded focus:outline-none w-full text-seasalt"
               value={wpCliCommand}
               onChange={(e): void => setWpCliCommand(e.target.value)}
               placeholder="e.g. plugin list"
               disabled={wpCliLoading}
               autoFocus
             />
-            <div className="mt-1 text-seasalt text-xs">
+            <div className="mt-1 text-seasalt-400 text-xs">
               Only enter the command after <span className="font-bold">wp</span>, e.g.{' '}
-              <code className="bg-warm-charcoal-600 px-1 rounded">plugin list</code>
+              <code className="bg-gunmetal-500 px-1 rounded">plugin list</code>
             </div>
           </div>
           <div className="flex justify-end gap-2.5">
             <button
               type="button"
               onClick={handleClose}
-              className="bg-warm-charcoal-600 px-4 py-2 border-0 rounded text-seasalt-400 cursor-pointer"
+              className="bg-gunmetal-500 hover:bg-gunmetal-600 px-4 py-2 border-0 rounded text-seasalt-400 hover:text-seasalt transition-colors duration-200 cursor-pointer"
               disabled={wpCliLoading}
             >
               {wpCliLoading ? 'Close' : 'Cancel'}
             </button>
             <button
               type="submit"
-              className="bg-pumpkin-500 disabled:bg-warm-charcoal-500 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt cursor-pointer disabled:cursor-not-allowed"
+              className="bg-pumpkin hover:bg-pumpkin-600 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt-400 transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed"
               disabled={!wpCliCommand.trim() || wpCliLoading}
             >
               {wpCliLoading ? 'Running...' : 'Run'}
@@ -132,16 +126,16 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
         </form>
         {hasOutput && (
           <div className="mb-5">
-            <label className="block mb-1 text-sm">
-              Output {wpCliLoading && <span className="text-amber-400">●</span>}
+            <label className="block mb-1 text-seasalt text-sm">
+              Output {wpCliLoading && <span className="text-amber">●</span>}
             </label>
             <pre
               ref={outputRef}
-              className="bg-warm-charcoal-900 p-2.5 rounded max-h-[300px] overflow-auto font-mono text-seasalt text-xs break-words whitespace-pre-wrap"
+              className="bg-warm-charcoal-200 p-2.5 border border-gunmetal-600 rounded max-h-[300px] overflow-auto font-mono text-seasalt text-xs break-words whitespace-pre-wrap"
             >
-              {wpCliOutput && <span className="text-emerald-400">{wpCliOutput}</span>}
-              {wpCliError && <span className="text-crimson-400">{wpCliError}</span>}
-              {wpCliLoading && <span className="text-amber-400">▊</span>}
+              {wpCliOutput && <span className="text-emerald">{wpCliOutput}</span>}
+              {wpCliError && <span className="text-crimson">{wpCliError}</span>}
+              {wpCliLoading && <span className="text-amber">▊</span>}
             </pre>
           </div>
         )}

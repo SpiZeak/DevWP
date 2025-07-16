@@ -3,7 +3,6 @@ import Toggle from './ui/Toggle'
 
 function XdebugSwitch(): JSX.Element {
   const [xdebugEnabled, setXdebugEnabled] = useState<boolean>(false)
-  const [isLoading, setIsLoading] = useState<boolean>(true)
   const [isToggling, setIsToggling] = useState<boolean>(false)
 
   useEffect(() => {
@@ -12,11 +11,9 @@ function XdebugSwitch(): JSX.Element {
       .getXdebugStatus()
       .then((status) => {
         setXdebugEnabled(status)
-        setIsLoading(false)
       })
       .catch((err) => {
         console.error('Error getting Xdebug status:', err)
-        setIsLoading(false)
       })
 
     // Set up listener for status updates
