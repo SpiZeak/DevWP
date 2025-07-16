@@ -6,7 +6,7 @@
 
 DevWP is a desktop application designed to simplify local WordPress development. It leverages Electron, React, and TypeScript to provide a user-friendly interface for managing WordPress sites within a Docker-powered Nginx and PHP environment.
 
-<img width="1195" height="812" alt="Screenshot From 2025-07-16 20-07-53" src="https://github.com/user-attachments/assets/12508299-fa87-43f2-9a2e-579eddfecd58" />
+<img width="1195" height="812" alt="Screenshot From 2025-07-16 20-10-20" src="https://github.com/user-attachments/assets/ad1c8b77-ee54-4d7e-b209-d2593af8a14f" />
 
 ## Table of Contents
 
