@@ -1,4 +1,4 @@
-import { Site } from './index'
+import { Site } from '@renderer/env'
 import { useState, useEffect, useRef } from 'react'
 
 interface WpCliModalProps {

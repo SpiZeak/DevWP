@@ -1,15 +1,9 @@
+import { Site } from '@renderer/env'
 import { useEffect, useState, useRef, lazy, Suspense } from 'react'
 import Spinner from '../ui/Spinner'
 import SiteItem from './SiteItem'
 import Icon from '../ui/Icon'
 import { NewSiteData } from './CreateSiteModal'
-
-export interface Site {
-  name: string
-  path: string
-  url: string
-  status: string
-}
 
 // Lazy load the modals
 const CreateSiteModal = lazy(() => import('./CreateSiteModal'))

@@ -1,7 +1,13 @@
 /// <reference types="vite/client" />
 
 import { ElectronAPI } from '@electron-toolkit/preload'
-import { Site } from './components/SiteList'
+
+export interface Site {
+  name: string
+  path: string
+  url: string
+  status: string
+}
 
 declare global {
   interface Window {
