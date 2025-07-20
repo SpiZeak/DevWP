@@ -24,7 +24,7 @@
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@tailwindcss/vite": "^4.1.11",
-    "@types/bun": "^1.2.18",
+    "@types/bun": "^1.2.19",
     "electron-updater": "^6.6.2",
     "sudo-prompt": "^9.2.1",
     "tailwindcss": "^4.1.11"
