@@ -6,7 +6,7 @@
 
 DevWP is a desktop application designed to simplify local WordPress development. It leverages Electron, React, and TypeScript to provide a user-friendly interface for managing WordPress sites within a Docker-powered Nginx and PHP environment.
 
-<img width="1195" height="812" alt="Screenshot From 2025-07-16 20-10-20" src="https://github.com/user-attachments/assets/ad1c8b77-ee54-4d7e-b209-d2593af8a14f" />
+<img width="1195" height="812" alt="DevWP Screenshot" src="https://github.com/user-attachments/assets/ad1c8b77-ee54-4d7e-b209-d2593af8a14f" />
 
 ## Table of Contents
 
@@ -53,7 +53,7 @@ DevWP is a desktop application designed to simplify local WordPress development.
 - **WP-CLI Integration**: Run WP-CLI commands directly from the interface with real-time output streaming
 - **Email Testing with Mailpit**: Built-in email testing and debugging with Mailpit's web interface for capturing and viewing emails sent from your WordPress sites
 - **SonarQube Integration**: Includes functionality to create and delete SonarQube projects for code quality analysis of your WordPress themes and plugins
-- **SEO Analysis with Seonaut**: Integrated Seonaut submodule for comprehensive SEO auditing and optimization insights
+- **SEO Analysis with Seonaut**: Integrated Seonaut for comprehensive SEO auditing and optimization insights
 - **Xdebug Support**: Toggle Xdebug on/off for PHP debugging
 - **Container Management**: Monitor and restart Docker containers directly from the interface
 - **Automatic Placeholder Page**: Generates a default `index.html` for new sites to get you started quickly
@@ -63,7 +63,7 @@ DevWP is a desktop application designed to simplify local WordPress development.
 
 - **Frontend**: React, TypeScript, Tailwind CSS
 - **Backend/Desktop**: Electron, Node.js, TypeScript
-- **Environment**: Docker, Docker Compose (Nginx, PHP-FPM, MariaDB, Redis, Mailpit, SonarQube)
+- **Environment**: Docker, Docker Compose (Nginx, PHP-FPM, MariaDB, Redis, Mailpit, SonarQube, Seonaut)
 - **Package Manager**: Bun
 - **Build Tool**: Electron Vite
 
@@ -97,14 +97,15 @@ This project uses Bun for package management and includes the Seonaut submodule 
 bun install
 
 # Initialize and update the Seonaut submodule
-git submodule update --init
+git submodule update --init --recursive
 ```
 
 ### 3. Configure Environment (if necessary)
 
 - Review Docker configurations in `compose.yml` and `config/`.
-- Ensure SonarQube credentials in `src/main/services/site.ts` (specifically within `createSonarQubeProject` and `deleteSonarQubeProject`) are appropriate for your local SonarQube instance. **Note:** The current implementation uses default credentials which is insecure for non-local or production-like SonarQube setups.
-- The Seonaut submodule provides additional SEO analysis capabilities and will be automatically available after submodule initialization.
+- Ensure SonarQube credentials in `src/main/services/site.ts` are appropriate for your local SonarQube instance. **Note:** The current implementation uses default credentials which should only be used for local development.
+- The Seonaut submodule provides comprehensive SEO analysis capabilities and will be automatically available after submodule initialization.
+- Seonaut configuration can be found in `config/seonaut/` and runs on port 9001 to avoid conflicts with SonarQube.
 
 ## Development
 
@@ -198,15 +199,15 @@ DevWP includes full WP-CLI integration:
 
 DevWP includes several pre-configured services:
 
-| Service       | Port    | Purpose                     |
-| ------------- | ------- | --------------------------- |
-| **Nginx**     | 80, 443 | Web server with SSL support |
-| **PHP-FPM**   | 9000    | PHP processing              |
-| **MariaDB**   | 3306    | Database server             |
-| **Redis**     | 6379    | Object caching              |
-| **Mailpit**   | 8025    | Email testing interface     |
-| **SonarQube** | 9000    | Code quality analysis       |
-| **Seonaut**   | -       | SEO analysis and auditing   |
+| Service       | Port    | URL                    | Purpose                     |
+| ------------- | ------- | ---------------------- | --------------------------- |
+| **Nginx**     | 80, 443 | https://your-site.test | Web server with SSL support |
+| **PHP-FPM**   | 9000    | -                      | PHP processing              |
+| **MariaDB**   | 3306    | -                      | Database server             |
+| **Redis**     | 6379    | -                      | Object caching              |
+| **Mailpit**   | 8025    | http://localhost:8025  | Email testing interface     |
+| **SonarQube** | 9000    | http://localhost:9000  | Code quality analysis       |
+| **Seonaut**   | 9001    | http://localhost:9001  | SEO analysis and auditing   |
 
 ### Email Testing
 
@@ -219,12 +220,16 @@ DevWP includes several pre-configured services:
 - SonarQube projects are automatically created for each site
 - Access SonarQube at `http://localhost:9000`
 - Default credentials: `admin` / `newAdminPassword1<`
+- Projects can be scanned directly from the DevWP interface
 
 ### SEO Analysis
 
-- Seonaut is included as a submodule for comprehensive SEO auditing
+- Seonaut is included for comprehensive SEO auditing
+- Access Seonaut at `http://localhost:9001`
 - Provides insights into on-page optimization, technical SEO issues, and performance metrics
 - Integrated seamlessly with your WordPress development workflow
+- Analyzes websites for issues that may impact search engine rankings
+- Categorizes issues by severity: critical, high, and low impact
 
 ### Service Versions
 
@@ -236,28 +241,36 @@ DevWP uses the latest mainline/edge versions of all services to provide cutting-
 - **Redis**: Latest Alpine-based image for high-performance object caching
 - **Mailpit**: Latest version for modern email testing capabilities
 - **SonarQube**: Latest Community Edition for comprehensive code analysis
+- **Seonaut**: Latest version for comprehensive SEO auditing and optimization
 
 This ensures you're always developing with the most current features and security updates available.
 
 ## Project Structure
 
-- `.github/workflows/`: CI/CD workflows (if any).
-- `.vscode/`: VSCode specific settings.
-- `build/`: Icons and platform-specific build resources.
-- `config/`: Configuration files for services like Nginx and PHP used in Docker.
-- `resources/`: Static assets for the Electron application.
-- `seonaut/`: Seonaut submodule for SEO analysis and auditing tools.
-- `src/`: Application source code.
-  - `main/`: Electron main process code (Node.js environment).
-    - `index.ts`: Main entry point for the Electron application.
-    - `services/`: Business logic, like site creation (`site.ts`).
-  - `preload/`: Scripts that run in a privileged environment before web pages are loaded in Electron.
-  - `renderer/`: Electron renderer process code (Chromium browser environment - React UI).
-    - `index.html`: Main HTML file for the renderer.
-- `www/`: Root directory where individual WordPress site files will be stored (e.g., `www/my-site.test/`).
-- `compose.yml`: Docker Compose configuration for managing services (Nginx, PHP, MariaDB, etc.).
-- `electron.vite.config.ts`: Configuration for Electron Vite.
-- `package.json`: Project metadata and dependencies.
+```
+DevWP/
+├── .github/workflows/     # CI/CD workflows
+├── .vscode/              # VSCode specific settings
+├── build/                # Icons and platform-specific build resources
+├── config/               # Configuration files for Docker services
+│   ├── nginx/           # Nginx configuration files
+│   ├── php/             # PHP-FPM configuration
+│   └── seonaut/         # Seonaut SEO tool configuration
+├── resources/            # Static assets for Electron application
+├── seonaut/             # Seonaut submodule (SEO analysis tool)
+├── src/                 # Application source code
+│   ├── main/            # Electron main process (Node.js environment)
+│   │   ├── index.ts     # Main entry point for Electron
+│   │   └── services/    # Business logic (site creation, management)
+│   ├── preload/         # Privileged scripts for Electron
+│   └── renderer/        # Electron renderer process (React UI)
+│       └── index.html   # Main HTML file for the UI
+├── www/                 # WordPress site files storage
+│   └── [site-name]/     # Individual site directories
+├── compose.yml          # Docker Compose configuration
+├── electron.vite.config.ts # Electron Vite configuration
+└── package.json         # Project metadata and dependencies
+```
 
 ## Troubleshooting
 
@@ -271,7 +284,7 @@ This ensures you're always developing with the most current features and securit
 **Sites not loading**:
 
 - Ensure Docker Desktop is running
-- Check that ports 80 and 443 are not in use by other services
+- Check that ports 80, 443, 8025, 9000, and 9001 are not in use by other services
 - Verify hosts file was modified correctly
 
 **Permission errors**:
@@ -289,6 +302,10 @@ This ensures you're always developing with the most current features and securit
 - Ensure the PHP container is running
 - Check that WordPress is properly installed in the site directory
 
+**Port conflicts**:
+
+- If SonarQube (port 9000) or Seonaut (port 9001) conflict with other services, you can modify the ports in `compose.yml`
+
 ### Container Management
 
 Use the container status panel to:
@@ -301,23 +318,27 @@ Use the container status panel to:
 
 - If Seonaut features are not working, ensure submodules are properly initialized:
   ```bash
-  git submodule init
-  git submodule update
+  git submodule update --init --recursive
   ```
 - To update Seonaut to the latest version:
   ```bash
   git submodule update --remote seonaut
+  ```
+- If you encounter issues with the Seonaut submodule, try:
+  ```bash
+  git submodule deinit seonaut
+  git submodule update --init seonaut
   ```
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a pull request or open an issue.
 
-1.  Fork the repository.
-2.  Create your feature branch (`git checkout -b feature/AmazingFeature`).
-3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4.  Push to the branch (`git push origin feature/AmazingFeature`).
-5.  Open a Pull Request.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ### Support the Project
 
