@@ -29,9 +29,9 @@ function sanitizeDatabaseName(siteDomain: string): string {
     dbName = 'db_' + dbName
   }
   
-  // Ensure it's not empty
+  // Ensure it's not empty - abort if no valid database name can be created
   if (!dbName) {
-    dbName = 'default_db'
+    throw new Error(`Cannot create a valid database name from site domain: '${siteDomain}'`)
   }
   
   // Limit to 64 characters (MySQL limit)
@@ -114,7 +114,15 @@ export function createSite(site: {
       const siteBasePath = join(process.cwd(), 'www', siteDomain)
       const actualWebRootPath = site.webRoot ? join(siteBasePath, site.webRoot) : siteBasePath
       const nginxRootDirective = `/src/www/${siteDomain}${site.webRoot ? '/' + site.webRoot : ''}`
-      const dbName = sanitizeDatabaseName(siteDomain)
+      
+      let dbName: string
+      try {
+        dbName = sanitizeDatabaseName(siteDomain)
+      } catch (error: any) {
+        reject(new Error(`Invalid site domain: ${error.message}`))
+        return
+      }
+      
       const sonarProjectKey = dbName
       const sonarProjectName = siteDomain
 
@@ -384,7 +392,15 @@ async function clearRedisCache(siteDomain: string): Promise<void> {
 export function deleteSite(site: { name: string }): Promise<boolean> {
   return new Promise((resolve, reject) => {
     const sitePath = join(process.cwd(), 'www', site.name)
-    const dbName = sanitizeDatabaseName(site.name)
+    
+    let dbName: string
+    try {
+      dbName = sanitizeDatabaseName(site.name)
+    } catch (error: any) {
+      reject(new Error(`Invalid site name: ${error.message}`))
+      return
+    }
+    
     const sonarProjectKey = dbName // Use the same key convention
 
     fs.rm(sitePath, { recursive: true, force: true })
@@ -619,7 +635,12 @@ async function deleteSonarQubeProject(projectKey: string): Promise<void> {
 
 // Scan a site with SonarQube using user/password
 export async function scanSiteWithSonarQube(siteDomain: string): Promise<void> {
-  const projectKey = sanitizeDatabaseName(siteDomain)
+  let projectKey: string
+  try {
+    projectKey = sanitizeDatabaseName(siteDomain)
+  } catch (error: any) {
+    throw new Error(`Invalid site domain for SonarQube scan: ${error.message}`)
+  }
   // SonarQube scanner needs to know the webRoot if sources are there.
   // However, getSites doesn't know webRoot. This implies scanSiteWithSonarQube
   // might need to discover it or be passed it. For now, assuming webRoot is not
