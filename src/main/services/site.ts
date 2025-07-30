@@ -11,6 +11,37 @@ export interface Site {
   status?: string
 }
 
+// Sanitize a site domain to create a valid MySQL/MariaDB database name
+function sanitizeDatabaseName(siteDomain: string): string {
+  // MySQL/MariaDB database name rules:
+  // - Can contain letters, digits, underscore (_), and dollar sign ($)
+  // - Cannot contain hyphens, spaces, or other special characters
+  // - Maximum length is 64 characters
+  // - Should start with a letter or underscore
+  
+  let dbName = siteDomain
+    .replace(/[^a-zA-Z0-9_$]/g, '_') // Replace invalid chars with underscore
+    .replace(/_{2,}/g, '_') // Replace consecutive underscores with single
+    .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+  
+  // Ensure it starts with a letter or underscore
+  if (dbName && !/^[a-zA-Z_]/.test(dbName)) {
+    dbName = 'db_' + dbName
+  }
+  
+  // Ensure it's not empty
+  if (!dbName) {
+    dbName = 'default_db'
+  }
+  
+  // Limit to 64 characters (MySQL limit)
+  if (dbName.length > 64) {
+    dbName = dbName.substring(0, 64).replace(/_+$/, '') // Remove trailing underscores after truncation
+  }
+  
+  return dbName
+}
+
 // Install WordPress in the newly created site
 async function installWordPress(
   siteDomain: string,
@@ -83,7 +114,7 @@ export function createSite(site: {
       const siteBasePath = join(process.cwd(), 'www', siteDomain)
       const actualWebRootPath = site.webRoot ? join(siteBasePath, site.webRoot) : siteBasePath
       const nginxRootDirective = `/src/www/${siteDomain}${site.webRoot ? '/' + site.webRoot : ''}`
-      const dbName = siteDomain.replace(/\./g, '_')
+      const dbName = sanitizeDatabaseName(siteDomain)
       const sonarProjectKey = dbName
       const sonarProjectName = siteDomain
 
@@ -353,7 +384,7 @@ async function clearRedisCache(siteDomain: string): Promise<void> {
 export function deleteSite(site: { name: string }): Promise<boolean> {
   return new Promise((resolve, reject) => {
     const sitePath = join(process.cwd(), 'www', site.name)
-    const dbName = site.name.replace(/\./g, '_')
+    const dbName = sanitizeDatabaseName(site.name)
     const sonarProjectKey = dbName // Use the same key convention
 
     fs.rm(sitePath, { recursive: true, force: true })
@@ -588,7 +619,7 @@ async function deleteSonarQubeProject(projectKey: string): Promise<void> {
 
 // Scan a site with SonarQube using user/password
 export async function scanSiteWithSonarQube(siteDomain: string): Promise<void> {
-  const projectKey = siteDomain.replace(/\./g, '_')
+  const projectKey = sanitizeDatabaseName(siteDomain)
   // SonarQube scanner needs to know the webRoot if sources are there.
   // However, getSites doesn't know webRoot. This implies scanSiteWithSonarQube
   // might need to discover it or be passed it. For now, assuming webRoot is not
