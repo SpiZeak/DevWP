@@ -101,12 +101,15 @@ services:
       - ./www:/usr/src:r
     depends_on:
       - sonarqube
+    environment:
+      - SONAR_TOKEN=${SONAR_TOKEN:-}
+    # Example entrypoint for manual token-based scanning:
     # entrypoint: [
     #   "sonar-scanner",
-    #   "-Dsonar.projectKey=cirkulation",
-    #   "-Dsonar.sources=cirkulation.test",
+    #   "-Dsonar.projectKey=example_project",
+    #   "-Dsonar.sources=/usr/src/example.test",
     #   "-Dsonar.host.url=http://sonarqube:9000",
-    #   "-Dsonar.token=sqp_7469b2ba5c18b21d78ded586c997fff84dd7c73d"
+    #   "-Dsonar.token=${SONAR_TOKEN}"
     # ]
 
   seonaut:
