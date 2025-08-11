@@ -149,12 +149,18 @@ export async function getAllSiteConfigurations(): Promise<SiteConfiguration[]> {
 }
 
 // Get a specific site configuration
+// Helper to escape SQL string literals (single quotes)
+function escapeSqlString(str: string): string {
+  return str.replace(/'/g, "''");
+}
+
 export async function getSiteConfiguration(domain: string): Promise<SiteConfiguration | null> {
   return new Promise((resolve, reject) => {
+    const safeDomain = escapeSqlString(domain);
     const selectCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
       SELECT domain, aliases, web_root, multisite_enabled, multisite_type, created_at, updated_at 
       FROM sites 
-      WHERE domain = '${domain}'" --batch --raw`
+      WHERE domain = '${safeDomain}'" --batch --raw`
     
     exec(selectCmd, (error, stdout, stderr) => {
       if (error) {
