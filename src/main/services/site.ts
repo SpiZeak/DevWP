@@ -18,27 +18,27 @@ function sanitizeDatabaseName(siteDomain: string): string {
   // - Cannot contain hyphens, spaces, or other special characters
   // - Maximum length is 64 characters
   // - Should start with a letter or underscore
-  
+
   let dbName = siteDomain
     .replace(/[^a-zA-Z0-9_$]/g, '_') // Replace invalid chars with underscore
     .replace(/_{2,}/g, '_') // Replace consecutive underscores with single
     .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
-  
+
   // Ensure it starts with a letter or underscore
   if (dbName && !/^[a-zA-Z_]/.test(dbName)) {
     dbName = 'db_' + dbName
   }
-  
+
   // Ensure it's not empty - abort if no valid database name can be created
   if (!dbName) {
     throw new Error(`Cannot create a valid database name from site domain: '${siteDomain}'`)
   }
-  
+
   // Limit to 64 characters (MySQL limit)
   if (dbName.length > 64) {
     dbName = dbName.substring(0, 64).replace(/_+$/, '') // Remove trailing underscores after truncation
   }
-  
+
   return dbName
 }
 
@@ -114,7 +114,7 @@ export function createSite(site: {
       const siteBasePath = join(process.cwd(), 'www', siteDomain)
       const actualWebRootPath = site.webRoot ? join(siteBasePath, site.webRoot) : siteBasePath
       const nginxRootDirective = `/src/www/${siteDomain}${site.webRoot ? '/' + site.webRoot : ''}`
-      
+
       let dbName: string
       try {
         dbName = sanitizeDatabaseName(siteDomain)
@@ -122,7 +122,7 @@ export function createSite(site: {
         reject(new Error(`Invalid site domain: ${error.message}`))
         return
       }
-      
+
       const sonarProjectKey = dbName
       const sonarProjectName = siteDomain
 
@@ -392,7 +392,7 @@ async function clearRedisCache(siteDomain: string): Promise<void> {
 export function deleteSite(site: { name: string }): Promise<boolean> {
   return new Promise((resolve, reject) => {
     const sitePath = join(process.cwd(), 'www', site.name)
-    
+
     let dbName: string
     try {
       dbName = sanitizeDatabaseName(site.name)
@@ -400,7 +400,7 @@ export function deleteSite(site: { name: string }): Promise<boolean> {
       reject(new Error(`Invalid site name: ${error.message}`))
       return
     }
-    
+
     const sonarProjectKey = dbName // Use the same key convention
 
     fs.rm(sitePath, { recursive: true, force: true })
