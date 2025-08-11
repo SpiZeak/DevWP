@@ -228,7 +228,7 @@ export function createSite(site: {
             await generateIndexHtml(siteDomain, siteBasePath, dbName, site.webRoot)
 
             // Save site configuration to database even if WP install failed
-            await saveSiteConfigToDatabase(
+            await saveSiteConfiguration(
               siteDomain,
               site.aliases,
               site.webRoot,
