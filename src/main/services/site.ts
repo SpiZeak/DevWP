@@ -456,19 +456,40 @@ export function deleteSite(site: { name: string }): Promise<boolean> {
         // Initialize database if not already done
         await initializeConfigDatabase()
         
-        // Delete from database first
+        // Get site configuration before deleting it to retrieve aliases
+        const siteConfig = await getSiteConfiguration(site.name)
+        
+        // Delete from database
         await deleteSiteConfiguration(site.name)
         console.log(`Removed site configuration from database: ${site.name}`)
         
         // Continue with file system cleanup
         await fs.rm(sitePath, { recursive: true, force: true })
         
-        // Note: This doesn't know about aliases. Deleting a site will only remove the primary domain from hosts/nginx.
-        // This could be improved by storing site metadata (like aliases) in a file.
+        // Remove primary domain from hosts file
         await modifyHostsFile(site.name, 'remove')
+        
+        // Remove aliases from hosts file if they exist
+        if (siteConfig?.aliases) {
+          const aliases = siteConfig.aliases.split(' ').filter(Boolean)
+          for (const alias of aliases) {
+            await modifyHostsFile(alias, 'remove')
+          }
+          console.log(`Removed aliases from hosts file: ${aliases.join(', ')}`)
+        }
+        
         await removeNginxConfig(site.name)
         await dropDatabase(dbName)
         await clearRedisCache(site.name)
+        
+        // Clear Redis cache for aliases if they exist
+        if (siteConfig?.aliases) {
+          const aliases = siteConfig.aliases.split(' ').filter(Boolean)
+          for (const alias of aliases) {
+            await clearRedisCache(alias)
+          }
+          console.log(`Cleared Redis cache for aliases: ${aliases.join(', ')}`)
+        }
 
         // Attempt to delete SonarQube project
         try {
