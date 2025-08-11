@@ -3,14 +3,14 @@ import { promises as fs, constants } from 'fs' // Import constants
 import { exec } from 'child_process'
 import { generateNginxConfig, removeNginxConfig } from './nginx'
 import { modifyHostsFile } from './hosts'
-import { 
-  initializeConfigDatabase, 
-  saveSiteConfiguration, 
-  getAllSiteConfigurations, 
-  getSiteConfiguration, 
+import {
+  initializeConfigDatabase,
+  saveSiteConfiguration,
+  getAllSiteConfigurations,
+  getSiteConfiguration,
   deleteSiteConfiguration,
   migrateExistingSites,
-  type SiteConfiguration 
+  type SiteConfiguration
 } from './database'
 
 export interface Site {
@@ -115,7 +115,7 @@ async function installWordPress(
   })
 }
 
-export function createSite(site: {
+function createSite(site: {
   domain: string
   webRoot?: string
   aliases?: string
@@ -147,7 +147,7 @@ export function createSite(site: {
       try {
         // Initialize database if not already done
         await initializeConfigDatabase()
-        
+
         // Check if the site already exists in database
         const existingSite = await getSiteConfiguration(siteDomain)
         if (existingSite) {
@@ -228,12 +228,7 @@ export function createSite(site: {
             await generateIndexHtml(siteDomain, siteBasePath, dbName, site.webRoot)
 
             // Save site configuration to database even if WP install failed
-            await saveSiteConfiguration(
-              siteDomain,
-              site.aliases,
-              site.webRoot,
-              site.multisite
-            )
+            await saveSiteConfiguration(siteDomain, site.aliases, site.webRoot, site.multisite)
 
             // Attempt to create SonarQube project even if WP install failed
             try {
@@ -437,7 +432,7 @@ async function clearRedisCache(siteDomain: string): Promise<void> {
   })
 }
 
-export function deleteSite(site: { name: string }): Promise<boolean> {
+function deleteSite(site: { name: string }): Promise<boolean> {
   return new Promise((resolve, reject) => {
     const sitePath = join(process.cwd(), 'www', site.name)
 
@@ -455,20 +450,20 @@ export function deleteSite(site: { name: string }): Promise<boolean> {
       try {
         // Initialize database if not already done
         await initializeConfigDatabase()
-        
+
         // Get site configuration before deleting it to retrieve aliases
         const siteConfig = await getSiteConfiguration(site.name)
-        
+
         // Delete from database
         await deleteSiteConfiguration(site.name)
         console.log(`Removed site configuration from database: ${site.name}`)
-        
+
         // Continue with file system cleanup
         await fs.rm(sitePath, { recursive: true, force: true })
-        
+
         // Remove primary domain from hosts file
         await modifyHostsFile(site.name, 'remove')
-        
+
         // Remove aliases from hosts file if they exist
         if (siteConfig?.aliases) {
           const aliases = siteConfig.aliases.split(' ').filter(Boolean)
@@ -477,11 +472,11 @@ export function deleteSite(site: { name: string }): Promise<boolean> {
           }
           console.log(`Removed aliases from hosts file: ${aliases.join(', ')}`)
         }
-        
+
         await removeNginxConfig(site.name)
         await dropDatabase(dbName)
         await clearRedisCache(site.name)
-        
+
         // Clear Redis cache for aliases if they exist
         if (siteConfig?.aliases) {
           const aliases = siteConfig.aliases.split(' ').filter(Boolean)
@@ -509,23 +504,23 @@ export function deleteSite(site: { name: string }): Promise<boolean> {
   })
 }
 
-export function getSites(): Promise<Site[]> {
+function getSites(): Promise<Site[]> {
   return new Promise((resolve, reject) => {
     ;(async () => {
       try {
         // Initialize database if not already done
         await initializeConfigDatabase()
-        
+
         // Migrate existing sites to database if needed
         await migrateExistingSites()
-        
+
         // Get sites from database first
         const siteConfigs = await getAllSiteConfigurations()
-        
+
         // Also check filesystem for any sites not in database (fallback)
         const wwwPath = join(process.cwd(), 'www')
         let filesystemSites: string[] = []
-        
+
         try {
           const entries = await fs.readdir(wwwPath, { withFileTypes: true })
           filesystemSites = entries
@@ -538,14 +533,14 @@ export function getSites(): Promise<Site[]> {
         }
 
         // Combine database configurations with filesystem presence
-        const dbSiteNames = siteConfigs.map(config => config.domain)
+        const dbSiteNames = siteConfigs.map((config) => config.domain)
         const allSiteNames = [...new Set([...dbSiteNames, ...filesystemSites])]
 
         const sites: Site[] = []
 
         for (const siteName of allSiteNames) {
-          const config = siteConfigs.find(c => c.domain === siteName)
-          
+          const config = siteConfigs.find((c) => c.domain === siteName)
+
           const site: Site = {
             name: siteName,
             path: join('www', siteName),
@@ -557,7 +552,7 @@ export function getSites(): Promise<Site[]> {
             createdAt: config?.createdAt,
             updatedAt: config?.updatedAt
           }
-          
+
           sites.push(site)
         }
 
@@ -812,3 +807,5 @@ export async function scanSiteWithSonarQube(siteDomain: string): Promise<void> {
     })
   })
 }
+
+export { createSite, deleteSite, getSites }
