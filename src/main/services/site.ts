@@ -228,16 +228,12 @@ export function createSite(site: {
             await generateIndexHtml(siteDomain, siteBasePath, dbName, site.webRoot)
 
             // Save site configuration to database even if WP install failed
-            const siteConfig: SiteConfiguration = {
-              domain: siteDomain,
-              aliases: site.aliases,
-              webRoot: site.webRoot,
-              multisite: site.multisite,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            }
-            await saveSiteConfiguration(siteConfig)
-            console.log(`Saved site configuration to database after WP failure: ${siteDomain}`)
+            await saveSiteConfigToDatabase(
+              siteDomain,
+              site.aliases,
+              site.webRoot,
+              site.multisite
+            )
 
             // Attempt to create SonarQube project even if WP install failed
             try {
