@@ -188,7 +188,7 @@ export async function getSiteConfiguration(domain: string): Promise<SiteConfigur
           webRoot: values[2] || undefined,
           multisite: {
             enabled: values[3] === '1',
-            type: (values[4] || 'subdomain') as 'subdomain' | 'subdirectory'
+            type: (values[4] && values[4] !== 'NULL') ? (values[4] as 'subdomain' | 'subdirectory') : 'subdomain'
           },
           createdAt: new Date(values[5]),
           updatedAt: new Date(values[6])
