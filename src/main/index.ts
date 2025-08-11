@@ -4,6 +4,7 @@ import { createWindow } from './window'
 import { registerContainerHandlers, stopContainerMonitoring } from './ipc/container'
 import { registerSiteHandlers } from './ipc/site'
 import { stopDockerCompose } from './services/docker'
+import { initializeConfigDatabase } from './services/database'
 import {
   installExtension,
   REACT_DEVELOPER_TOOLS,
@@ -18,7 +19,7 @@ app.commandLine.appendSwitch('gtk-version', '3')
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   installExtension([REDUX_DEVTOOLS, REACT_DEVELOPER_TOOLS])
     .then(([redux, react]) => console.log(`Added Extensions:  ${redux.name}, ${react.name}`))
     .catch((err) => console.log('An error occurred: ', err))
@@ -32,7 +33,16 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // Create window first
+  // Initialize the database before creating the window
+  try {
+    await initializeConfigDatabase()
+    console.log('Database initialized successfully')
+  } catch (error) {
+    console.error('Failed to initialize database:', error)
+    // Continue anyway - the app should still work without database persistence
+  }
+
+  // Create window after database initialization
   createWindow()
 
   app.on('activate', function () {

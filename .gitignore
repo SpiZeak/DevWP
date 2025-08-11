@@ -9,3 +9,4 @@ out
 .eslintcache
 *.log*
 !.gitkeep
+test-database.js
