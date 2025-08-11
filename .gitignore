@@ -10,3 +10,4 @@ out
 *.log*
 !.gitkeep
 test-database.js
+test-integration.js
