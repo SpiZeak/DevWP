@@ -64,9 +64,14 @@ export async function saveSiteConfiguration(site: SiteConfiguration): Promise<vo
     const multisiteEnabled = site.multisite?.enabled ? 1 : 0
     const multisiteType = site.multisite?.type || null
     
+    const domainEscaped = sqlEscape(site.domain)
+    const aliasesEscaped = sqlEscape(aliases)
+    const webRootEscaped = sqlEscape(webRoot)
+    const multisiteTypeEscaped = multisiteType ? sqlEscape(multisiteType) : 'NULL'
+
     const insertCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
       INSERT INTO sites (domain, aliases, web_root, multisite_enabled, multisite_type) 
-      VALUES ('${site.domain}', '${aliases}', '${webRoot}', ${multisiteEnabled}, ${multisiteType ? `'${multisiteType}'` : 'NULL'})
+      VALUES (${domainEscaped}, ${aliasesEscaped}, ${webRootEscaped}, ${multisiteEnabled}, ${multisiteTypeEscaped})
       ON DUPLICATE KEY UPDATE 
         aliases = VALUES(aliases),
         web_root = VALUES(web_root),
