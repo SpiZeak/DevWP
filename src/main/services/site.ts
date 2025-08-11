@@ -600,20 +600,18 @@ async function convertToMultisite(
 
 // Create a SonarQube project
 async function createSonarQubeProject(projectName: string, projectKey: string): Promise<void> {
-  // WARNING: Using default SonarQube admin credentials (admin:admin).
-  // This is insecure if the default password has been changed or for non-local environments.
-  // Consider generating a specific API token in SonarQube (Administration > Security > Users > Tokens)
-  // and storing it securely (e.g., using environment variables) for improved security and practice.
-  const sonarUser = 'admin'
-  const sonarPassword = 'newAdminPassword1<'
+  // Use token-based authentication instead of deprecated login/password
+  // For SonarQube Community Edition, the default admin token should be generated or configured
+  // This uses the default admin token pattern for local development
+  const sonarToken = process.env.SONAR_TOKEN || 'sqa_admin_token_placeholder'
 
   // Ensure curl is installed in the php container:
   // Add 'RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*' to config/php/Dockerfile if needed
-  const createProjectCmd = `docker compose exec php curl -u '${sonarUser}:${sonarPassword}' -X POST 'http://sonarqube:9000/api/projects/create' -d 'name=${encodeURIComponent(projectName)}&project=${encodeURIComponent(projectKey)}'` // Added single quotes around -u argument
+  const createProjectCmd = `docker compose exec php curl -H 'Authorization: Bearer ${sonarToken}' -X POST 'http://sonarqube:9000/api/projects/create' -d 'name=${encodeURIComponent(projectName)}&project=${encodeURIComponent(projectKey)}'`
 
   return new Promise((resolve, reject) => {
     console.log(
-      `Creating SonarQube project: ${projectName} (Key: ${projectKey}) using default credentials...`
+      `Creating SonarQube project: ${projectName} (Key: ${projectKey}) using token authentication...`
     )
     exec(createProjectCmd, (error, stdout, stderr) => {
       // SonarQube API might return errors in stdout with a 200 OK status initially,
@@ -626,13 +624,13 @@ async function createSonarQubeProject(projectName: string, projectKey: string): 
         // This usually catches network errors or if curl command fails fundamentally
         console.error(`Error executing SonarQube project creation command: ${stderr}`)
         // Check if the error is due to authentication failure (HTTP 401)
-        if (stderr.includes('401') || stdout.includes('Authentication required')) {
+        if (stderr.includes('401') || stdout.includes('Authentication required') || stderr.includes('Not authorized')) {
           console.error(
-            'SonarQube authentication failed. Check default credentials or configure an API token.'
+            'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token.'
           )
           reject(
             new Error(
-              'SonarQube authentication failed. Check default credentials (admin:admin) or configure an API token.'
+              'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).'
             )
           )
         } else {
@@ -645,13 +643,13 @@ async function createSonarQubeProject(projectName: string, projectKey: string): 
       // Example error: {"errors":[{"msg":"Project key already exists: ..."}]}
       // Example auth error (sometimes in stdout): {"errors":[{"msg":"Authentication required"}]}
       if (stdout.includes('"errors":')) {
-        if (stdout.includes('Authentication required')) {
+        if (stdout.includes('Authentication required') || stdout.includes('Not authorized')) {
           console.error(
-            'SonarQube authentication failed. Check default credentials or configure an API token.'
+            'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token.'
           )
           reject(
             new Error(
-              'SonarQube authentication failed. Check default credentials (admin:admin) or configure an API token.'
+              'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).'
             )
           )
         } else {
@@ -676,23 +674,22 @@ async function createSonarQubeProject(projectName: string, projectKey: string): 
 
 // Delete a SonarQube project
 async function deleteSonarQubeProject(projectKey: string): Promise<void> {
-  // WARNING: Using default SonarQube admin credentials (admin:admin). See createSonarQubeProject warning.
-  const sonarUser = 'admin'
-  const sonarPassword = 'newAdminPassword1<' // Ensure this matches the password used/set
+  // Use token-based authentication instead of deprecated login/password
+  const sonarToken = process.env.SONAR_TOKEN || 'sqa_admin_token_placeholder'
 
   // Ensure curl is installed in the php container
-  const deleteProjectCmd = `docker compose exec php curl -u '${sonarUser}:${sonarPassword}' -X POST 'http://sonarqube:9000/api/projects/delete' -d 'project=${encodeURIComponent(projectKey)}'` // Added single quotes around -u argument
+  const deleteProjectCmd = `docker compose exec php curl -H 'Authorization: Bearer ${sonarToken}' -X POST 'http://sonarqube:9000/api/projects/delete' -d 'project=${encodeURIComponent(projectKey)}'`
 
   return new Promise((resolve, reject) => {
-    console.log(`Deleting SonarQube project (Key: ${projectKey}) using default credentials...`)
+    console.log(`Deleting SonarQube project (Key: ${projectKey}) using token authentication...`)
     exec(deleteProjectCmd, (error, stdout, stderr) => {
       // Similar error handling as createSonarQubeProject
 
       if (error) {
         console.error(`Error executing SonarQube project deletion command: ${stderr}`)
-        if (stderr.includes('401') || stdout.includes('Authentication required')) {
-          console.error('SonarQube authentication failed. Check credentials or token.')
-          reject(new Error('SonarQube authentication failed.'))
+        if (stderr.includes('401') || stdout.includes('Authentication required') || stderr.includes('Not authorized')) {
+          console.error('SonarQube authentication failed. Check the SONAR_TOKEN environment variable.')
+          reject(new Error('SonarQube authentication failed. Check the SONAR_TOKEN environment variable.'))
         } else {
           reject(new Error(`Failed to execute curl command: ${error.message}`))
         }
@@ -702,9 +699,9 @@ async function deleteSonarQubeProject(projectKey: string): Promise<void> {
       // Check stdout for API errors (e.g., project not found might be here or indicated by status code handled by error object)
       // SonarQube might return 204 No Content on success, or errors in JSON.
       if (stdout.includes('"errors":')) {
-        if (stdout.includes('Authentication required')) {
-          console.error('SonarQube authentication failed. Check credentials or token.')
-          reject(new Error('SonarQube authentication failed.'))
+        if (stdout.includes('Authentication required') || stdout.includes('Not authorized')) {
+          console.error('SonarQube authentication failed. Check the SONAR_TOKEN environment variable.')
+          reject(new Error('SonarQube authentication failed. Check the SONAR_TOKEN environment variable.'))
         } else if (stdout.includes('not found')) {
           console.warn(
             `SonarQube project ${projectKey} not found for deletion (may have already been deleted).`
@@ -732,7 +729,7 @@ async function deleteSonarQubeProject(projectKey: string): Promise<void> {
   })
 }
 
-// Scan a site with SonarQube using user/password
+// Scan a site with SonarQube using token authentication
 export async function scanSiteWithSonarQube(siteDomain: string): Promise<void> {
   let projectKey: string
   try {
@@ -749,30 +746,27 @@ export async function scanSiteWithSonarQube(siteDomain: string): Promise<void> {
   const sourcePathInContainer = `/src/www/${siteDomain}` // Path inside the scanner container
   const sonarHostUrl = 'http://sonarqube:9000'
 
-  // Use the same credentials as for project creation/deletion
-  // WARNING: Using default SonarQube admin credentials. See createSonarQubeProject warning.
-  const sonarUser = 'admin'
-  const sonarPassword = 'newAdminPassword1<'
+  // Use token-based authentication instead of deprecated login/password
+  const sonarToken = process.env.SONAR_TOKEN || 'sqa_admin_token_placeholder'
 
-  // Construct the sonar-scanner command using user/password
+  // Construct the sonar-scanner command using token authentication
   // Note: Assumes the sonarqube-scanner service is running and has access to the source code volume
   const scanCmd = `docker compose run sonarqube-scanner sonar-scanner \
     -Dsonar.projectKey=${projectKey} \
     -Dsonar.sources=${sourcePathInContainer} \
     -Dsonar.host.url=${sonarHostUrl} \
-    -Dsonar.login=${sonarUser} \
-    -Dsonar.password='${sonarPassword}'` // Added single quotes around the password value
+    -Dsonar.token=${sonarToken}`
 
   return new Promise((resolve, reject) => {
     console.log(
-      `Starting SonarQube scan for project: ${projectKey} (Site: ${siteDomain}) using user/password...`
+      `Starting SonarQube scan for project: ${projectKey} (Site: ${siteDomain}) using token authentication...`
     )
     exec(scanCmd, (error, stdout, stderr) => {
       if (error) {
         console.error(`Error executing SonarQube scan command for ${siteDomain}: ${stderr}`)
         // Provide more specific feedback if possible
-        if (stderr.includes('Authentication failed')) {
-          reject(new Error('SonarQube authentication failed. Check the provided credentials.'))
+        if (stderr.includes('Authentication failed') || stderr.includes('Not authorized') || stderr.includes('401')) {
+          reject(new Error('SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).'))
         } else if (stderr.includes('Project not found')) {
           reject(
             new Error(
@@ -797,6 +791,12 @@ export async function scanSiteWithSonarQube(siteDomain: string): Promise<void> {
       if (stdout.includes('EXECUTION_FAILURE')) {
         console.error(`SonarQube scan for ${siteDomain} reported execution failure.`)
         reject(new Error('SonarQube scan execution failed. Check scanner logs.'))
+        return
+      }
+
+      // Check for authentication errors in stdout as well
+      if (stdout.includes('Not authorized') || stdout.includes('Authentication required')) {
+        reject(new Error('SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).'))
         return
       }
 
