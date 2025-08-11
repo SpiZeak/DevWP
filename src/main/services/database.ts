@@ -210,9 +210,14 @@ export async function getSiteConfiguration(domain: string): Promise<SiteConfigur
 
 // Delete site configuration from database
 export async function deleteSiteConfiguration(domain: string): Promise<void> {
+  // Escape single quotes in domain to prevent SQL injection
+  function escapeSqlString(str: string): string {
+    return str.replace(/'/g, "''");
+  }
   return new Promise((resolve, reject) => {
+    const safeDomain = escapeSqlString(domain);
     const deleteCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
-      DELETE FROM sites WHERE domain = '${domain}'"`
+      DELETE FROM sites WHERE domain = '${safeDomain}'"`
     
     exec(deleteCmd, (error, _, stderr) => {
       if (error) {
