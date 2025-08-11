@@ -3,12 +3,30 @@ import { promises as fs, constants } from 'fs' // Import constants
 import { exec } from 'child_process'
 import { generateNginxConfig, removeNginxConfig } from './nginx'
 import { modifyHostsFile } from './hosts'
+import { 
+  initializeConfigDatabase, 
+  saveSiteConfiguration, 
+  getAllSiteConfigurations, 
+  getSiteConfiguration, 
+  deleteSiteConfiguration,
+  migrateExistingSites,
+  type SiteConfiguration 
+} from './database'
 
 export interface Site {
   name: string
   path: string
   url: string
   status?: string
+  // Add configuration data from database
+  aliases?: string
+  webRoot?: string
+  multisite?: {
+    enabled: boolean
+    type: 'subdomain' | 'subdirectory'
+  }
+  createdAt?: Date
+  updatedAt?: Date
 }
 
 // Sanitize a site domain to create a valid MySQL/MariaDB database name
@@ -127,6 +145,16 @@ export function createSite(site: {
       const sonarProjectName = siteDomain
 
       try {
+        // Initialize database if not already done
+        await initializeConfigDatabase()
+        
+        // Check if the site already exists in database
+        const existingSite = await getSiteConfiguration(siteDomain)
+        if (existingSite) {
+          reject(new Error(`Site '${siteDomain}' already exists in configuration.`))
+          return
+        }
+
         // Check if the base directory already exists
         await fs.access(siteBasePath, constants.F_OK)
         // If access doesn't throw, the directory exists
@@ -164,6 +192,18 @@ export function createSite(site: {
           await convertToMultisite(siteDomain, site.multisite, site.webRoot)
         }
 
+        // Save site configuration to database
+        const siteConfig: SiteConfiguration = {
+          domain: siteDomain,
+          aliases: site.aliases,
+          webRoot: site.webRoot,
+          multisite: site.multisite,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+        await saveSiteConfiguration(siteConfig)
+        console.log(`Saved site configuration to database: ${siteDomain}`)
+
         // Attempt to create SonarQube project
         try {
           await createSonarQubeProject(sonarProjectName, sonarProjectKey)
@@ -186,6 +226,14 @@ export function createSite(site: {
           console.warn(`WordPress setup failed: ${setupError}. Creating basic site instead.`)
           try {
             await generateIndexHtml(siteDomain, siteBasePath, dbName, site.webRoot)
+
+            // Save site configuration to database even if WP install failed
+            await saveSiteConfiguration(
+              siteDomain,
+              site.aliases,
+              site.webRoot,
+              site.multisite
+            )
 
             // Attempt to create SonarQube project even if WP install failed
             try {
@@ -403,66 +451,101 @@ export function deleteSite(site: { name: string }): Promise<boolean> {
 
     const sonarProjectKey = dbName // Use the same key convention
 
-    fs.rm(sitePath, { recursive: true, force: true })
-      .then(async () => {
+    ;(async () => {
+      try {
+        // Initialize database if not already done
+        await initializeConfigDatabase()
+        
+        // Delete from database first
+        await deleteSiteConfiguration(site.name)
+        console.log(`Removed site configuration from database: ${site.name}`)
+        
+        // Continue with file system cleanup
+        await fs.rm(sitePath, { recursive: true, force: true })
+        
+        // Note: This doesn't know about aliases. Deleting a site will only remove the primary domain from hosts/nginx.
+        // This could be improved by storing site metadata (like aliases) in a file.
+        await modifyHostsFile(site.name, 'remove')
+        await removeNginxConfig(site.name)
+        await dropDatabase(dbName)
+        await clearRedisCache(site.name)
+
+        // Attempt to delete SonarQube project
         try {
-          // Note: This doesn't know about aliases. Deleting a site will only remove the primary domain from hosts/nginx.
-          // This could be improved by storing site metadata (like aliases) in a file.
-          await modifyHostsFile(site.name, 'remove')
-          await removeNginxConfig(site.name)
-          await dropDatabase(dbName)
-          await clearRedisCache(site.name)
-
-          // Attempt to delete SonarQube project
-          try {
-            await deleteSonarQubeProject(sonarProjectKey)
-          } catch (sonarError: any) {
-            console.warn(
-              `Failed to delete SonarQube project ${sonarProjectKey}: ${sonarError.message}`
-            )
-            // Log the error but don't fail the site deletion
-          }
-
-          resolve(true)
-        } catch (cleanupError: any) {
-          reject(`Error cleaning up site: ${cleanupError}`)
+          await deleteSonarQubeProject(sonarProjectKey)
+        } catch (sonarError: any) {
+          console.warn(
+            `Failed to delete SonarQube project ${sonarProjectKey}: ${sonarError.message}`
+          )
+          // Log the error but don't fail the site deletion
         }
-      })
-      .catch((error) => {
-        console.error(`Error deleting site directory:`, error)
-        reject(`Error deleting site directory: ${error.message}`)
-      })
+
+        resolve(true)
+      } catch (cleanupError: any) {
+        reject(`Error cleaning up site: ${cleanupError}`)
+      }
+    })()
   })
 }
 
 export function getSites(): Promise<Site[]> {
   return new Promise((resolve, reject) => {
-    const wwwPath = join(process.cwd(), 'www')
+    ;(async () => {
+      try {
+        // Initialize database if not already done
+        await initializeConfigDatabase()
+        
+        // Migrate existing sites to database if needed
+        await migrateExistingSites()
+        
+        // Get sites from database first
+        const siteConfigs = await getAllSiteConfigurations()
+        
+        // Also check filesystem for any sites not in database (fallback)
+        const wwwPath = join(process.cwd(), 'www')
+        let filesystemSites: string[] = []
+        
+        try {
+          const entries = await fs.readdir(wwwPath, { withFileTypes: true })
+          filesystemSites = entries
+            .filter((entry) => entry.isDirectory())
+            .filter((entry) => !['.', '..', '.git'].includes(entry.name))
+            .map((entry) => entry.name)
+        } catch (fsError) {
+          // If www directory doesn't exist, that's fine - no filesystem sites
+          console.log('No www directory found, using database sites only')
+        }
 
-    // Use fs.readdir instead of 'ls' command
-    fs.readdir(wwwPath, { withFileTypes: true })
-      .then(async (entries) => {
-        // Get only directories
-        const dirs = entries
-          .filter((entry) => entry.isDirectory())
-          .filter((entry) => !['.', '..', '.git'].includes(entry.name))
-          .map((entry) => entry.name)
+        // Combine database configurations with filesystem presence
+        const dbSiteNames = siteConfigs.map(config => config.domain)
+        const allSiteNames = [...new Set([...dbSiteNames, ...filesystemSites])]
 
-        // Combine both sources and create site objects
-        const allDomains = [...new Set([...dirs])]
+        const sites: Site[] = []
 
-        const sites = allDomains.map((domain) => ({
-          name: domain,
-          path: join('www', domain),
-          url: `https://${domain}`
-        }))
+        for (const siteName of allSiteNames) {
+          const config = siteConfigs.find(c => c.domain === siteName)
+          
+          const site: Site = {
+            name: siteName,
+            path: join('www', siteName),
+            url: `https://${siteName}`,
+            // Include configuration data if available
+            aliases: config?.aliases,
+            webRoot: config?.webRoot,
+            multisite: config?.multisite,
+            createdAt: config?.createdAt,
+            updatedAt: config?.updatedAt
+          }
+          
+          sites.push(site)
+        }
 
         resolve(sites)
-      })
-      .catch((error) => {
-        console.error(`Error reading sites directory:`, error)
-        reject(`Error reading sites directory: ${error.message}`)
-      })
+      } catch (error: any) {
+        console.error(`Error getting sites:`, error)
+        reject(`Error getting sites: ${error.message}`)
+      }
+    })()
   })
 }
 
