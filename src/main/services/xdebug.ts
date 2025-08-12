@@ -177,6 +177,12 @@ export async function toggleXdebug(mainWindow?: BrowserWindow): Promise<boolean>
         shell: false
       })
 
+      let restartErrorOutput = ''
+
+      restartProcess.stderr?.on('data', (data) => {
+        restartErrorOutput += data.toString()
+      })
+
       restartProcess.on('close', async (code) => {
         if (code === 0) {
           // Verify the status *after* restart using the same file check method

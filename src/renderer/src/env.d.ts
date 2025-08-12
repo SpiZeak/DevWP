@@ -7,6 +7,14 @@ export interface Site {
   path: string
   url: string
   status: string
+  aliases?: string
+  webRoot?: string
+  multisite?: {
+    enabled: boolean
+    type: 'subdomain' | 'subdirectory'
+  }
+  createdAt?: Date
+  updatedAt?: Date
 }
 
 declare global {
@@ -33,6 +41,7 @@ declare global {
         }) => void
       ) => () => void
       deleteSite: (siteName: Site) => Promise<void>
+      updateSite: (site: Site, data: { aliases?: string; webRoot?: string }) => Promise<void>
       createSite: (site: {
         domain: string
         webRoot?: string

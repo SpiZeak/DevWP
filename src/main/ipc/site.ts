@@ -1,5 +1,11 @@
 import { ipcMain } from 'electron'
-import { createSite, deleteSite, getSites, scanSiteWithSonarQube } from '../services/site'
+import {
+  createSite,
+  deleteSite,
+  getSites,
+  scanSiteWithSonarQube,
+  updateSite
+} from '../services/site'
 
 export function registerSiteHandlers(): void {
   ipcMain.handle('get-sites', async () => {
@@ -24,6 +30,10 @@ export function registerSiteHandlers(): void {
 
   ipcMain.handle('delete-site', async (_, site) => {
     return deleteSite(site)
+  })
+
+  ipcMain.handle('update-site', async (_, site, updateData) => {
+    return updateSite(site, updateData)
   })
 
   // Add handler for SonarQube scan

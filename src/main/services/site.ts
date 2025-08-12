@@ -1,7 +1,7 @@
 import { join } from 'path'
 import { promises as fs, constants } from 'fs' // Import constants
 import { exec } from 'child_process'
-import { generateNginxConfig, removeNginxConfig } from './nginx'
+import { generateNginxConfig, removeNginxConfig, reloadNginxConfig } from './nginx'
 import { modifyHostsFile } from './hosts'
 import {
   initializeConfigDatabase,
@@ -847,4 +847,51 @@ export async function scanSiteWithSonarQube(siteDomain: string): Promise<void> {
   })
 }
 
-export { createSite, deleteSite, getSites }
+// Update site configuration
+async function updateSite(
+  site: Site,
+  updateData: { aliases?: string; webRoot?: string }
+): Promise<void> {
+  try {
+    // Get current site configuration
+    const currentConfig = await getSiteConfiguration(site.name)
+
+    if (!currentConfig) {
+      throw new Error(`Site configuration not found for: ${site.name}`)
+    }
+
+    // Update the configuration with new data
+    const updatedConfig = {
+      ...currentConfig,
+      aliases: updateData.aliases !== undefined ? updateData.aliases : currentConfig.aliases,
+      webRoot: updateData.webRoot !== undefined ? updateData.webRoot : currentConfig.webRoot,
+      updatedAt: new Date()
+    }
+
+    // Save the updated configuration
+    await saveSiteConfiguration(updatedConfig)
+
+    // Regenerate nginx configuration with updated settings
+    const nginxRootDirective = `/src/www/${site.name}${
+      updatedConfig.webRoot ? '/' + updatedConfig.webRoot : ''
+    }`
+
+    // Regenerate nginx config
+    await generateNginxConfig(
+      site.name,
+      nginxRootDirective,
+      updatedConfig.aliases,
+      updatedConfig.multisite
+    )
+
+    // Reload nginx to apply the new configuration
+    await reloadNginxConfig()
+
+    console.log(`Successfully updated site configuration for: ${site.name}`)
+  } catch (error) {
+    console.error(`Failed to update site ${site.name}:`, error)
+    throw error
+  }
+}
+
+export { createSite, deleteSite, getSites, updateSite }

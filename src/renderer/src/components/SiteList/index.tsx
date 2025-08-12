@@ -8,6 +8,7 @@ import { NewSiteData } from './CreateSiteModal'
 // Lazy load the modals
 const CreateSiteModal = lazy(() => import('./CreateSiteModal'))
 const WpCliModal = lazy(() => import('./WpCliModal'))
+const EditSiteModal = lazy(() => import('./EditSiteModal'))
 
 const SiteList: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([])
@@ -15,6 +16,10 @@ const SiteList: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
   const [scanningSite, setScanningSite] = useState<string | null>(null)
   const [wpCliModal, setWpCliModal] = useState<{ open: boolean; site: Site | null }>({
+    open: false,
+    site: null
+  })
+  const [editSiteModal, setEditSiteModal] = useState<{ open: boolean; site: Site | null }>({
     open: false,
     site: null
   })
@@ -101,6 +106,27 @@ const SiteList: React.FC = () => {
 
   const handleCloseWpCliModal = (): void => {
     setWpCliModal({ open: false, site: null })
+  }
+
+  const handleOpenEditSiteModal = (site: Site): void => {
+    setEditSiteModal({ open: true, site })
+  }
+
+  const handleCloseEditSiteModal = (): void => {
+    setEditSiteModal({ open: false, site: null })
+  }
+
+  const handleUpdateSite = async (
+    site: Site,
+    data: { aliases: string; webRoot: string }
+  ): Promise<void> => {
+    try {
+      await window.electronAPI.updateSite(site, data)
+      setEditSiteModal({ open: false, site: null })
+      fetchSites() // Refresh the sites list
+    } catch (error) {
+      console.error('Failed to update site:', error)
+    }
   }
 
   const fetchSites = async (): Promise<void> => {
@@ -313,6 +339,7 @@ const SiteList: React.FC = () => {
                   onScan={handleScanSite}
                   onDelete={handleDeleteSite}
                   onOpenWpCli={handleOpenWpCliModal}
+                  onEditSite={handleOpenEditSiteModal}
                   scanningSite={scanningSite}
                 />
               ))
@@ -334,6 +361,17 @@ const SiteList: React.FC = () => {
               isOpen={wpCliModal.open}
               site={wpCliModal.site}
               onClose={handleCloseWpCliModal}
+            />
+          </Suspense>
+        )}
+
+        {editSiteModal.open && editSiteModal.site && (
+          <Suspense fallback={<div>Loading...</div>}>
+            <EditSiteModal
+              isOpen={editSiteModal.open}
+              site={editSiteModal.site}
+              onClose={handleCloseEditSiteModal}
+              onSubmit={handleUpdateSite}
             />
           </Suspense>
         )}

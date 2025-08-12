@@ -2,6 +2,8 @@ import { Site } from '@renderer/env'
 import Spinner from '../ui/Spinner'
 import Icon from '../ui/Icon'
 
+/* eslint-disable react/prop-types */
+
 interface SiteItemProps {
   site: Site
   isLast: boolean
@@ -9,6 +11,7 @@ interface SiteItemProps {
   onScan: (site: Site) => void
   onDelete: (site: Site) => void
   onOpenWpCli: (site: Site) => void
+  onEditSite: (site: Site) => void
   scanningSite: string | null
 }
 
@@ -19,6 +22,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
   onScan,
   onDelete,
   onOpenWpCli,
+  onEditSite,
   scanningSite
 }) => {
   const isProvisioning = site.status === 'provisioning'
@@ -106,6 +110,14 @@ const SiteItem: React.FC<SiteItemProps> = ({
             disabled={isProvisioning}
           >
             <Icon className="text-seasalt group-hover/btn:text-warm-charcoal text-xl" content="󰆍" />
+          </button>
+          <button
+            onClick={(): void => onEditSite(site)}
+            className="group/btn relative bg-gunmetal-500 hover:bg-pumpkin-500 disabled:bg-gunmetal-300 hover:shadow-lg rounded-lg size-10 hover:scale-105 disabled:hover:scale-100 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
+            title="Edit Site Settings"
+            disabled={isProvisioning}
+          >
+            <Icon className="text-seasalt group-hover/btn:text-warm-charcoal text-xl" content="󰒓" />
           </button>
         </div>
       </div>
