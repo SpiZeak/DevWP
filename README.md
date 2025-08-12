@@ -103,7 +103,7 @@ git submodule update --init --recursive
 ### 3. Configure Environment (if necessary)
 
 - Review Docker configurations in `compose.yml` and `config/`.
-- Ensure SonarQube credentials in `src/main/services/site.ts` are appropriate for your local SonarQube instance. **Note:** The current implementation uses default credentials which should only be used for local development.
+- **SonarQube Configuration**: Configure the `SONAR_TOKEN` environment variable for SonarQube authentication. See the [SonarQube Configuration](#sonarqube-configuration) section for details.
 - The Seonaut submodule provides comprehensive SEO analysis capabilities and will be automatically available after submodule initialization.
 - Seonaut configuration can be found in `config/seonaut/` and runs on port 9001 to avoid conflicts with SonarQube.
 
@@ -219,8 +219,29 @@ DevWP includes several pre-configured services:
 
 - SonarQube projects are automatically created for each site
 - Access SonarQube at `http://localhost:9000`
-- Default credentials: `admin` / `newAdminPassword1<`
+- **Authentication**: Configure the `SONAR_TOKEN` environment variable with a valid SonarQube user token (see [SonarQube Configuration](#sonarqube-configuration) below)
 - Projects can be scanned directly from the DevWP interface
+
+#### SonarQube Configuration
+
+To use SonarQube features, you need to configure authentication:
+
+1. **Start DevWP and SonarQube**: Run `docker compose up -d` to start the services
+2. **Access SonarQube**: Navigate to `http://localhost:9000`
+3. **Login with default credentials**: Use `admin` / `admin` for initial setup
+4. **Change default password**: SonarQube will prompt you to change the default password
+5. **Generate a user token**:
+   - Go to Administration > Security > Users
+   - Click on "Tokens" for the admin user  
+   - Generate a new token with a meaningful name (e.g., "DevWP Integration")
+   - Copy the generated token
+6. **Configure the environment variable**:
+   - Set the `SONAR_TOKEN` environment variable with your token
+   - On Linux/macOS: `export SONAR_TOKEN=your_token_here`
+   - On Windows: `set SONAR_TOKEN=your_token_here`
+   - Alternatively, create a `.env` file in the project root with `SONAR_TOKEN=your_token_here`
+
+**Note**: Without proper token configuration, SonarQube scans will fail with "Not authorized" errors.
 
 ### SEO Analysis
 
