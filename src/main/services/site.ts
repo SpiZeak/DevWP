@@ -515,8 +515,8 @@ function getSites(): Promise<Site[]> {
   return new Promise((resolve, reject) => {
     ;(async () => {
       try {
-        // Initialize database if not already done
-        await initializeConfigDatabase()
+        // Note: Database should already be initialized during app startup
+        // We don't call initializeConfigDatabase() here to avoid repeated docker calls
 
         // Migrate existing sites to database if needed
         await migrateExistingSites()

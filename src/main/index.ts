@@ -4,7 +4,7 @@ import { createWindow } from './window'
 import { registerContainerHandlers, stopContainerMonitoring } from './ipc/container'
 import { registerSiteHandlers } from './ipc/site'
 import { registerSettingsHandlers } from './ipc/settings'
-import { stopDockerCompose } from './services/docker'
+import { stopDockerCompose, startMariaDBContainer } from './services/docker'
 import { initializeConfigDatabase } from './services/database'
 import { initializeXdebugStatus } from './services/xdebug'
 import {
@@ -12,11 +12,6 @@ import {
   REACT_DEVELOPER_TOOLS,
   REDUX_DEVTOOLS
 } from 'electron-devtools-installer'
-
-// Register all IPC handlers
-registerContainerHandlers()
-registerSiteHandlers()
-registerSettingsHandlers()
 
 app.commandLine.appendSwitch('gtk-version', '3')
 
@@ -36,14 +31,32 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // Initialize the database before creating the window
+  // Start MariaDB container first to ensure database is available
   try {
+    console.log('Starting MariaDB container...')
+    await startMariaDBContainer()
+    console.log('MariaDB container started successfully')
+  } catch (error) {
+    console.error('Failed to start MariaDB container:', error)
+    // Continue anyway - the app should still work, but database functionality may be limited
+  }
+
+  // Initialize the database after MariaDB is running
+  try {
+    console.log('Initializing database...')
     await initializeConfigDatabase()
     console.log('Database initialized successfully')
   } catch (error) {
     console.error('Failed to initialize database:', error)
     // Continue anyway - the app should still work without database persistence
   }
+
+  // Register all IPC handlers AFTER database is ready
+  console.log('Registering IPC handlers...')
+  registerContainerHandlers()
+  registerSiteHandlers()
+  registerSettingsHandlers()
+  console.log('IPC handlers registered successfully')
 
   // Initialize Xdebug status from database after database is ready
   try {
@@ -54,7 +67,8 @@ app.whenReady().then(async () => {
     // Continue anyway - Xdebug will fall back to file-based status checking
   }
 
-  // Create window after database initialization
+  // Create window after database initialization and IPC handler registration
+  console.log('Creating application window...')
   createWindow()
 
   app.on('activate', function () {

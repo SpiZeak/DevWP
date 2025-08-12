@@ -22,71 +22,116 @@ export interface SettingsConfiguration {
   updatedAt: Date
 }
 
-// Initialize the DevWP configuration database and tables
-export async function initializeConfigDatabase(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Create the configuration database
-    const createDbCmd = `docker exec devwp_mariadb mariadb -u root -proot -e "CREATE DATABASE IF NOT EXISTS ${DEVWP_CONFIG_DB}"`
+// Wait for MariaDB container to be ready
+export async function waitForDatabase(maxRetries = 30, delayMs = 1000): Promise<void> {
+  console.log('Waiting for MariaDB container to be ready...')
 
-    exec(createDbCmd, (error, _, stderr) => {
-      if (error) {
-        console.error(`Error creating config database: ${stderr}`)
-        reject(error)
-        return
-      }
-
-      console.log(`Created/verified config database: ${DEVWP_CONFIG_DB}`)
-
-      // Create the sites table
-      const createTableCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
-        CREATE TABLE IF NOT EXISTS sites (
-          domain VARCHAR(255) PRIMARY KEY,
-          aliases TEXT,
-          web_root VARCHAR(255),
-          multisite_enabled BOOLEAN DEFAULT FALSE,
-          multisite_type ENUM('subdomain', 'subdirectory') DEFAULT NULL,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        )"`
-
-      exec(createTableCmd, (tableError, _, tableStderr) => {
-        if (tableError) {
-          console.error(`Error creating sites table: ${tableStderr}`)
-          reject(tableError)
-          return
-        }
-
-        console.log('Created/verified sites configuration table')
-
-        // Create the settings table
-        const createSettingsTableCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
-          CREATE TABLE IF NOT EXISTS settings (
-            key_name VARCHAR(255) PRIMARY KEY,
-            value_text TEXT,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-          )"`
-
-        exec(createSettingsTableCmd, async (settingsError, _, settingsStderr) => {
-          if (settingsError) {
-            console.error(`Error creating settings table: ${settingsStderr}`)
-            reject(settingsError)
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const testCmd = 'docker exec devwp_mariadb mariadb -u root -proot -e "SELECT 1"'
+        exec(testCmd, (error, _stdout, stderr) => {
+          if (error) {
+            reject(new Error(`Database not ready: ${stderr || error.message}`))
             return
           }
-
-          console.log('Created/verified settings configuration table')
-
-          // Initialize default webroot path if not exists
-          try {
-            await initializeDefaultSettings()
-            resolve()
-          } catch (error) {
-            console.warn('Failed to initialize default settings, continuing anyway:', error)
-            resolve()
-          }
+          console.log('MariaDB container is ready!')
+          resolve()
         })
       })
+      return // Success, exit the retry loop
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.log(`Database connection attempt ${attempt}/${maxRetries} failed: ${errorMessage}`)
+
+      if (attempt === maxRetries) {
+        throw new Error(`Failed to connect to database after ${maxRetries} attempts`)
+      }
+
+      // Wait before next attempt
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+    }
+  }
+}
+
+// Initialize the DevWP configuration database and tables
+export async function initializeConfigDatabase(): Promise<void> {
+  console.log('Initializing DevWP config database...')
+
+  try {
+    // First wait for MariaDB to be ready
+    await waitForDatabase()
+
+    // Create the DevWP configuration database
+    const createDbCmd = `docker exec devwp_mariadb mariadb -u root -proot -e "CREATE DATABASE IF NOT EXISTS ${DEVWP_CONFIG_DB}"`
+    console.log('Creating DevWP config database...')
+
+    await new Promise<void>((resolve, reject) => {
+      exec(createDbCmd, (error, _stdout, stderr) => {
+        if (error) {
+          reject(new Error(`Failed to create database: ${stderr || error.message}`))
+          return
+        }
+        console.log(`Created/verified config database: ${DEVWP_CONFIG_DB}`)
+        resolve()
+      })
     })
-  })
+
+    // Create sites table if it doesn't exist
+    const createSitesTableCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
+      CREATE TABLE IF NOT EXISTS sites (
+        domain VARCHAR(255) PRIMARY KEY,
+        aliases TEXT,
+        web_root VARCHAR(255),
+        multisite_enabled BOOLEAN DEFAULT FALSE,
+        multisite_type ENUM('subdomain', 'subdirectory') DEFAULT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )"`
+
+    console.log('Creating sites table...')
+    await new Promise<void>((resolve, reject) => {
+      exec(createSitesTableCmd, (error, _stdout, stderr) => {
+        if (error) {
+          reject(new Error(`Failed to create sites table: ${stderr || error.message}`))
+          return
+        }
+        console.log('Created/verified sites configuration table')
+        resolve()
+      })
+    })
+
+    // Create settings table if it doesn't exist
+    const createSettingsTableCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
+      CREATE TABLE IF NOT EXISTS settings (
+        key_name VARCHAR(255) PRIMARY KEY,
+        value_text TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )"`
+
+    console.log('Creating settings table...')
+    await new Promise<void>((resolve, reject) => {
+      exec(createSettingsTableCmd, (error, _stdout, stderr) => {
+        if (error) {
+          reject(new Error(`Failed to create settings table: ${stderr || error.message}`))
+          return
+        }
+        console.log('Created/verified settings configuration table')
+        resolve()
+      })
+    })
+
+    // Initialize default settings
+    try {
+      await initializeDefaultSettings()
+      console.log('DevWP config database initialized successfully')
+    } catch (error) {
+      console.warn('Failed to initialize default settings, continuing anyway:', error)
+    }
+  } catch (error) {
+    console.error('Failed to initialize config database:', error)
+    throw error
+  }
 }
 
 // Initialize default settings

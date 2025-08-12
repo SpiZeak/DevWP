@@ -87,6 +87,47 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
   })
 }
 
+// Function to start MariaDB container specifically during app initialization
+export function startMariaDBContainer(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    console.log('Starting MariaDB container...')
+    const isWin = platform() === 'win32'
+    const command = isWin ? 'docker-compose.exe' : 'docker-compose'
+    const dockerProcess = spawn(command, ['up', '-d', '--build', 'mariadb'])
+
+    let output = ''
+    let errorOutput = ''
+
+    dockerProcess.stdout.on('data', (data) => {
+      const text = data.toString().trim()
+      output += text + '\n'
+      console.log('MariaDB startup stdout:', text)
+    })
+
+    dockerProcess.stderr.on('data', (data) => {
+      const text = data.toString().trim()
+      errorOutput += text + '\n'
+      console.log('MariaDB startup stderr:', text)
+    })
+
+    dockerProcess.on('close', (code) => {
+      console.log(`MariaDB container startup completed with code ${code}`)
+      if (code === 0) {
+        console.log('MariaDB container started successfully')
+        resolve()
+      } else {
+        console.error('MariaDB container failed to start:', errorOutput)
+        reject(new Error(`MariaDB container startup failed with code ${code}: ${errorOutput}`))
+      }
+    })
+
+    dockerProcess.on('error', (error) => {
+      console.error('Error starting MariaDB container:', error)
+      reject(error)
+    })
+  })
+}
+
 // Function to stop Docker Compose
 export function stopDockerCompose(): Promise<void> {
   return new Promise((resolve, reject) => {
