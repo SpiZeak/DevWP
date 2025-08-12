@@ -33,7 +33,15 @@ export function registerSiteHandlers(): void {
   })
 
   ipcMain.handle('update-site', async (_, site, updateData) => {
-    return updateSite(site, updateData)
+    console.log('IPC: update-site called with:', { site, updateData })
+    try {
+      await updateSite(site, updateData)
+      console.log('IPC: updateSite completed successfully')
+      return { success: true }
+    } catch (error) {
+      console.error('IPC: updateSite failed:', error)
+      throw error
+    }
   })
 
   // Add handler for SonarQube scan

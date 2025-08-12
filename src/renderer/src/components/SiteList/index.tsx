@@ -121,7 +121,9 @@ const SiteList: React.FC = () => {
     data: { aliases: string; webRoot: string }
   ): Promise<void> => {
     try {
+      console.log('Calling updateSite with:', { site, data })
       await window.electronAPI.updateSite(site, data)
+      console.log('updateSite completed successfully')
       setEditSiteModal({ open: false, site: null })
       fetchSites() // Refresh the sites list
     } catch (error) {

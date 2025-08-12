@@ -852,12 +852,20 @@ async function updateSite(
   site: Site,
   updateData: { aliases?: string; webRoot?: string }
 ): Promise<void> {
+  console.log('updateSite called with:', { site, updateData })
   try {
     // Get current site configuration
-    const currentConfig = await getSiteConfiguration(site.name)
+    let currentConfig = await getSiteConfiguration(site.name)
+    console.log('Current config:', currentConfig)
 
     if (!currentConfig) {
-      throw new Error(`Site configuration not found for: ${site.name}`)
+      // Create a basic configuration if it doesn't exist
+      console.log(`Creating new configuration for site: ${site.name}`)
+      currentConfig = {
+        domain: site.name,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
     }
 
     // Update the configuration with new data
@@ -868,13 +876,18 @@ async function updateSite(
       updatedAt: new Date()
     }
 
+    console.log('Updated config:', updatedConfig)
+
     // Save the updated configuration
     await saveSiteConfiguration(updatedConfig)
+    console.log('Configuration saved successfully')
 
     // Regenerate nginx configuration with updated settings
     const nginxRootDirective = `/src/www/${site.name}${
       updatedConfig.webRoot ? '/' + updatedConfig.webRoot : ''
     }`
+
+    console.log('Nginx root directive:', nginxRootDirective)
 
     // Regenerate nginx config
     await generateNginxConfig(
@@ -883,9 +896,11 @@ async function updateSite(
       updatedConfig.aliases,
       updatedConfig.multisite
     )
+    console.log('Nginx config generated successfully')
 
     // Reload nginx to apply the new configuration
     await reloadNginxConfig()
+    console.log('Nginx reloaded successfully')
 
     console.log(`Successfully updated site configuration for: ${site.name}`)
   } catch (error) {

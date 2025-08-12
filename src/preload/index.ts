@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   createSite: (site) => ipcRenderer.invoke('create-site', site),
   deleteSite: (site) => ipcRenderer.invoke('delete-site', site),
+  updateSite: (site, updateData) => ipcRenderer.invoke('update-site', site, updateData),
 
   // Add these new methods
   getContainerStatus: () => ipcRenderer.invoke('get-container-status'),
