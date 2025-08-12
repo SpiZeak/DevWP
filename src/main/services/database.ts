@@ -102,9 +102,14 @@ async function initializeDefaultSettings(): Promise<void> {
       const defaultWebrootPath = path.join(os.homedir(), 'www')
 
       await saveSetting('webroot_path', defaultWebrootPath)
-      console.log(`✓ Initialized default webroot path: ${defaultWebrootPath}`)
-    } else {
-      console.log(`✓ Webroot path already configured: ${existingWebrootPath}`)
+    }
+
+    // Check if xdebug_enabled setting exists
+    const existingXdebugSetting = await getSetting('xdebug_enabled')
+
+    if (!existingXdebugSetting) {
+      // Set default Xdebug state to false (disabled for performance)
+      await saveSetting('xdebug_enabled', 'false')
     }
   } catch (error) {
     console.warn('Failed to initialize default settings:', error)
@@ -360,7 +365,7 @@ export async function saveSetting(key: string, value: string): Promise<void> {
         return
       }
 
-      console.log(`Saved setting: ${key}`)
+      console.log(`Saved setting: ${key} = ${value}`)
       resolve()
     })
   })
@@ -466,20 +471,31 @@ export async function deleteSetting(key: string): Promise<void> {
 // Get webroot path setting with default fallback
 export async function getWebrootPath(): Promise<string> {
   try {
-    const setting = await getSetting('webroot_path')
-    if (setting) {
-      return setting
+    const webrootPath = await getSetting('webroot_path')
+    if (webrootPath) {
+      return webrootPath
     }
-
-    // Default to $HOME/www
-    const os = await import('os')
-    const path = await import('path')
-    return path.join(os.homedir(), 'www')
   } catch (error) {
-    console.error('Error getting webroot path:', error)
-    // Fallback to $HOME/www if database fails
-    const os = await import('os')
-    const path = await import('path')
-    return path.join(os.homedir(), 'www')
+    console.warn('Failed to get webroot path from database:', error)
   }
+
+  // Default fallback
+  const os = await import('os')
+  const path = await import('path')
+  return path.join(os.homedir(), 'www')
+}
+
+// Get Xdebug enabled setting with default fallback
+export async function getXdebugEnabledSetting(): Promise<boolean> {
+  try {
+    const xdebugEnabled = await getSetting('xdebug_enabled')
+    if (xdebugEnabled !== null) {
+      return xdebugEnabled === 'true'
+    }
+  } catch (error) {
+    console.warn('Failed to get Xdebug setting from database:', error)
+  }
+
+  // Default fallback to disabled (performance mode)
+  return false
 }

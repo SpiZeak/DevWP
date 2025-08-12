@@ -4,7 +4,8 @@ import {
   getSetting,
   getAllSettings,
   deleteSetting,
-  getWebrootPath
+  getWebrootPath,
+  getXdebugEnabledSetting
 } from '../services/database'
 
 export function registerSettingsHandlers(): void {
@@ -60,6 +61,17 @@ export function registerSettingsHandlers(): void {
       const os = await import('os')
       const path = await import('path')
       return path.join(os.homedir(), 'www')
+    }
+  })
+
+  // Get Xdebug enabled setting with default fallback
+  ipcMain.handle('get-xdebug-enabled-setting', async () => {
+    try {
+      return await getXdebugEnabledSetting()
+    } catch (error) {
+      console.error('Error getting Xdebug enabled setting:', error)
+      // Return default fallback (disabled)
+      return false
     }
   })
 

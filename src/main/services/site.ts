@@ -228,7 +228,14 @@ function createSite(site: {
             await generateIndexHtml(siteDomain, siteBasePath, dbName, site.webRoot)
 
             // Save site configuration to database even if WP install failed
-            await saveSiteConfiguration(siteDomain, site.aliases, site.webRoot, site.multisite)
+            await saveSiteConfiguration({
+              domain: siteDomain,
+              aliases: site.aliases,
+              webRoot: site.webRoot,
+              multisite: site.multisite,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            })
 
             // Attempt to create SonarQube project even if WP install failed
             try {
@@ -624,7 +631,11 @@ async function createSonarQubeProject(projectName: string, projectKey: string): 
         // This usually catches network errors or if curl command fails fundamentally
         console.error(`Error executing SonarQube project creation command: ${stderr}`)
         // Check if the error is due to authentication failure (HTTP 401)
-        if (stderr.includes('401') || stdout.includes('Authentication required') || stderr.includes('Not authorized')) {
+        if (
+          stderr.includes('401') ||
+          stdout.includes('Authentication required') ||
+          stderr.includes('Not authorized')
+        ) {
           console.error(
             'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token.'
           )
@@ -687,9 +698,19 @@ async function deleteSonarQubeProject(projectKey: string): Promise<void> {
 
       if (error) {
         console.error(`Error executing SonarQube project deletion command: ${stderr}`)
-        if (stderr.includes('401') || stdout.includes('Authentication required') || stderr.includes('Not authorized')) {
-          console.error('SonarQube authentication failed. Check the SONAR_TOKEN environment variable.')
-          reject(new Error('SonarQube authentication failed. Check the SONAR_TOKEN environment variable.'))
+        if (
+          stderr.includes('401') ||
+          stdout.includes('Authentication required') ||
+          stderr.includes('Not authorized')
+        ) {
+          console.error(
+            'SonarQube authentication failed. Check the SONAR_TOKEN environment variable.'
+          )
+          reject(
+            new Error(
+              'SonarQube authentication failed. Check the SONAR_TOKEN environment variable.'
+            )
+          )
         } else {
           reject(new Error(`Failed to execute curl command: ${error.message}`))
         }
@@ -700,8 +721,14 @@ async function deleteSonarQubeProject(projectKey: string): Promise<void> {
       // SonarQube might return 204 No Content on success, or errors in JSON.
       if (stdout.includes('"errors":')) {
         if (stdout.includes('Authentication required') || stdout.includes('Not authorized')) {
-          console.error('SonarQube authentication failed. Check the SONAR_TOKEN environment variable.')
-          reject(new Error('SonarQube authentication failed. Check the SONAR_TOKEN environment variable.'))
+          console.error(
+            'SonarQube authentication failed. Check the SONAR_TOKEN environment variable.'
+          )
+          reject(
+            new Error(
+              'SonarQube authentication failed. Check the SONAR_TOKEN environment variable.'
+            )
+          )
         } else if (stdout.includes('not found')) {
           console.warn(
             `SonarQube project ${projectKey} not found for deletion (may have already been deleted).`
@@ -765,8 +792,16 @@ export async function scanSiteWithSonarQube(siteDomain: string): Promise<void> {
       if (error) {
         console.error(`Error executing SonarQube scan command for ${siteDomain}: ${stderr}`)
         // Provide more specific feedback if possible
-        if (stderr.includes('Authentication failed') || stderr.includes('Not authorized') || stderr.includes('401')) {
-          reject(new Error('SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).'))
+        if (
+          stderr.includes('Authentication failed') ||
+          stderr.includes('Not authorized') ||
+          stderr.includes('401')
+        ) {
+          reject(
+            new Error(
+              'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).'
+            )
+          )
         } else if (stderr.includes('Project not found')) {
           reject(
             new Error(
@@ -796,7 +831,11 @@ export async function scanSiteWithSonarQube(siteDomain: string): Promise<void> {
 
       // Check for authentication errors in stdout as well
       if (stdout.includes('Not authorized') || stdout.includes('Authentication required')) {
-        reject(new Error('SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).'))
+        reject(
+          new Error(
+            'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).'
+          )
+        )
         return
       }
 

@@ -69,6 +69,7 @@ declare global {
       saveSetting: (key: string, value: string) => Promise<{ success: boolean; error?: string }>
       deleteSetting: (key: string) => Promise<{ success: boolean; error?: string }>
       getWebrootPath: () => Promise<string>
+      getXdebugEnabledSetting: () => Promise<boolean>
       pickDirectory: (defaultPath?: string) => Promise<string | null>
     }
   }

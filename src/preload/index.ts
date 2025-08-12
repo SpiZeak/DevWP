@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSetting: (key: string, value: string) => ipcRenderer.invoke('save-setting', key, value),
   deleteSetting: (key: string) => ipcRenderer.invoke('delete-setting', key),
   getWebrootPath: () => ipcRenderer.invoke('get-webroot-path'),
+  getXdebugEnabledSetting: () => ipcRenderer.invoke('get-xdebug-enabled-setting'),
   pickDirectory: (defaultPath?: string) => ipcRenderer.invoke('pick-directory', defaultPath)
 })
 

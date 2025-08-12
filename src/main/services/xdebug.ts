@@ -2,12 +2,37 @@ import { spawn } from 'child_process'
 import { BrowserWindow } from 'electron'
 import { promises as fs } from 'fs'
 import { join } from 'path'
+import { getSetting, saveSetting } from './database'
 
 let xdebugEnabled = false // Consider if this global state is truly necessary
 
+// Initialize Xdebug status from database on service startup
+export async function initializeXdebugStatus(): Promise<void> {
+  try {
+    const savedStatus = await getSetting('xdebug_enabled')
+    if (savedStatus !== null) {
+      xdebugEnabled = savedStatus === 'true'
+    } else {
+      // If no setting exists, check current file state and save it
+      const fileStatus = await getXdebugStatus()
+      xdebugEnabled = fileStatus
+    }
+  } catch (error) {
+    console.warn('Failed to initialize Xdebug status from database:', error)
+    // Fallback to checking file status
+    try {
+      const fileStatus = await getXdebugStatus()
+      xdebugEnabled = fileStatus
+    } catch (fileError) {
+      console.warn('Failed to initialize Xdebug status from file:', fileError)
+      // Default to disabled if both fail
+      xdebugEnabled = false
+    }
+  }
+}
+
 export async function getXdebugStatus(): Promise<boolean> {
   const configPath = join(process.cwd(), 'config', 'php', 'conf.d', 'xdebug.ini')
-  console.log(`Checking Xdebug status by reading file: ${configPath}`)
 
   try {
     const fileContent = await fs.readFile(configPath, 'utf-8')
@@ -25,27 +50,53 @@ export async function getXdebugStatus(): Promise<boolean> {
       )
     })
 
-    if (isDisabled) {
-      xdebugEnabled = false
-      return false
-    } else {
-      xdebugEnabled = true
-      return true
+    const currentStatus = !isDisabled
+    xdebugEnabled = currentStatus
+
+    // Save the current status to database for persistence
+    try {
+      await saveSetting('xdebug_enabled', currentStatus.toString())
+    } catch (dbError) {
+      console.warn('Failed to save Xdebug status to database:', dbError)
+      // Continue operation even if database save fails
     }
-  } catch (error: any) {
-    if (error.code === 'ENOENT') {
+
+    return currentStatus
+  } catch (error: unknown) {
+    const err = error as { code?: string }
+    if (err.code === 'ENOENT') {
       // If the file doesn't exist, Xdebug is effectively disabled.
       console.warn(`xdebug.ini not found at ${configPath}. Assuming disabled state.`)
       xdebugEnabled = false
+
+      // Save disabled status to database
+      try {
+        await saveSetting('xdebug_enabled', 'false')
+      } catch (dbError) {
+        console.warn('Failed to save Xdebug status to database:', dbError)
+      }
+
       return false
     } else {
-      // For other errors (e.g., permissions), log and re-throw or handle appropriately
+      // For other errors (e.g., permissions), log and handle appropriately
       console.error(`Error reading Xdebug config file for status check: ${configPath}`, error)
-      // Depending on desired behavior, you might return the last known state or throw
-      // Returning last known state here to maintain previous catch block behavior
+
+      // Try to get last known state from database
+      try {
+        const savedStatus = await getSetting('xdebug_enabled')
+        if (savedStatus !== null) {
+          const dbStatus = savedStatus === 'true'
+          console.warn('Using last known Xdebug status from database:', dbStatus)
+          xdebugEnabled = dbStatus
+          return dbStatus
+        }
+      } catch (dbError) {
+        console.warn('Failed to get Xdebug status from database:', dbError)
+      }
+
+      // Fallback to last known state in memory
       console.warn('Returning last known Xdebug status due to read error.')
       return xdebugEnabled
-      // Alternatively, re-throw: throw new Error(`Failed to read Xdebug config: ${error.message}`);
     }
   }
 }
@@ -55,18 +106,17 @@ export async function toggleXdebug(mainWindow?: BrowserWindow): Promise<boolean>
     const configPath = join(process.cwd(), 'config', 'php', 'conf.d', 'xdebug.ini')
     // Use the updated getXdebugStatus which reads the file
     const currentStatus = await getXdebugStatus()
-    const targetStatus = !currentStatus // True = enable, False = disable
-
-    console.log(`Attempting to toggle Xdebug. Current: ${currentStatus}, Target: ${targetStatus}`)
+    const targetStatus = !currentStatus
 
     // Read the current content of the xdebug.ini file
     let fileContent = ''
     try {
       fileContent = await fs.readFile(configPath, 'utf-8')
-    } catch (readError: any) {
+    } catch (readError: unknown) {
       // If the file doesn't exist, we might be trying to enable (which is fine, we'll create it)
       // or disable (which means it's already effectively disabled).
-      if (readError.code === 'ENOENT') {
+      const err = readError as { code?: string }
+      if (err.code === 'ENOENT') {
         console.warn(`xdebug.ini not found at ${configPath}. Assuming disabled state.`)
         if (!targetStatus) {
           // Trying to disable an already non-existent file, nothing to do for file modification.
@@ -94,12 +144,9 @@ export async function toggleXdebug(mainWindow?: BrowserWindow): Promise<boolean>
 
     if (targetStatus) {
       // Enable: Add the 'develop,debug' line (or remove 'off' if that's the only change)
-      // This logic assumes 'develop,debug' is the desired enabled state. Adjust if needed.
-      console.log(`Enabling Xdebug: Setting '${modeLineEnable}' in ${configPath}`)
       filteredLines.push(modeLineEnable)
     } else {
       // Disable: Add the 'off' line
-      console.log(`Disabling Xdebug: Setting '${modeLineDisable}' in ${configPath}`)
       filteredLines.push(modeLineDisable)
     }
 
@@ -130,23 +177,22 @@ export async function toggleXdebug(mainWindow?: BrowserWindow): Promise<boolean>
         shell: false
       })
 
-      let restartErrorOutput = ''
-
-      restartProcess.stderr.on('data', (data) => {
-        restartErrorOutput += data.toString()
-        console.error('Docker restart stderr:', data.toString())
-      })
-
       restartProcess.on('close', async (code) => {
-        console.log(`Docker restart process exited with code ${code}`)
         if (code === 0) {
           // Verify the status *after* restart using the same file check method
           try {
             // Add a small delay before checking status again, container might need a moment
             await new Promise((res) => setTimeout(res, 1000))
             const finalStatus = await getXdebugStatus() // Use the updated status check
-            console.log(`Xdebug status after restart: ${finalStatus}`)
             xdebugEnabled = finalStatus // Update global state with verified status
+
+            // Save the final status to database
+            try {
+              await saveSetting('xdebug_enabled', finalStatus.toString())
+            } catch (dbError) {
+              console.warn('Failed to save Xdebug status to database after toggle:', dbError)
+              // Continue operation even if database save fails
+            }
 
             if (mainWindow) {
               mainWindow.webContents.send('xdebug-status', {

@@ -6,6 +6,7 @@ import { registerSiteHandlers } from './ipc/site'
 import { registerSettingsHandlers } from './ipc/settings'
 import { stopDockerCompose } from './services/docker'
 import { initializeConfigDatabase } from './services/database'
+import { initializeXdebugStatus } from './services/xdebug'
 import {
   installExtension,
   REACT_DEVELOPER_TOOLS,
@@ -42,6 +43,15 @@ app.whenReady().then(async () => {
   } catch (error) {
     console.error('Failed to initialize database:', error)
     // Continue anyway - the app should still work without database persistence
+  }
+
+  // Initialize Xdebug status from database after database is ready
+  try {
+    await initializeXdebugStatus()
+    console.log('Xdebug status initialized successfully')
+  } catch (error) {
+    console.error('Failed to initialize Xdebug status:', error)
+    // Continue anyway - Xdebug will fall back to file-based status checking
   }
 
   // Create window after database initialization
