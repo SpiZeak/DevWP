@@ -3,6 +3,7 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { createWindow } from './window'
 import { registerContainerHandlers, stopContainerMonitoring } from './ipc/container'
 import { registerSiteHandlers } from './ipc/site'
+import { registerSettingsHandlers } from './ipc/settings'
 import { stopDockerCompose } from './services/docker'
 import { initializeConfigDatabase } from './services/database'
 import {
@@ -14,6 +15,7 @@ import {
 // Register all IPC handlers
 registerContainerHandlers()
 registerSiteHandlers()
+registerSettingsHandlers()
 
 app.commandLine.appendSwitch('gtk-version', '3')
 

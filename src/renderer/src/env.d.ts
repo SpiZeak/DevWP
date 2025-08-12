@@ -63,6 +63,12 @@ declare global {
       onNotification: (
         callback: (data: { type: 'success' | 'error'; message: string }) => void
       ) => () => void
+      // Settings API
+      getSettings: () => Promise<Record<string, string>>
+      getSetting: (key: string) => Promise<string | null>
+      saveSetting: (key: string, value: string) => Promise<{ success: boolean; error?: string }>
+      deleteSetting: (key: string) => Promise<{ success: boolean; error?: string }>
+      getWebrootPath: () => Promise<string>
     }
   }
 }

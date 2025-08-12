@@ -45,7 +45,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => {
       ipcRenderer.removeListener('wp-cli-stream', listener)
     }
-  }
+  },
+  // Settings API
+  getSettings: () => ipcRenderer.invoke('get-settings'),
+  getSetting: (key: string) => ipcRenderer.invoke('get-setting', key),
+  saveSetting: (key: string, value: string) => ipcRenderer.invoke('save-setting', key, value),
+  deleteSetting: (key: string) => ipcRenderer.invoke('delete-setting', key),
+  getWebrootPath: () => ipcRenderer.invoke('get-webroot-path')
 })
 
 // Custom APIs for renderer

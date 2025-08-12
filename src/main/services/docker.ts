@@ -19,7 +19,6 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
 
     dockerProcess.stdout.on('data', (data) => {
       const output = data.toString().trim()
-      console.log(`Docker compose: ${output}`)
       if (mainWindow) {
         mainWindow.webContents.send('docker-status', {
           status: 'progress',
@@ -55,8 +54,6 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
 
       // Check if the output contains any of the progress keywords
       if (progressKeywords.some((keyword) => output.includes(keyword))) {
-        console.log(`Docker compose progress (stderr): ${output}`)
-
         if (mainWindow) {
           mainWindow.webContents.send('docker-status', {
             status: 'progress',
@@ -64,8 +61,6 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
           })
         }
       } else {
-        console.error(`Docker compose error: ${output}`)
-
         if (mainWindow) {
           mainWindow.webContents.send('docker-status', {
             status: 'error',
@@ -76,8 +71,6 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
     })
 
     dockerProcess.on('close', (code) => {
-      console.log(`Docker compose process exited with code ${code}`)
-
       if (mainWindow) {
         mainWindow.webContents.send('docker-status', {
           status: code === 0 ? 'complete' : 'error',
@@ -97,12 +90,11 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
 // Function to stop Docker Compose
 export function stopDockerCompose(): Promise<void> {
   return new Promise((resolve, reject) => {
-    console.log('Stopping Docker containers...')
     const dockerProcess = spawn('docker-compose', ['down'])
 
     dockerProcess.on('close', (code) => {
       if (code === 0) {
-        console.log('Docker containers stopped successfully')
+        console.log('Docker containers stopped')
         resolve()
       } else {
         const errorMsg = `Docker compose down exited with code ${code}`

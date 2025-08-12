@@ -7,6 +7,11 @@ import redisIcon from '../assets/icons/redis.svg'
 import sonarCubeIcon from '../assets/icons/sonarqube.svg'
 import nginxIcon from '../assets/icons/nginx.svg'
 import Spinner from './ui/Spinner'
+import Icon from './ui/Icon'
+
+interface ServicesProps {
+  onOpenSettings: () => void
+}
 
 interface Container {
   id: string
@@ -36,7 +41,7 @@ const containerIconMapping: Record<string, React.ReactNode> = {
   devwp_sonarqube: <img className="w-10 h-8 object-contain" src={sonarCubeIcon} alt="SonarQube" />
 }
 
-const Services: React.FC = () => {
+const Services: React.FC<ServicesProps> = ({ onOpenSettings }) => {
   const [containers, setContainers] = useState([] as Container[])
   const [loading, setLoading] = useState(true)
   const [restarting, setRestarting] = useState({})
@@ -81,6 +86,16 @@ const Services: React.FC = () => {
 
   return (
     <div className="mr-6 mb-5 rounded-lg">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-seasalt">Services</h2>
+        <button
+          onClick={onOpenSettings}
+          className="bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 flex items-center justify-center text-seasalt-400 hover:text-seasalt transition-colors"
+          title="Settings"
+        >
+          <Icon content="⚙" className="text-lg" />
+        </button>
+      </div>
       <XdebugSwitch />
       {loading ? (
         <div className="flex flex-col items-center">

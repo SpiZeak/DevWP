@@ -15,6 +15,13 @@ export interface SiteConfiguration {
 // Database name for DevWP configuration
 const DEVWP_CONFIG_DB = 'devwp_config'
 
+// Settings interface
+export interface SettingsConfiguration {
+  key: string
+  value: string
+  updatedAt: Date
+}
+
 // Initialize the DevWP configuration database and tables
 export async function initializeConfigDatabase(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -50,10 +57,53 @@ export async function initializeConfigDatabase(): Promise<void> {
         }
 
         console.log('Created/verified sites configuration table')
-        resolve()
+
+        // Create the settings table
+        const createSettingsTableCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
+          CREATE TABLE IF NOT EXISTS settings (
+            key_name VARCHAR(255) PRIMARY KEY,
+            value_text TEXT,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          )"`
+
+        exec(createSettingsTableCmd, (settingsError, _, settingsStderr) => {
+          if (settingsError) {
+            console.error(`Error creating settings table: ${settingsStderr}`)
+            reject(settingsError)
+            return
+          }
+
+          console.log('Created/verified settings configuration table')
+          
+          // Initialize default webroot path if not exists
+          initializeDefaultSettings()
+            .then(() => resolve())
+            .catch(reject)
+        })
       })
     })
   })
+}
+
+// Initialize default settings
+async function initializeDefaultSettings(): Promise<void> {
+  try {
+    // Check if webroot_path setting exists
+    const existingWebrootPath = await getSetting('webroot_path')
+    
+    if (!existingWebrootPath) {
+      // Set default webroot path to $HOME/www
+      const os = await import('os')
+      const path = await import('path')
+      const defaultWebrootPath = path.join(os.homedir(), 'www')
+      
+      await saveSetting('webroot_path', defaultWebrootPath)
+      console.log(`Initialized default webroot path: ${defaultWebrootPath}`)
+    }
+  } catch (error) {
+    console.warn('Failed to initialize default settings:', error)
+    // Don't reject, just log warning - this is not critical
+  }
 }
 
 // Save site configuration to database
@@ -114,7 +164,6 @@ export async function getAllSiteConfigurations(): Promise<SiteConfiguration[]> {
 
       try {
         const lines = stdout.trim().split('\n')
-        const headers = lines[0].split('\t')
         const sites: SiteConfiguration[] = []
 
         for (let i = 1; i < lines.length; i++) {
@@ -280,5 +329,151 @@ export async function migrateExistingSites(): Promise<void> {
   } catch (error) {
     console.error('Error during site migration:', error)
     throw error
+  }
+}
+
+// Settings functions
+
+// Save a setting to the database
+export async function saveSetting(key: string, value: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const keyEscaped = `'${escapeSqlString(key)}'`
+    const valueEscaped = `'${escapeSqlString(value)}'`
+
+    const insertCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
+      INSERT INTO settings (key_name, value_text)
+      VALUES (${keyEscaped}, ${valueEscaped})
+      ON DUPLICATE KEY UPDATE
+        value_text = VALUES(value_text),
+        updated_at = CURRENT_TIMESTAMP"`
+
+    exec(insertCmd, (error, _, stderr) => {
+      if (error) {
+        console.error(`Error saving setting ${key}: ${stderr}`)
+        reject(error)
+        return
+      }
+
+      console.log(`Saved setting: ${key}`)
+      resolve()
+    })
+  })
+}
+
+// Get a setting from the database
+export async function getSetting(key: string): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    const safeKey = escapeSqlString(key)
+    const selectCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
+      SELECT value_text
+      FROM settings
+      WHERE key_name = '${safeKey}'" --batch --raw`
+
+    exec(selectCmd, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error fetching setting ${key}: ${stderr}`)
+        reject(error)
+        return
+      }
+
+      if (!stdout.trim()) {
+        resolve(null)
+        return
+      }
+
+      try {
+        const lines = stdout.trim().split('\n')
+        if (lines.length < 2) {
+          resolve(null)
+          return
+        }
+
+        resolve(lines[1])
+      } catch (parseError) {
+        console.error(`Error parsing setting ${key}:`, parseError)
+        reject(parseError)
+      }
+    })
+  })
+}
+
+// Get all settings from the database
+export async function getAllSettings(): Promise<Record<string, string>> {
+  return new Promise((resolve, reject) => {
+    const selectCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
+      SELECT key_name, value_text
+      FROM settings
+      ORDER BY key_name ASC" --batch --raw`
+
+    exec(selectCmd, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error fetching all settings: ${stderr}`)
+        reject(error)
+        return
+      }
+
+      if (!stdout.trim()) {
+        resolve({})
+        return
+      }
+
+      try {
+        const lines = stdout.trim().split('\n')
+        const settings: Record<string, string> = {}
+
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split('\t')
+          if (values.length >= 2) {
+            settings[values[0]] = values[1]
+          }
+        }
+
+        resolve(settings)
+      } catch (parseError) {
+        console.error('Error parsing settings:', parseError)
+        reject(parseError)
+      }
+    })
+  })
+}
+
+// Delete a setting from the database
+export async function deleteSetting(key: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const safeKey = escapeSqlString(key)
+    const deleteCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
+      DELETE FROM settings WHERE key_name = '${safeKey}'"`
+
+    exec(deleteCmd, (error, _, stderr) => {
+      if (error) {
+        console.error(`Error deleting setting ${key}: ${stderr}`)
+        reject(error)
+        return
+      }
+
+      console.log(`Deleted setting: ${key}`)
+      resolve()
+    })
+  })
+}
+
+// Get webroot path setting with default fallback
+export async function getWebrootPath(): Promise<string> {
+  try {
+    const setting = await getSetting('webroot_path')
+    if (setting) {
+      return setting
+    }
+    
+    // Default to $HOME/www
+    const os = await import('os')
+    const path = await import('path')
+    return path.join(os.homedir(), 'www')
+  } catch (error) {
+    console.error('Error getting webroot path:', error)
+    // Fallback to $HOME/www if database fails
+    const os = await import('os')
+    const path = await import('path')
+    return path.join(os.homedir(), 'www')
   }
 }
