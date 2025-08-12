@@ -66,7 +66,7 @@ export async function initializeConfigDatabase(): Promise<void> {
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
           )"`
 
-        exec(createSettingsTableCmd, (settingsError, _, settingsStderr) => {
+        exec(createSettingsTableCmd, async (settingsError, _, settingsStderr) => {
           if (settingsError) {
             console.error(`Error creating settings table: ${settingsStderr}`)
             reject(settingsError)
@@ -74,11 +74,15 @@ export async function initializeConfigDatabase(): Promise<void> {
           }
 
           console.log('Created/verified settings configuration table')
-          
+
           // Initialize default webroot path if not exists
-          initializeDefaultSettings()
-            .then(() => resolve())
-            .catch(reject)
+          try {
+            await initializeDefaultSettings()
+            resolve()
+          } catch (error) {
+            console.warn('Failed to initialize default settings, continuing anyway:', error)
+            resolve()
+          }
         })
       })
     })
@@ -90,15 +94,17 @@ async function initializeDefaultSettings(): Promise<void> {
   try {
     // Check if webroot_path setting exists
     const existingWebrootPath = await getSetting('webroot_path')
-    
+
     if (!existingWebrootPath) {
       // Set default webroot path to $HOME/www
       const os = await import('os')
       const path = await import('path')
       const defaultWebrootPath = path.join(os.homedir(), 'www')
-      
+
       await saveSetting('webroot_path', defaultWebrootPath)
-      console.log(`Initialized default webroot path: ${defaultWebrootPath}`)
+      console.log(`✓ Initialized default webroot path: ${defaultWebrootPath}`)
+    } else {
+      console.log(`✓ Webroot path already configured: ${existingWebrootPath}`)
     }
   } catch (error) {
     console.warn('Failed to initialize default settings:', error)
@@ -464,7 +470,7 @@ export async function getWebrootPath(): Promise<string> {
     if (setting) {
       return setting
     }
-    
+
     // Default to $HOME/www
     const os = await import('os')
     const path = await import('path')

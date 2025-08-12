@@ -51,7 +51,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getSetting: (key: string) => ipcRenderer.invoke('get-setting', key),
   saveSetting: (key: string, value: string) => ipcRenderer.invoke('save-setting', key, value),
   deleteSetting: (key: string) => ipcRenderer.invoke('delete-setting', key),
-  getWebrootPath: () => ipcRenderer.invoke('get-webroot-path')
+  getWebrootPath: () => ipcRenderer.invoke('get-webroot-path'),
+  pickDirectory: (defaultPath?: string) => ipcRenderer.invoke('pick-directory', defaultPath)
 })
 
 // Custom APIs for renderer

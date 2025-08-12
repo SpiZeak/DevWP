@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, dialog } from 'electron'
 import {
   saveSetting,
   getSetting,
@@ -60,6 +60,26 @@ export function registerSettingsHandlers(): void {
       const os = await import('os')
       const path = await import('path')
       return path.join(os.homedir(), 'www')
+    }
+  })
+
+  // Open directory picker dialog
+  ipcMain.handle('pick-directory', async (_, defaultPath?: string) => {
+    try {
+      const result = await dialog.showOpenDialog({
+        properties: ['openDirectory'],
+        defaultPath: defaultPath || undefined,
+        title: 'Select Webroot Directory'
+      })
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return null
+      }
+
+      return result.filePaths[0]
+    } catch (error) {
+      console.error('Error opening directory picker:', error)
+      return null
     }
   })
 }

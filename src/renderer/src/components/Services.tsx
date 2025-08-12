@@ -86,11 +86,11 @@ const Services: React.FC<ServicesProps> = ({ onOpenSettings }) => {
 
   return (
     <div className="mr-6 mb-5 rounded-lg">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-seasalt">Services</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="font-semibold text-seasalt text-lg">Services</h2>
         <button
           onClick={onOpenSettings}
-          className="bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 flex items-center justify-center text-seasalt-400 hover:text-seasalt transition-colors"
+          className="flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors"
           title="Settings"
         >
           <Icon content="⚙" className="text-lg" />
