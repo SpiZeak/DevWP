@@ -35,7 +35,7 @@
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@types/react": "^19.1.14",
     "@types/react-dom": "^19.1.9",
-    "@vitejs/plugin-react": "^5.0.3",
+    "@vitejs/plugin-react": "^5.0.4",
     "electron": "^38.1.2",
     "electron-builder": "^26.0.12",
     "electron-devtools-installer": "^4.0.0",
