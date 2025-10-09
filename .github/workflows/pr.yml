@@ -34,6 +34,10 @@ jobs:
         run: bun run typecheck
         timeout-minutes: 3
 
+      - name: Run tests
+        run: bun run test:run
+        timeout-minutes: 5
+
       - name: Run linting
         run: bun run lint -- src/
         continue-on-error: true

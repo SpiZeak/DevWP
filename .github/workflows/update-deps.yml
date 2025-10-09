@@ -26,6 +26,10 @@ jobs:
       - name: Install updated dependencies and generate bun.lock
         run: bun install
 
+      - name: Run tests
+        run: bun run test:run
+        timeout-minutes: 5
+
       - name: Run test build
         run: bun run build
 

@@ -11,3 +11,7 @@ out
 !.gitkeep
 test-database.js
 test-integration.js
+
+# Test coverage
+coverage
+.vitest
