@@ -13,6 +13,12 @@ services:
       - ./config/php/php.ini:/usr/local/etc/php/php.ini:ro
       - ./config/php/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
       - ./config/php/conf.d/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini
+    healthcheck:
+      test: ['CMD-SHELL', 'pidof php-fpm || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   mariadb:
     container_name: devwp_mariadb
@@ -28,6 +34,12 @@ services:
       - '3306:3306'
     command: --bind-address=0.0.0.0 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'mariadb-admin', 'ping', '-h', 'localhost', '-u', 'root', '-proot']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   redis:
     container_name: devwp_redis
@@ -37,6 +49,12 @@ services:
     command: redis-server
     volumes:
       - redis:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   nginx:
     container_name: devwp_nginx
@@ -57,12 +75,22 @@ services:
       - ./config/certs:/certs:ro
       - ./www:/src/www:rw
     depends_on:
-      - php
-      - mariadb
-      - redis
-      - certs
-      - sonarqube
-      - mailpit
+      php:
+        condition: service_healthy
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      certs:
+        condition: service_completed_successfully
+      mailpit:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'nginx', '-t']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   certs:
     container_name: devwp_certs
@@ -81,6 +109,12 @@ services:
       - TZ=Europe/Stockholm
       - MP_SMTP_AUTH_ACCEPT_ANY=1
       - MP_SMTP_AUTH_ALLOW_INSECURE=1
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:8025/api/v1/info']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   sonarqube:
     container_name: devwp_sonarqube
@@ -93,6 +127,20 @@ services:
       - 9000
     ports:
       - '9000:9000'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'wget',
+          '--quiet',
+          '--tries=1',
+          '--spider',
+          'http://localhost:9000/api/system/status'
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
 
   sonarqube-scanner:
     container_name: devwp_sonarqube-scanner
@@ -100,7 +148,8 @@ services:
     volumes:
       - ./www:/usr/src:r
     depends_on:
-      - sonarqube
+      sonarqube:
+        condition: service_healthy
     environment:
       - SONAR_TOKEN=${SONAR_TOKEN:-}
     # Example entrypoint for manual token-based scanning:
@@ -119,13 +168,22 @@ services:
     ports:
       - '9001:9001'
     depends_on:
-      - mariadb
+      mariadb:
+        condition: service_healthy
+      sonarqube:
+        condition: service_started
     command: sh -c "/bin/wait && /app/seonaut"
     environment:
       - WAIT_HOSTS=mariadb:3306
       - WAIT_TIMEOUT=300
       - WAIT_SLEEP_INTERVAL=30
       - WAIT_HOST_CONNECT_TIMEOUT=30
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:9001']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 volumes:
   mariadb:
   redis:

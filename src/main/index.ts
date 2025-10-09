@@ -82,6 +82,8 @@ app.whenReady().then(async () => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  console.log('All windows closed, shutting down...')
+
   // Stop container monitoring
   stopContainerMonitoring()
 

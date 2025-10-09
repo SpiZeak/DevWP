@@ -6,10 +6,17 @@ import {
   scanSiteWithSonarQube,
   updateSite
 } from '../services/site'
+import { SiteConfigSchema } from '../validation/schemas'
+import { logger, logError } from '../services/logger'
 
 export function registerSiteHandlers(): void {
   ipcMain.handle('get-sites', async () => {
-    return getSites()
+    try {
+      return await getSites()
+    } catch (error) {
+      logError('get-sites', error as Error)
+      throw error
+    }
   })
 
   ipcMain.handle(
@@ -24,22 +31,52 @@ export function registerSiteHandlers(): void {
         }
       }
     ) => {
-      return createSite(site)
+      try {
+        // Validate input data
+        const validatedData = SiteConfigSchema.parse(site)
+
+        // Transform to match createSite expected type
+        const siteData = {
+          domain: validatedData.domain,
+          webRoot: validatedData.webRoot,
+          aliases: validatedData.aliases,
+          multisite: validatedData.multisite?.enabled
+            ? {
+                enabled: validatedData.multisite.enabled,
+                type: validatedData.multisite.type || 'subdomain'
+              }
+            : undefined
+        }
+
+        return await createSite(siteData)
+      } catch (error) {
+        logError('create-site', error as Error, { domain: site.domain })
+        throw error
+      }
     }
   )
 
   ipcMain.handle('delete-site', async (_, site) => {
-    return deleteSite(site)
+    try {
+      return await deleteSite(site)
+    } catch (error) {
+      logError('delete-site', error as Error, { site })
+      throw error
+    }
   })
 
   ipcMain.handle('update-site', async (_, site, updateData) => {
-    console.log('IPC: update-site called with:', { site, updateData })
+    logger.info('IPC: update-site called', { site, updateData })
     try {
-      await updateSite(site, updateData)
-      console.log('IPC: updateSite completed successfully')
+      // Validate update data
+      const updateSchema = SiteConfigSchema.partial()
+      const validatedData = updateSchema.parse(updateData)
+
+      await updateSite(site, validatedData)
+      logger.info('IPC: updateSite completed successfully')
       return { success: true }
     } catch (error) {
-      console.error('IPC: updateSite failed:', error)
+      logError('update-site', error as Error, { site })
       throw error
     }
   })
@@ -49,9 +86,10 @@ export function registerSiteHandlers(): void {
     try {
       await scanSiteWithSonarQube(siteDomain)
       return { success: true }
-    } catch (error: any) {
-      console.error(`Error scanning site ${siteDomain} with SonarQube:`, error)
-      return { success: false, error: error.message }
+    } catch (error: unknown) {
+      const err = error as Error
+      logError('scan-site-sonarqube', err, { siteDomain })
+      return { success: false, error: err.message }
     }
   })
 }

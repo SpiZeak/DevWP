@@ -25,6 +25,7 @@ CREATE TABLE sites (
 ## Features
 
 ### Site Configuration Storage
+
 - **Domain**: Primary identifier for the site
 - **Aliases**: Space-separated list of domain aliases
 - **Web Root**: Custom web root directory (e.g., `public`, `dist`)
@@ -32,11 +33,13 @@ CREATE TABLE sites (
 - **Timestamps**: Creation and last update times
 
 ### Backwards Compatibility
+
 - Automatic migration of existing sites from filesystem to database
 - Fallback to filesystem-only mode if database operations fail
 - No breaking changes to existing functionality
 
 ### Database Operations
+
 - **Initialize**: Creates database and table on first run
 - **Save**: Stores/updates site configuration during creation
 - **Get**: Retrieves individual site configuration
@@ -47,6 +50,7 @@ CREATE TABLE sites (
 ## Implementation Details
 
 ### Files Modified
+
 - `src/main/services/database.ts` - New database service module
 - `src/main/services/site.ts` - Updated to use database storage
 - `src/main/index.ts` - Initialize database on startup
@@ -54,6 +58,7 @@ CREATE TABLE sites (
 ### Key Functions
 
 #### Database Service (`database.ts`)
+
 - `initializeConfigDatabase()` - Sets up database and table
 - `saveSiteConfiguration(site)` - Stores site configuration
 - `getAllSiteConfigurations()` - Retrieves all sites from database
@@ -62,6 +67,7 @@ CREATE TABLE sites (
 - `migrateExistingSites()` - Imports filesystem sites to database
 
 #### Site Service Updates (`site.ts`)
+
 - Enhanced `Site` interface with database fields
 - Modified `createSite()` to save configuration to database
 - Updated `getSites()` to read from database with migration
@@ -86,11 +92,14 @@ The database storage is transparent to users. All existing functionality continu
 ## Testing
 
 ### Manual Testing
+
 Two test scripts are provided for verification:
+
 - `test-database.js` - Basic database CRUD operations
 - `test-integration.js` - Site migration and configuration tests
 
 ### Test Commands
+
 ```bash
 # Start MariaDB container
 docker compose up mariadb -d
@@ -98,7 +107,7 @@ docker compose up mariadb -d
 # Run basic database tests
 node test-database.js
 
-# Run integration tests  
+# Run integration tests
 node test-integration.js
 
 # Clean up
@@ -108,6 +117,7 @@ docker compose down
 ## Maintenance
 
 ### Database Access
+
 ```bash
 # Connect to database
 docker exec -it devwp_mariadb mariadb -u root -proot -D devwp_config
@@ -120,7 +130,9 @@ DELETE FROM sites WHERE domain = 'example.test';
 ```
 
 ### Backup/Restore
+
 Site configurations can be backed up using standard MariaDB tools:
+
 ```bash
 # Backup
 docker exec devwp_mariadb mariadb-dump -u root -proot devwp_config > sites_backup.sql
@@ -132,6 +144,7 @@ docker exec -i devwp_mariadb mariadb -u root -proot devwp_config < sites_backup.
 ## Future Enhancements
 
 Potential improvements for the database storage feature:
+
 - API endpoints for external site management
 - Configuration templates and presets
 - Site grouping and categorization
