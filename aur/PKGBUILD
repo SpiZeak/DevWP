@@ -1,0 +1,101 @@
+# Maintainer: Max Trewhitt <max@trewhitt.au>
+pkgname=devwp-bin
+pkgver=0.0.26
+pkgrel=1
+pkgdesc="An Electron-based desktop application for managing local WordPress development sites"
+arch=('x86_64')
+url="https://github.com/SpiZeak/DevWP"
+license=('custom')
+depends=('docker' 'docker-compose' 'gtk3' 'nss' 'alsa-lib')
+optdepends=(
+    'docker-buildx: For building custom Docker images'
+    'git: For version control integration'
+)
+provides=('devwp')
+conflicts=('devwp')
+options=('!strip')
+source=("${pkgname}-${pkgver}.AppImage::${url}/releases/download/v${pkgver}/devwp-${pkgver}.AppImage")
+sha256sums=('aff99a2d3e6174ffbb585066fb83754abdc1d1de89836ff74ac45537b6c93ced')
+noextract=("${pkgname}-${pkgver}.AppImage")
+
+prepare() {
+    chmod +x "${pkgname}-${pkgver}.AppImage"
+    ./"${pkgname}-${pkgver}.AppImage" --appimage-extract
+}
+
+package() {
+    # Install main application files
+    install -dm755 "${pkgdir}/opt/${pkgname}"
+    cp -r squashfs-root/* "${pkgdir}/opt/${pkgname}/"
+
+    # Create wrapper script
+    install -dm755 "${pkgdir}/usr/bin"
+    cat > "${pkgdir}/usr/bin/devwp" << 'EOF'
+#!/bin/bash
+exec /opt/devwp-bin/AppRun "$@"
+EOF
+    chmod +x "${pkgdir}/usr/bin/devwp"
+
+    # Install desktop file
+    # Try to find desktop file in various locations
+    local desktop_file=""
+    if [ -f "squashfs-root/devwp.desktop" ]; then
+        desktop_file="squashfs-root/devwp.desktop"
+    elif [ -f "squashfs-root/usr/share/applications/devwp.desktop" ]; then
+        desktop_file="squashfs-root/usr/share/applications/devwp.desktop"
+    else
+        # Create desktop file if it doesn't exist
+        install -dm755 "${pkgdir}/usr/share/applications"
+        cat > "${pkgdir}/usr/share/applications/devwp.desktop" << 'DESKTOPEOF'
+[Desktop Entry]
+Name=DevWP
+Comment=Local WordPress development environment manager
+Exec=/usr/bin/devwp %U
+Terminal=false
+Type=Application
+Icon=devwp
+StartupWMClass=DevWP
+Categories=Development;Utility;
+DESKTOPEOF
+    fi
+
+    # Install desktop file if found
+    if [ -n "$desktop_file" ]; then
+        install -Dm644 "$desktop_file" \
+            "${pkgdir}/usr/share/applications/devwp.desktop"
+        # Fix Exec path in desktop file
+        sed -i 's|Exec=AppRun|Exec=/usr/bin/devwp|g' \
+            "${pkgdir}/usr/share/applications/devwp.desktop"
+    fi
+
+    # Install icon - try multiple possible locations
+    local icon_installed=false
+
+    # Try standard hicolor locations
+    for size in 16 32 48 64 128 256 512; do
+        if [ -f "squashfs-root/usr/share/icons/hicolor/${size}x${size}/apps/devwp.png" ]; then
+            install -Dm644 "squashfs-root/usr/share/icons/hicolor/${size}x${size}/apps/devwp.png" \
+                "${pkgdir}/usr/share/icons/hicolor/${size}x${size}/apps/devwp.png"
+            icon_installed=true
+        fi
+    done
+
+    # Try to find icon in other common locations if not found
+    if [ "$icon_installed" = false ]; then
+        # Look for any .png file that might be the icon
+        local icon_file=$(find squashfs-root -name "*.png" -type f | head -1)
+        if [ -n "$icon_file" ]; then
+            install -Dm644 "$icon_file" \
+                "${pkgdir}/usr/share/pixmaps/devwp.png"
+        fi
+    fi
+
+    # Install license if available
+    if [ -f "squashfs-root/LICENSE" ]; then
+        install -Dm644 squashfs-root/LICENSE \
+            "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+    elif [ -f "squashfs-root/LICENSE.txt" ]; then
+        install -Dm644 squashfs-root/LICENSE.txt \
+            "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+    fi
+}
