@@ -15,3 +15,6 @@ test-integration.js
 # Test coverage
 coverage
 .vitest
+
+# AUR publishing directory
+aur-publish/

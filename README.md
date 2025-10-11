@@ -23,7 +23,32 @@ A desktop application for simplified local WordPress development using Docker, N
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [Bun](https://bun.sh/)
 
-## Getting Started
+## Installation
+
+### Pre-built Binaries
+
+Download from [GitHub Releases](https://github.com/SpiZeak/DevWP/releases):
+
+- Windows: `devwp-x.x.x-setup.exe`
+- macOS: `devwp-x.x.x.dmg`
+- Linux: `devwp-x.x.x.AppImage`
+
+### Arch Linux (AUR)
+
+```bash
+# Using yay
+yay -S devwp-bin
+
+# Using paru
+paru -S devwp-bin
+
+# Manual installation
+git clone https://aur.archlinux.org/devwp-bin.git
+cd devwp-bin
+makepkg -si
+```
+
+## Development Setup
 
 ```bash
 # Clone and setup
