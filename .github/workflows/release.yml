@@ -41,12 +41,17 @@ jobs:
           elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
             bun run build:linux
           fi
-          # Note: GH_TOKEN is intentionally not set to prevent electron-builder from auto-publishing
-          # The create_release job will handle uploading assets to GitHub
+        env:
+          # GH_TOKEN is required for macOS to generate update metadata files
+          # but publish is disabled in electron-builder.yml to prevent auto-upload
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # For macOS signing, set these secrets if needed:
-          # APPLE_ID, APPLE_ID_PASSWORD, APPLE_TEAM_ID
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           # For Windows signing, set these secrets if needed:
-          # CSC_LINK, CSC_KEY_PASSWORD
+          # CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          # CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
