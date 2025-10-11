@@ -112,5 +112,3 @@ jobs:
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-ld on all three platforms without auto-publishing
-Collect all artifa
