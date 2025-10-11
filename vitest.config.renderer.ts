@@ -5,28 +5,18 @@ import { resolve } from 'path'
 export default defineConfig({
   plugins: [react()],
   test: {
+    name: 'renderer',
     include: ['src/renderer/**/*.{test,spec}.{ts,tsx}'],
     exclude: ['**/node_modules/**', '**/out/**', '**/dist/**'],
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/renderer/src/test/setup.ts'],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/',
-        'out/',
-        'dist/',
-        '**/*.config.{ts,js}',
-        '**/types.ts',
-        '**/*.d.ts',
-        'src/renderer/src/main.tsx'
-      ]
-    }
+    setupFiles: ['./src/renderer/src/test/setup.ts']
   },
   resolve: {
     alias: {
-      '@renderer': resolve(__dirname, 'src/renderer/src')
+      '@renderer': resolve(__dirname, './src/renderer/src'),
+      '@main': resolve(__dirname, './src/main'),
+      '@preload': resolve(__dirname, './src/preload')
     }
   }
 })

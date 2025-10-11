@@ -5,13 +5,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   test: {
-    // Include all test files
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['**/node_modules/**', '**/out/**', '**/dist/**', '**/www/**', '**/config/**'],
+    // Global test configuration
     globals: true,
-    // Use jsdom for renderer tests, node for main process tests
-    environment: 'jsdom',
-    setupFiles: ['./src/renderer/src/test/setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -26,11 +21,25 @@ export default defineConfig({
         'src/preload/index.ts'
       ]
     },
-    // Use workspace config for different test environments
-    environmentMatchGlobs: [
-      ['src/main/**/*.{test,spec}.ts', 'node'],
-      ['src/preload/**/*.{test,spec}.ts', 'node'],
-      ['src/renderer/**/*.{test,spec}.{ts,tsx}', 'jsdom']
+    // Use projects to separate environments
+    projects: [
+      {
+        test: {
+          name: 'main',
+          include: ['src/main/**/*.{test,spec}.ts', 'src/preload/**/*.{test,spec}.ts'],
+          environment: 'node',
+          globals: true
+        }
+      },
+      {
+        test: {
+          name: 'renderer',
+          include: ['src/renderer/**/*.{test,spec}.{ts,tsx}'],
+          environment: 'jsdom',
+          globals: true,
+          setupFiles: ['./src/renderer/src/test/setup.ts']
+        }
+      }
     ]
   },
   resolve: {
