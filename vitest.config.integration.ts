@@ -10,7 +10,8 @@ export default defineConfig({
     environment: 'node',
     testTimeout: 30000, // Longer timeout for Docker operations
     hookTimeout: 30000,
-    setupFiles: ['./src/test/integration-setup.ts']
+    setupFiles: ['./src/test/integration-setup.ts'],
+    passWithNoTests: true // Don't fail if no integration tests exist yet
   },
   resolve: {
     alias: {
