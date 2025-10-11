@@ -19,6 +19,12 @@ bun run test:ui
 
 # Generate coverage report
 bun run test:coverage
+
+# Run integration tests (requires Docker)
+bun run test:integration
+
+# Run all tests (unit + integration)
+bun run test:all
 ```
 
 ## Test Files
@@ -31,15 +37,27 @@ Tests are located alongside the source code:
 
 ## Current Test Coverage
 
-✅ **36 tests passing**
+✅ **107 tests passing** (~1.2 seconds)
 
-- Validation schemas: 19 tests
-- Logger utilities: 13 tests
-- React components: 4 tests
+### Main Process
+
+- **Docker service**: 10 tests - Container management, status parsing
+- **Site service**: 19 tests - Database ops, WordPress setup, multisite
+- **Nginx service**: 9 tests - Config generation, reload commands
+- **Hosts service**: 13 tests - Hosts file management, cross-platform
+- **Logger utilities**: 13 tests - Logging operations
+- **Validation schemas**: 19 tests - Input validation, schema parsing
+- **IPC handlers**: 15 tests - Request validation, error handling
+
+### Renderer
+
+- **SiteList component**: 5 tests - Data structure validation
+- **Versions component**: 4 tests - Version display
 
 ## Documentation
 
-- **Full guide**: [docs/testing.md](./docs/testing.md)
+- **Full testing guide**: [docs/testing-guide.md](./docs/testing-guide.md)
+- **Integration testing**: [docs/integration-testing-guide.md](./docs/integration-testing-guide.md)
 - **Quick reference**: [docs/testing-quick-reference.md](./docs/testing-quick-reference.md)
 - **Setup summary**: [docs/vitest-setup-summary.md](./docs/vitest-setup-summary.md)
 
@@ -77,9 +95,37 @@ describe('MyComponent', () => {
 
 Tests run automatically on:
 
-- Pull requests (`.github/workflows/pr.yml`)
-- Push to master/develop (`.github/workflows/test.yml`)
+- Pull requests to master/develop
+- Push to master/develop
+- Separate jobs for unit tests and integration tests
+
+See [`.github/workflows/tests.yml`](./.github/workflows/tests.yml) for configuration.
+
+## Integration Tests
+
+Integration tests verify interactions with Docker and databases:
+
+```bash
+# Requires Docker Desktop running
+docker --version
+
+# Run integration tests
+bun run test:integration
+
+# Watch mode
+bun run test:integration:watch
+```
+
+Integration tests automatically:
+
+- Start required Docker services (MariaDB)
+- Wait for services to be ready
+- Run tests against real databases
+- Clean up after completion
+- Skip if Docker is unavailable
 
 ## Need Help?
 
-Check the [full testing guide](./docs/testing.md) for detailed examples and troubleshooting.
+Check the [full testing guide](./docs/testing-guide.md) for detailed examples, best practices, and troubleshooting.
+
+For integration testing, see the [integration testing guide](./docs/integration-testing-guide.md).

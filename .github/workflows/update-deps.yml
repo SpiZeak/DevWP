@@ -26,12 +26,34 @@ jobs:
       - name: Install updated dependencies and generate bun.lock
         run: bun install
 
-      - name: Run tests
+      - name: Run unit tests
         run: bun run test:run
+        timeout-minutes: 10
+
+      - name: Generate coverage report
+        run: bun run test:coverage
+        timeout-minutes: 10
+        continue-on-error: true
+
+      - name: Start Docker services for integration tests
+        run: docker compose up -d mariadb
         timeout-minutes: 5
+
+      - name: Wait for MariaDB
+        run: |
+          timeout 30 bash -c 'until docker exec devwp_mariadb mariadb-admin ping -h localhost -u root -proot; do sleep 1; done'
+
+      - name: Run integration tests
+        run: bun run test:integration
+        timeout-minutes: 15
+
+      - name: Stop Docker services
+        if: always()
+        run: docker compose down
 
       - name: Run test build
         run: bun run build
+        timeout-minutes: 10
 
       - name: Commit changes
         id: commit # Add an id to check output later

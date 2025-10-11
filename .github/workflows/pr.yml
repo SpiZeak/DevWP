@@ -34,9 +34,13 @@ jobs:
         run: bun run typecheck
         timeout-minutes: 3
 
-      - name: Run tests
+      - name: Run unit tests
         run: bun run test:run
-        timeout-minutes: 5
+        timeout-minutes: 10
+
+      - name: Generate coverage report
+        run: bun run test:coverage
+        timeout-minutes: 10
 
       - name: Run linting
         run: bun run lint -- src/
@@ -62,6 +66,39 @@ jobs:
             echo "Warning: Found console.log statements. Consider using the logger service."
           fi
         continue-on-error: true
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+        timeout-minutes: 5
+
+      - name: Start Docker services
+        run: docker compose up -d mariadb
+        timeout-minutes: 5
+
+      - name: Wait for MariaDB
+        run: |
+          timeout 30 bash -c 'until docker exec devwp_mariadb mariadb-admin ping -h localhost -u root -proot; do sleep 1; done'
+
+      - name: Run integration tests
+        run: bun run test:integration
+        timeout-minutes: 15
+
+      - name: Stop Docker services
+        if: always()
+        run: docker compose down
 
   test-docker:
     name: Test Docker Configuration
@@ -130,7 +167,7 @@ jobs:
   pr-comment:
     name: Post PR Summary
     runs-on: ubuntu-latest
-    needs: [validate, test-docker, security-check, size-check]
+    needs: [validate, integration-tests, test-docker, security-check, size-check]
     if: always()
 
     steps:
