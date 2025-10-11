@@ -41,15 +41,12 @@ jobs:
           elif [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
             bun run build:linux
           fi
-        env:
-          # For macOS signing, if you set up notarization later
-          # APPLE_ID: ${{ secrets.APPLE_ID }}
-          # APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # For Windows signing, if you set up later
-          # CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
-          # CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # electron-builder might use this
+          # Note: GH_TOKEN is intentionally not set to prevent electron-builder from auto-publishing
+          # The create_release job will handle uploading assets to GitHub
+          # For macOS signing, set these secrets if needed:
+          # APPLE_ID, APPLE_ID_PASSWORD, APPLE_TEAM_ID
+          # For Windows signing, set these secrets if needed:
+          # CSC_LINK, CSC_KEY_PASSWORD
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -75,6 +72,34 @@ jobs:
       - name: List downloaded artifacts (for debugging)
         run: ls -R all-build-artifacts
 
+      - name: Prepare release assets
+        run: |
+          # Create a clean directory for release assets
+          mkdir -p release-assets
+
+          # Copy Windows artifacts (excluding builder-debug.yml)
+          if [ -d "all-build-artifacts/build-artifacts-windows-latest" ]; then
+            find all-build-artifacts/build-artifacts-windows-latest -type f ! -name 'builder-debug.yml' -exec cp {} release-assets/ \;
+          fi
+
+          # Copy macOS artifacts (excluding builder-debug.yml)
+          if [ -d "all-build-artifacts/build-artifacts-macos-latest" ]; then
+            find all-build-artifacts/build-artifacts-macos-latest -type f ! -name 'builder-debug.yml' -exec cp {} release-assets/ \;
+          fi
+
+          # Copy Linux artifacts (excluding builder-debug.yml)
+          if [ -d "all-build-artifacts/build-artifacts-ubuntu-latest" ]; then
+            find all-build-artifacts/build-artifacts-ubuntu-latest -type f ! -name 'builder-debug.yml' -exec cp {} release-assets/ \;
+          fi
+
+          # Keep one builder-debug.yml for reference (from Windows build)
+          if [ -f "all-build-artifacts/build-artifacts-windows-latest/builder-debug.yml" ]; then
+            cp all-build-artifacts/build-artifacts-windows-latest/builder-debug.yml release-assets/
+          fi
+
+          echo "Release assets prepared:"
+          ls -lh release-assets/
+
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
@@ -83,10 +108,9 @@ jobs:
           # body_path: CHANGELOG.md # Optional: Path to a file with release notes
           draft: false
           prerelease: contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') # Mark as pre-release if tag contains -beta or -alpha
-          files: |
-            all-build-artifacts/build-artifacts-windows-latest/*
-            all-build-artifacts/build-artifacts-macos-latest/*
-            all-build-artifacts/build-artifacts-ubuntu-latest/*
+          files: release-assets/*
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ld on all three platforms without auto-publishing
+Collect all artifa
