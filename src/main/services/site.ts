@@ -10,6 +10,7 @@ import {
   getSiteConfiguration,
   deleteSiteConfiguration,
   migrateExistingSites,
+  getWebrootPath,
   type SiteConfiguration
 } from './database'
 
@@ -129,7 +130,8 @@ function createSite(site: {
       const siteDomain = site.domain
       const siteAliases = site.aliases ? site.aliases.split(' ').filter(Boolean) : []
       const allDomains = [siteDomain, ...siteAliases]
-      const siteBasePath = join(process.cwd(), 'www', siteDomain)
+      const webrootBase = await getWebrootPath()
+      const siteBasePath = join(webrootBase, siteDomain)
       const actualWebRootPath = site.webRoot ? join(siteBasePath, site.webRoot) : siteBasePath
       const nginxRootDirective = `/src/www/${siteDomain}${site.webRoot ? '/' + site.webRoot : ''}`
 
@@ -441,20 +443,21 @@ async function clearRedisCache(siteDomain: string): Promise<void> {
 
 function deleteSite(site: { name: string }): Promise<boolean> {
   return new Promise((resolve, reject) => {
-    const sitePath = join(process.cwd(), 'www', site.name)
-
-    let dbName: string
-    try {
-      dbName = sanitizeDatabaseName(site.name)
-    } catch (error: any) {
-      reject(new Error(`Invalid site name: ${error.message}`))
-      return
-    }
-
-    const sonarProjectKey = dbName // Use the same key convention
-
     ;(async () => {
       try {
+        const webrootBase = await getWebrootPath()
+        const sitePath = join(webrootBase, site.name)
+
+        let dbName: string
+        try {
+          dbName = sanitizeDatabaseName(site.name)
+        } catch (error: any) {
+          reject(new Error(`Invalid site name: ${error.message}`))
+          return
+        }
+
+        const sonarProjectKey = dbName // Use the same key convention
+
         // Initialize database if not already done
         await initializeConfigDatabase()
 
@@ -525,7 +528,8 @@ function getSites(): Promise<Site[]> {
         const siteConfigs = await getAllSiteConfigurations()
 
         // Also check filesystem for any sites not in database (fallback)
-        const wwwPath = join(process.cwd(), 'www')
+        const webrootBase = await getWebrootPath()
+        const wwwPath = webrootBase
         let filesystemSites: string[] = []
 
         try {
