@@ -158,11 +158,13 @@ jobs:
       - name: Build and check size
         run: |
           bun run build
-          echo "## Build Output Size" >> $GITHUB_STEP_SUMMARY
-          du -sh out/ >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Detailed Breakdown" >> $GITHUB_STEP_SUMMARY
-          du -sh out/* >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Build Output Size"
+            du -sh out/
+            echo ""
+            echo "### Detailed Breakdown"
+            du -sh out/*
+          } >> "$GITHUB_STEP_SUMMARY"
 
   pr-comment:
     name: Post PR Summary
