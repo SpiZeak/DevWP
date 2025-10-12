@@ -1,0 +1,180 @@
+name: Deploy to AUR
+
+on:
+  release:
+    types: [published] # Trigger after a release is published
+  workflow_dispatch: # Allow manual triggering
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., 0.0.27)'
+        required: true
+        type: string
+
+permissions:
+  contents: read # Only need to read releases
+
+jobs:
+  deploy-aur:
+    name: Update AUR Package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
+          else
+            # Extract version from tag (remove 'v' prefix)
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Deploying version: $VERSION"
+
+      - name: Download AppImage from release
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+
+          # Download the AppImage from the GitHub release
+          curl -L -o devwp-${VERSION}.AppImage \
+            "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/devwp-${VERSION}.AppImage"
+
+          # Verify the file was downloaded
+          if [[ ! -f "devwp-${VERSION}.AppImage" ]]; then
+            echo "Error: Failed to download AppImage"
+            exit 1
+          fi
+
+          ls -lh devwp-${VERSION}.AppImage
+
+      - name: Calculate checksums
+        id: checksums
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+
+          # Calculate SHA256 checksum
+          SHA256=$(sha256sum "devwp-${VERSION}.AppImage" | awk '{print $1}')
+          echo "SHA256=$SHA256" >> $GITHUB_OUTPUT
+          echo "AppImage SHA256: $SHA256"
+
+      - name: Setup SSH for AUR
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          # Add AUR SSH key
+          echo "${{ secrets.AUR_SSH_PRIVATE_KEY }}" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+
+          # Add AUR to known hosts
+          ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts
+
+          # Configure SSH to use the AUR key
+          cat >> ~/.ssh/config << EOF
+          Host aur.archlinux.org
+            IdentityFile ~/.ssh/aur
+            User aur
+          EOF
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "${{ secrets.AUR_USERNAME || 'DevWP Bot' }}"
+          git config --global user.email "${{ secrets.AUR_EMAIL || 'devwp-bot@users.noreply.github.com' }}"
+
+      - name: Clone AUR repository
+        run: |
+          git clone ssh://aur@aur.archlinux.org/devwp-bin.git aur-repo
+          cd aur-repo
+          ls -la
+
+      - name: Update PKGBUILD
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          SHA256="${{ steps.checksums.outputs.SHA256 }}"
+
+          cd aur-repo
+
+          # Update pkgver
+          sed -i "s/^pkgver=.*/pkgver=${VERSION}/" PKGBUILD
+
+          # Reset pkgrel to 1 for new version
+          sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
+
+          # Update sha256sum
+          sed -i "s/sha256sums=('[^']*'/sha256sums=('${SHA256}'/" PKGBUILD
+
+          # Show the changes
+          echo "Updated PKGBUILD:"
+          cat PKGBUILD
+
+      - name: Update .SRCINFO
+        run: |
+          cd aur-repo
+
+          # Install tools needed to generate .SRCINFO
+          sudo pacman -Sy --noconfirm binutils fakeroot
+
+          # Generate .SRCINFO from PKGBUILD
+          makepkg --printsrcinfo > .SRCINFO
+
+          echo "Updated .SRCINFO:"
+          cat .SRCINFO
+
+      - name: Commit and push to AUR
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+
+          cd aur-repo
+
+          # Add changes
+          git add PKGBUILD .SRCINFO
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          # Commit
+          git commit -m "Update to version ${VERSION}"
+
+          # Push to AUR
+          git push origin master
+
+      - name: Create deployment summary
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          SHA256="${{ steps.checksums.outputs.SHA256 }}"
+
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # AUR Deployment Complete ✅
+
+          **Version:** ${VERSION}
+          **Package:** devwp-bin
+          **AppImage SHA256:** \`${SHA256}\`
+
+          ## Next Steps
+
+          The package has been pushed to AUR. Users can install it with:
+
+          \`\`\`bash
+          yay -S devwp-bin
+          # or
+          paru -S devwp-bin
+          \`\`\`
+
+          ## Verification
+
+          Check the AUR page: https://aur.archlinux.org/packages/devwp-bin
+          EOF
+
+      - name: Cleanup
+        if: always()
+        run: |
+          # Remove SSH keys
+          rm -f ~/.ssh/aur
+          rm -rf aur-repo
