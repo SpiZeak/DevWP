@@ -32,7 +32,7 @@ jobs:
             VERSION="${{ github.event.release.tag_name }}"
             VERSION="${VERSION#v}"
           fi
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Deploying version: $VERSION"
 
       - name: Download AppImage from release
@@ -58,7 +58,7 @@ jobs:
 
           # Calculate SHA256 checksum
           SHA256=$(sha256sum "devwp-${VERSION}.AppImage" | awk '{print $1}')
-          echo "SHA256=$SHA256" >> $GITHUB_OUTPUT
+          echo "SHA256=$SHA256" >> "$GITHUB_OUTPUT"
           echo "AppImage SHA256: $SHA256"
 
       - name: Setup SSH for AUR
@@ -150,7 +150,7 @@ jobs:
           VERSION="${{ steps.version.outputs.VERSION }}"
           SHA256="${{ steps.checksums.outputs.SHA256 }}"
 
-          cat >> $GITHUB_STEP_SUMMARY << EOF
+          cat >> "$GITHUB_STEP_SUMMARY" << EOF
           # AUR Deployment Complete ✅
 
           **Version:** ${VERSION}
