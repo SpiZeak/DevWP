@@ -2,7 +2,7 @@ name: Deploy to AUR
 
 on:
   release:
-    types: [published] # Trigger after a release is published
+    types: [published, released] # Trigger after a release is published or released
   workflow_dispatch: # Allow manual triggering
     inputs:
       version:
@@ -105,7 +105,7 @@ jobs:
           sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
 
           # Update sha256sum
-          sed -i "s/sha256sums=('[^']*'/sha256sums=('${SHA256}'/" PKGBUILD
+          sed -i "s/sha256sums=('[^']*')/sha256sums=('${SHA256}')/" PKGBUILD
 
           # Show the changes
           echo "Updated PKGBUILD:"
