@@ -160,10 +160,10 @@ jobs:
           bun run build
           {
             echo "## Build Output Size"
-            du -sh out/
+            du -sh out/ || echo "N/A"
             echo ""
             echo "### Detailed Breakdown"
-            du -sh out/*
+            du -sh out/* 2>/dev/null || echo "No files in output directory"
           } >> "$GITHUB_STEP_SUMMARY"
 
   pr-comment:
