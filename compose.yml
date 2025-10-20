@@ -22,7 +22,7 @@ services:
 
   mariadb:
     container_name: devwp_mariadb
-    image: mariadb:12.0-rc
+    image: mariadb:latest
     environment:
       MARIADB_ROOT_HOST: '%'
       MARIADB_ROOT_PASSWORD: root
