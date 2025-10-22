@@ -39,9 +39,6 @@ Download from [GitHub Releases](https://github.com/SpiZeak/DevWP/releases):
 # Using yay
 yay -S devwp-bin
 
-# Using paru
-paru -S devwp-bin
-
 # Manual installation
 git clone https://aur.archlinux.org/devwp-bin.git
 cd devwp-bin
