@@ -1,0 +1,17 @@
+# Ignore build artifacts
+*.AppImage
+*.tar.gz
+*.tar.xz
+src/
+pkg/
+*.pkg.tar.zst
+*.pkg.tar.xz
+
+# Ignore downloaded files
+*.sig
+
+# Keep the core package files
+!PKGBUILD
+!.SRCINFO
+!README.md
+!*.sh

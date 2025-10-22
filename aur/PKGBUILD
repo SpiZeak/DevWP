@@ -1,7 +1,7 @@
 # Maintainer: Max Trewhitt <max@trewhitt.au>
 pkgname=devwp-bin
 pkgver=0.0.26
-pkgrel=1
+pkgrel=2
 pkgdesc="An Electron-based desktop application for managing local WordPress development sites"
 arch=('x86_64')
 url="https://github.com/SpiZeak/DevWP"
@@ -14,13 +14,25 @@ optdepends=(
 provides=('devwp')
 conflicts=('devwp')
 options=('!strip')
-source=("${pkgname}-${pkgver}.AppImage::${url}/releases/download/v${pkgver}/devwp-${pkgver}.AppImage")
+install=devwp-bin.install
+source=(
+    "${pkgname}-${pkgver}.AppImage::${url}/releases/download/v${pkgver}/devwp-${pkgver}.AppImage"
+    "${pkgname}-${pkgver}-compose.yml::${url}/raw/v${pkgver}/compose.yml"
+    "${pkgname}-${pkgver}-config.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz"
+)
 sha256sums=('aff99a2d3e6174ffbb585066fb83754abdc1d1de89836ff74ac45537b6c93ced')
+    '95f43bb7ec9ff8e128b569d580f31d66864455f47f6fd5ee8244557d333b5818'
+    'SKIP'
+    'SKIP'
+)
 noextract=("${pkgname}-${pkgver}.AppImage")
 
 prepare() {
     chmod +x "${pkgname}-${pkgver}.AppImage"
     ./"${pkgname}-${pkgver}.AppImage" --appimage-extract
+
+    # Extract the config files from the source tarball
+    tar -xzf "${pkgname}-${pkgver}-config.tar.gz" "DevWP-${pkgver}/config" --strip-components=1
 }
 
 package() {
@@ -28,11 +40,38 @@ package() {
     install -dm755 "${pkgdir}/opt/${pkgname}"
     cp -r squashfs-root/* "${pkgdir}/opt/${pkgname}/"
 
-    # Create wrapper script
+    # Fix permissions on resources directory and contents
+    # The AppImage extracts with restrictive permissions that prevent normal users from running the app
+    chmod 755 "${pkgdir}/opt/${pkgname}/resources"
+    if [ -d "${pkgdir}/opt/${pkgname}/resources/app.asar.unpacked" ]; then
+        find "${pkgdir}/opt/${pkgname}/resources/app.asar.unpacked" -type d -exec chmod 755 {} \;
+        find "${pkgdir}/opt/${pkgname}/resources/app.asar.unpacked" -type f -exec chmod 644 {} \;
+    fi
+
+    # Install Docker Compose configuration
+    install -Dm644 "${pkgname}-${pkgver}-compose.yml" \
+        "${pkgdir}/opt/${pkgname}/compose.yml"
+
+    # Install config directory and all subdirectories
+    install -dm755 "${pkgdir}/opt/${pkgname}/config"
+    cp -r config/* "${pkgdir}/opt/${pkgname}/config/"
+
+    # Ensure certs directory exists (Docker certs service will populate it)
+    # Must be writable by Docker containers
+    install -dm777 "${pkgdir}/opt/${pkgname}/config/certs"
+
+    # Create www directory for WordPress sites (must be writable)
+    install -dm777 "${pkgdir}/opt/${pkgname}/www"
+    install -Dm644 /dev/null "${pkgdir}/opt/${pkgname}/www/.gitkeep"
+
+    # Create wrapper script with necessary Electron flags
     install -dm755 "${pkgdir}/usr/bin"
     cat > "${pkgdir}/usr/bin/devwp" << 'EOF'
 #!/bin/bash
-exec /opt/devwp-bin/AppRun "$@"
+# DevWP needs to run from its installation directory to find compose.yml and config files
+export APPDIR=/opt/devwp-bin
+cd "$APPDIR" || exit 1
+exec "$APPDIR/DevWP" --no-sandbox "$@"
 EOF
     chmod +x "${pkgdir}/usr/bin/devwp"
 
