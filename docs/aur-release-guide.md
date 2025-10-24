@@ -38,7 +38,7 @@ Edit `PKGBUILD` and replace the maintainer line:
 
 ```bash
 # Download the latest release AppImage
-VERSION=0.0.25
+VERSION=0.0.27
 wget "https://github.com/SpiZeak/DevWP/releases/download/v${VERSION}/devwp-${VERSION}.AppImage"
 
 # Calculate checksum
@@ -69,7 +69,7 @@ makepkg --printsrcinfo > .SRCINFO
 
 # Commit and push
 git add PKGBUILD .SRCINFO
-git commit -m "Initial commit: devwp-bin 0.0.25"
+git commit -m "Initial commit: devwp-bin 0.0.27"
 git push origin master
 ```
 

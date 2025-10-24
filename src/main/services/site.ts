@@ -116,7 +116,9 @@ async function installWordPress(
   })
 }
 
-function createSite(site: {
+type CleanupTask = () => Promise<void> | void
+
+async function createSite(site: {
   domain: string
   webRoot?: string
   aliases?: string
@@ -125,145 +127,126 @@ function createSite(site: {
     type: 'subdomain' | 'subdirectory'
   }
 }): Promise<boolean> {
-  return new Promise((resolve, reject) => {
-    ;(async () => {
-      const siteDomain = site.domain
-      const siteAliases = site.aliases ? site.aliases.split(' ').filter(Boolean) : []
-      const allDomains = [siteDomain, ...siteAliases]
-      const webrootBase = await getWebrootPath()
-      const siteBasePath = join(webrootBase, siteDomain)
-      const actualWebRootPath = site.webRoot ? join(siteBasePath, site.webRoot) : siteBasePath
-      const nginxRootDirective = `/src/www/${siteDomain}${site.webRoot ? '/' + site.webRoot : ''}`
+  const siteDomain = site.domain
+  const siteAliases = site.aliases ? site.aliases.split(' ').filter(Boolean) : []
+  const allDomains = [siteDomain, ...siteAliases]
+  const webrootBase = await getWebrootPath()
+  const siteBasePath = join(webrootBase, siteDomain)
+  const actualWebRootPath = site.webRoot ? join(siteBasePath, site.webRoot) : siteBasePath
+  const nginxRootDirective = `/src/www/${siteDomain}${site.webRoot ? '/' + site.webRoot : ''}`
 
-      let dbName: string
+  let dbName: string
+  try {
+    dbName = sanitizeDatabaseName(siteDomain)
+  } catch (error: any) {
+    throw new Error(`Invalid site domain: ${error.message}`)
+  }
+
+  const sonarProjectKey = dbName
+  const sonarProjectName = siteDomain
+  const cleanupTasks: CleanupTask[] = []
+
+  const runCleanup = async (): Promise<void> => {
+    const tasks = [...cleanupTasks].reverse()
+    for (const task of tasks) {
       try {
-        dbName = sanitizeDatabaseName(siteDomain)
-      } catch (error: any) {
-        reject(new Error(`Invalid site domain: ${error.message}`))
-        return
+        await task()
+      } catch (cleanupError: any) {
+        console.error(`Cleanup step failed for ${siteDomain}:`, cleanupError)
       }
+    }
+  }
 
-      const sonarProjectKey = dbName
-      const sonarProjectName = siteDomain
+  try {
+    await initializeConfigDatabase()
 
-      try {
-        // Initialize database if not already done
-        await initializeConfigDatabase()
+    const existingSite = await getSiteConfiguration(siteDomain)
+    if (existingSite) {
+      throw new Error(`Site '${siteDomain}' already exists in configuration.`)
+    }
 
-        // Check if the site already exists in database
-        const existingSite = await getSiteConfiguration(siteDomain)
-        if (existingSite) {
-          reject(new Error(`Site '${siteDomain}' already exists in configuration.`))
-          return
-        }
-
-        // Check if the base directory already exists
-        await fs.access(siteBasePath, constants.F_OK)
-        // If access doesn't throw, the directory exists
-        reject(new Error(`Site directory '${siteBasePath}' already exists.`))
-        return // Stop execution
-      } catch (error: any) {
-        // If the error code is ENOENT, the directory doesn't exist, which is expected
-        if (error.code !== 'ENOENT') {
-          // For any other error during access check, reject
-          console.error(`Error checking site directory:`, error)
-          reject(`Error checking site directory: ${error.message}`)
-          return
-        }
-        // Directory does not exist, proceed to create it
-        console.log(`Site directory ${siteBasePath} does not exist. Creating...`)
+    try {
+      await fs.access(siteBasePath, constants.F_OK)
+      throw new Error(`Site directory '${siteBasePath}' already exists.`)
+    } catch (error: any) {
+      if (error.code && error.code !== 'ENOENT') {
+        console.error(`Error checking site directory for ${siteDomain}:`, error)
+        throw new Error(`Error checking site directory: ${error.message}`)
       }
+      console.log(`Site directory ${siteBasePath} does not exist. Creating...`)
+    }
 
-      // Directory doesn't exist, proceed with creation and setup
-      try {
-        // Create the actual web root path, which includes base path
-        // fs.mkdir with recursive will create parent directories if they don't exist.
-        await fs.mkdir(actualWebRootPath, { recursive: true })
-        console.log(`Created directory structure: ${actualWebRootPath}`)
+    await fs.mkdir(actualWebRootPath, { recursive: true })
+    console.log(`Created directory structure: ${actualWebRootPath}`)
+    cleanupTasks.push(async () => {
+      await fs.rm(siteBasePath, { recursive: true, force: true })
+      console.log(`Removed directory structure during cleanup: ${siteBasePath}`)
+    })
 
-        // Proceed with the rest of the site setup
-        for (const domain of allDomains) {
-          await modifyHostsFile(domain, 'add')
-        }
-        await generateNginxConfig(siteDomain, nginxRootDirective, site.aliases, site.multisite)
-        await createDatabase(dbName)
-        await installWordPress(siteDomain, dbName, site.webRoot) // Attempt WP install
-
-        // Convert to multisite if enabled
-        if (site.multisite?.enabled) {
-          await convertToMultisite(siteDomain, site.multisite, site.webRoot)
-        }
-
-        // Save site configuration to database
-        const siteConfig: SiteConfiguration = {
-          domain: siteDomain,
-          aliases: site.aliases,
-          webRoot: site.webRoot,
-          multisite: site.multisite,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-        await saveSiteConfiguration(siteConfig)
-        console.log(`Saved site configuration to database: ${siteDomain}`)
-
-        // Attempt to create SonarQube project
+    const addedHosts: string[] = []
+    for (const domain of allDomains) {
+      await modifyHostsFile(domain, 'add')
+      addedHosts.push(domain)
+    }
+    cleanupTasks.push(async () => {
+      for (const domain of addedHosts) {
         try {
-          await createSonarQubeProject(sonarProjectName, sonarProjectKey)
-        } catch (sonarError: any) {
-          console.warn(
-            `Failed to create SonarQube project for ${site.domain}: ${sonarError.message}`
-          )
-          // Log the error but don't fail the site creation
-        }
-
-        resolve(true)
-      } catch (setupError: any) {
-        // Catch errors during setup
-        // Handle WordPress installation failure or other setup errors
-        if (
-          setupError.message.includes('installWordPress') ||
-          setupError.message.includes('multisite-convert')
-        ) {
-          // Check if it's a WP install or multisite conversion error specifically if needed
-          console.warn(`WordPress setup failed: ${setupError}. Creating basic site instead.`)
-          try {
-            await generateIndexHtml(siteDomain, siteBasePath, dbName, site.webRoot)
-
-            // Save site configuration to database even if WP install failed
-            await saveSiteConfiguration({
-              domain: siteDomain,
-              aliases: site.aliases,
-              webRoot: site.webRoot,
-              multisite: site.multisite,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            })
-
-            // Attempt to create SonarQube project even if WP install failed
-            try {
-              await createSonarQubeProject(sonarProjectName, sonarProjectKey)
-            } catch (sonarError: any) {
-              console.warn(
-                `Failed to create SonarQube project for ${site.domain} after WP failure: ${sonarError.message}`
-              )
-              // Log the error but don't fail the site creation
-            }
-
-            resolve(true) // Resolve even if WP setup failed but index.html was created
-          } catch (htmlError: any) {
-            reject(`Error setting up site after WP failure: ${htmlError.message}`)
-          }
-        } else {
-          // Handle other setup errors (mkdir, hosts, nginx, db, etc.)
-          console.error(`Error setting up site:`, setupError)
-          // Attempt cleanup? (Optional, depends on desired behavior)
-          // e.g., await fs.rm(siteBasePath, { recursive: true, force: true });
-          //      await modifyHostsFile(site.domain, 'remove'); ... etc.
-          reject(`Error setting up site: ${setupError.message}`)
+          await modifyHostsFile(domain, 'remove')
+        } catch (hostsError) {
+          console.error(`Failed to rollback hosts entry for ${domain}:`, hostsError)
         }
       }
-    })()
-  })
+    })
+
+    await generateNginxConfig(siteDomain, nginxRootDirective, site.aliases, site.multisite)
+    cleanupTasks.push(async () => {
+      try {
+        await removeNginxConfig(siteDomain)
+      } catch (nginxError) {
+        console.error(`Failed to rollback Nginx config for ${siteDomain}:`, nginxError)
+      }
+    })
+
+    await createDatabase(dbName)
+    cleanupTasks.push(async () => {
+      try {
+        await dropDatabase(dbName)
+      } catch (dbError) {
+        console.error(`Failed to drop database ${dbName} during cleanup:`, dbError)
+      }
+    })
+
+    await installWordPress(siteDomain, dbName, site.webRoot)
+
+    if (site.multisite?.enabled) {
+      await convertToMultisite(siteDomain, site.multisite, site.webRoot)
+    }
+
+    const siteConfig: SiteConfiguration = {
+      domain: siteDomain,
+      aliases: site.aliases,
+      webRoot: site.webRoot,
+      multisite: site.multisite,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+    await saveSiteConfiguration(siteConfig)
+    console.log(`Saved site configuration to database: ${siteDomain}`)
+
+    cleanupTasks.length = 0 // Successful completion, no cleanup required
+
+    try {
+      await createSonarQubeProject(sonarProjectName, sonarProjectKey)
+    } catch (sonarError: any) {
+      console.warn(`Failed to create SonarQube project for ${site.domain}: ${sonarError.message}`)
+    }
+
+    return true
+  } catch (error: any) {
+    await runCleanup()
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Site provisioning failed: ${message}`)
+  }
 }
 
 // Create a database for the site

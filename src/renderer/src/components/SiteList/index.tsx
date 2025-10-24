@@ -50,21 +50,40 @@ const SiteList: React.FC = () => {
   }
 
   const handleSubmitNewSite = async (newSiteData: NewSiteData): Promise<void> => {
-    setSites([
-      {
-        name: newSiteData.domain,
-        path: `www/${newSiteData.domain}`, // Base path remains the same for display
-        url: `https://${newSiteData.domain}`,
-        status: 'provisioning'
-      },
-      ...sites
+    const provisionalSite: Site = {
+      name: newSiteData.domain,
+      path: `www/${newSiteData.domain}`,
+      url: `https://${newSiteData.domain}`,
+      status: 'provisioning'
+    }
+
+    setSites((prevSites) => [
+      provisionalSite,
+      ...prevSites.filter(
+        (existingSite) =>
+          !(
+            existingSite.name === newSiteData.domain &&
+            existingSite.status &&
+            existingSite.status === 'provisioning'
+          )
+      )
     ])
 
     try {
-      window.electronAPI.createSite(newSiteData).then(fetchSites)
+      await window.electronAPI.createSite(newSiteData)
+      await fetchSites()
       setIsModalOpen(false)
     } catch (error) {
       console.error('Failed to create new site:', error)
+      setSites((prevSites) =>
+        prevSites.filter(
+          (site) => !(site.name === newSiteData.domain && site.status === 'provisioning')
+        )
+      )
+      await fetchSites()
+
+      const message = error instanceof Error ? error.message : 'An unexpected error occurred.'
+      alert(`Provisioning failed for ${newSiteData.domain}: ${message}`)
     }
   }
 
@@ -247,7 +266,7 @@ const SiteList: React.FC = () => {
     <div className="w-full">
       <div className="flex justify-between items-center mb-6 w-full">
         <div className="flex items-center gap-3">
-          <div className="flex justify-center items-center bg-gradient-to-br from-gunmetal-700 to-gunmetal-600 rounded-lg w-8 h-8">
+          <div className="flex justify-center items-center bg-linear-to-br from-gunmetal-700 to-gunmetal-600 rounded-lg w-8 h-8">
             <Icon className="text-warm-charcoal text-lg" content="󰌨" />
           </div>
           <h3 className="font-bold text-seasalt text-2xl">Sites</h3>
@@ -381,7 +400,7 @@ const SiteList: React.FC = () => {
         {(scrollBar.visible || isScrolling || (!scrollBar.visible && barEverShown)) &&
           scrollBar.height > 0 && (
             <div
-              className={`absolute right-2 w-1 rounded-full bg-gradient-to-b from-pumpkin to-pumpkin-600 z-10 transition-all duration-200 ${scrollBar.visible || isScrolling ? 'opacity-80' : 'opacity-0'}`}
+              className={`absolute right-2 w-1 rounded-full bg-linear-to-b from-pumpkin to-pumpkin-600 z-10 transition-all duration-200 ${scrollBar.visible || isScrolling ? 'opacity-80' : 'opacity-0'}`}
               style={{
                 top: scrollBar.top,
                 height: scrollBar.height

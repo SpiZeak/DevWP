@@ -9,7 +9,7 @@ services:
     expose:
       - 9000
     volumes:
-      - ./www:/src/www:rw
+      - ~/www:/src/www:rw
       - ./config/php/php.ini:/usr/local/etc/php/php.ini:ro
       - ./config/php/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
       - ./config/php/conf.d/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini
@@ -73,7 +73,7 @@ services:
       - ./config/nginx/conf.d/:/etc/nginx/conf.d/:ro
       - ./config/nginx/sites-enabled/:/etc/nginx/sites-enabled/:rw
       - ./config/certs:/certs:ro
-      - ./www:/src/www:rw
+      - ~/www:/src/www:rw
     depends_on:
       php:
         condition: service_healthy
@@ -146,7 +146,7 @@ services:
     container_name: devwp_sonarqube-scanner
     image: sonarsource/sonar-scanner-cli:latest
     volumes:
-      - ./www:/usr/src:r
+      - ~/www:/usr/src:r
     depends_on:
       sonarqube:
         condition: service_healthy

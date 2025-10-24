@@ -5,7 +5,6 @@ directories:
 files:
   - 'out/**/*'
   - 'package.json'
-  - '!www/**/*'
   - '!config/**/*'
   - '!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}'
   - '!.editorconfig'

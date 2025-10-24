@@ -66,7 +66,7 @@ describe('Xdebug Service', () => {
     it('should return true when Xdebug is enabled', async () => {
       const mockContent = 'xdebug.mode = develop,debug\n'
       ;(fs.readFile as Mock).mockResolvedValue(mockContent)
-      ;(database.saveSetting as Mock).mockResolvedValue()
+      ;(database.saveSetting as Mock).mockResolvedValue(undefined)
 
       const status = await xdebugService.getXdebugStatus()
 
@@ -78,7 +78,7 @@ describe('Xdebug Service', () => {
     it('should return false when Xdebug is disabled', async () => {
       const mockContent = 'xdebug.mode = off\n'
       ;(fs.readFile as Mock).mockResolvedValue(mockContent)
-      ;(database.saveSetting as Mock).mockResolvedValue()
+      ;(database.saveSetting as Mock).mockResolvedValue(undefined)
 
       const status = await xdebugService.getXdebugStatus()
 
@@ -90,7 +90,7 @@ describe('Xdebug Service', () => {
       const error = new Error('File not found') as NodeJS.ErrnoException
       error.code = 'ENOENT'
       ;(fs.readFile as Mock).mockRejectedValue(error)
-      ;(database.saveSetting as Mock).mockResolvedValue()
+      ;(database.saveSetting as Mock).mockResolvedValue(undefined)
 
       const status = await xdebugService.getXdebugStatus()
 
@@ -111,7 +111,7 @@ describe('Xdebug Service', () => {
     it('should ignore commented lines when checking status', async () => {
       const mockContent = ';xdebug.mode = off\nxdebug.mode = develop,debug\n'
       ;(fs.readFile as Mock).mockResolvedValue(mockContent)
-      ;(database.saveSetting as Mock).mockResolvedValue()
+      ;(database.saveSetting as Mock).mockResolvedValue(undefined)
 
       const status = await xdebugService.getXdebugStatus()
 
@@ -153,8 +153,8 @@ describe('Xdebug Service', () => {
         .mockResolvedValueOnce(mockContent) // Initial read for status check
         .mockResolvedValueOnce(mockContent) // Read before toggle
         .mockResolvedValueOnce('xdebug.mode = develop,debug\n') // Read after toggle
-      ;(fs.writeFile as Mock).mockResolvedValue()
-      ;(database.saveSetting as Mock).mockResolvedValue()
+      ;(fs.writeFile as Mock).mockResolvedValue(undefined)
+      ;(database.saveSetting as Mock).mockResolvedValue(undefined)
 
       // Mock spawn success
       mockSpawnProcess.on.mockImplementation((event: string, callback: (code: number) => void) => {
@@ -190,8 +190,8 @@ describe('Xdebug Service', () => {
         .mockResolvedValueOnce(mockContent) // Initial read for status check
         .mockResolvedValueOnce(mockContent) // Read before toggle
         .mockResolvedValueOnce('xdebug.mode = off\n') // Read after toggle
-      ;(fs.writeFile as Mock).mockResolvedValue()
-      ;(database.saveSetting as Mock).mockResolvedValue()
+      ;(fs.writeFile as Mock).mockResolvedValue(undefined)
+      ;(database.saveSetting as Mock).mockResolvedValue(undefined)
 
       mockSpawnProcess.on.mockImplementation((event: string, callback: (code: number) => void) => {
         if (event === 'close') {
@@ -231,7 +231,7 @@ describe('Xdebug Service', () => {
     it('should handle Docker restart failures', async () => {
       const mockContent = 'xdebug.mode = off\n'
       ;(fs.readFile as Mock).mockResolvedValue(mockContent)
-      ;(fs.writeFile as Mock).mockResolvedValue()
+      ;(fs.writeFile as Mock).mockResolvedValue(undefined)
 
       mockSpawnProcess.stderr!.on.mockImplementation(
         (event: string, callback: (data: Buffer | string) => void) => {
@@ -265,8 +265,8 @@ describe('Xdebug Service', () => {
         .mockResolvedValueOnce(mockContent)
         .mockResolvedValueOnce(mockContent)
         .mockResolvedValueOnce('xdebug.mode = develop,debug\n')
-      ;(fs.writeFile as Mock).mockResolvedValue()
-      ;(database.saveSetting as Mock).mockResolvedValue()
+      ;(fs.writeFile as Mock).mockResolvedValue(undefined)
+      ;(database.saveSetting as Mock).mockResolvedValue(undefined)
 
       mockSpawnProcess.on.mockImplementation((event: string, callback: (code: number) => void) => {
         if (event === 'close') {
@@ -290,8 +290,8 @@ describe('Xdebug Service', () => {
       ;(fs.readFile as Mock)
         .mockResolvedValueOnce('xdebug.mode = off\n') // Initial status check
         .mockRejectedValueOnce(error) // Read before toggle
-      ;(fs.writeFile as Mock).mockResolvedValue()
-      ;(database.saveSetting as Mock).mockResolvedValue()
+      ;(fs.writeFile as Mock).mockResolvedValue(undefined)
+      ;(database.saveSetting as Mock).mockResolvedValue(undefined)
 
       mockSpawnProcess.on.mockImplementation((event: string, callback: (code: number) => void) => {
         if (event === 'close') {
@@ -313,7 +313,7 @@ describe('Xdebug Service', () => {
     it('should handle spawn process errors', async () => {
       const mockContent = 'xdebug.mode = off\n'
       ;(fs.readFile as Mock).mockResolvedValue(mockContent)
-      ;(fs.writeFile as Mock).mockResolvedValue()
+      ;(fs.writeFile as Mock).mockResolvedValue(undefined)
 
       mockSpawnProcess.on.mockImplementation((event: string, callback: (error: Error) => void) => {
         if (event === 'error') {

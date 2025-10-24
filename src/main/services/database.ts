@@ -349,8 +349,8 @@ export async function migrateExistingSites(): Promise<void> {
   const { join } = await import('path')
 
   try {
-    const wwwPath = join(process.cwd(), 'www')
-    const entries = await fs.readdir(wwwPath, { withFileTypes: true })
+    const webrootBase = await getWebrootPath()
+    const entries = await fs.readdir(webrootBase, { withFileTypes: true })
 
     // Get only directories (existing sites)
     const siteDirs = entries

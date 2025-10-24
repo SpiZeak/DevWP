@@ -240,7 +240,7 @@ If you need to modify the deployment process:
 
 **Recommended process:**
 
-1. Update `package.json` version (e.g., `0.0.26` → `0.0.27`)
+1. Update `package.json` version (e.g., `0.0.27` → `0.0.27`)
 2. Commit changes: `git commit -am "Bump version to 0.0.27"`
 3. Create tag: `git tag v0.0.27`
 4. Push: `git push && git push --tags`

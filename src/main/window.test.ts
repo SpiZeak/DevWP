@@ -152,7 +152,7 @@ describe('Window Creation', () => {
     })
 
     it('should start Docker compose on did-finish-load', async () => {
-      ;(docker.startDockerCompose as Mock).mockResolvedValue()
+      ;(docker.startDockerCompose as Mock).mockResolvedValue(undefined)
 
       createWindow()
 
@@ -241,7 +241,7 @@ describe('Window Creation', () => {
 
   describe('IPC Handlers', () => {
     it('should handle open-external requests', async () => {
-      shellMock.openExternal.mockResolvedValue()
+      shellMock.openExternal.mockResolvedValue(undefined)
 
       createWindow()
 

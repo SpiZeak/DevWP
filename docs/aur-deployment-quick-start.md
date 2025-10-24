@@ -55,7 +55,7 @@ cp ../DevWP/aur/PKGBUILD .
 cp ../DevWP/aur/.SRCINFO .
 cp ../DevWP/aur/devwp-bin.install .
 git add PKGBUILD .SRCINFO devwp-bin.install
-git commit -m "Initial commit: DevWP v0.0.26"
+git commit -m "Initial commit: DevWP v0.0.27"
 git push origin master
 ```
 
@@ -65,7 +65,7 @@ git push origin master
 
 ```bash
 # 1. Bump version in package.json
-vim package.json  # Change version: "0.0.26" → "0.0.27"
+vim package.json  # Change version: "0.0.27" → "0.0.27"
 
 # 2. Commit and tag
 git commit -am "Bump version to 0.0.27"
