@@ -116,7 +116,7 @@ jobs:
         run: bun install
 
       - name: Start Docker services
-        run: docker compose up -d
+        run: docker compose up -d nginx
         timeout-minutes: 30
 
       - name: Wait for services to be healthy
