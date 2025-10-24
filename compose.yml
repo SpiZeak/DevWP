@@ -138,9 +138,9 @@ services:
           'http://localhost:9000/api/system/status'
         ]
       interval: 30s
-      timeout: 10s
-      retries: 10
-      start_period: 120s
+      timeout: 30s
+      retries: 20
+      start_period: 300s
 
   sonarqube-scanner:
     container_name: devwp_sonarqube-scanner
