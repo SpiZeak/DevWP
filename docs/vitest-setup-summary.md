@@ -116,7 +116,6 @@ coverage/
 - Runs on push to master/develop
 - Generates coverage reports
 - Posts coverage summary to PRs
-- Uploads artifacts to Codecov
 
 ### 9. Documentation Created
 
