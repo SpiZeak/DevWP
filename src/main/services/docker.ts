@@ -1,6 +1,10 @@
 import { spawn, exec } from 'child_process'
 import { platform } from 'os'
 import { BrowserWindow } from 'electron'
+import logger from './logger'
+import { isVerboseMode } from '../runtimeFlags'
+
+const verboseMode = isVerboseMode()
 
 // Function to start Docker Compose
 export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
@@ -8,6 +12,9 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
     const isWin = platform() === 'win32'
     const command = isWin ? 'docker.exe' : 'docker'
     const args = ['compose', 'up', '-d', '--build', 'nginx']
+    if (verboseMode) {
+      logger.debug(`Launching Docker compose command: ${command} ${args.join(' ')}`)
+    }
     const dockerProcess = spawn(command, args)
 
     // Send initial status if window exists
@@ -20,6 +27,9 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
 
     dockerProcess.stdout.on('data', (data) => {
       const output = data.toString().trim()
+      if (verboseMode && output) {
+        logger.debug(`[docker compose stdout] ${output}`)
+      }
       if (mainWindow) {
         mainWindow.webContents.send('docker-status', {
           status: 'progress',
@@ -30,6 +40,9 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
 
     dockerProcess.stderr.on('data', (data) => {
       const output = data.toString().trim()
+      if (verboseMode && output) {
+        logger.debug(`[docker compose stderr] ${output}`)
+      }
 
       // Define progress keywords
       const progressKeywords = [
@@ -73,6 +86,9 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
     })
 
     dockerProcess.on('close', (code) => {
+      if (verboseMode) {
+        logger.debug(`Docker compose process exited with code ${code}`)
+      }
       if (mainWindow) {
         mainWindow.webContents.send('docker-status', {
           status: code === 0 ? 'complete' : 'error',
@@ -94,6 +110,9 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
     })
 
     dockerProcess.on('error', (error) => {
+      if (verboseMode) {
+        logger.debug(`Docker compose process error: ${error.message}`)
+      }
       console.error('Failed to start Docker compose:', error)
       if (mainWindow) {
         mainWindow.webContents.send('docker-status', {
@@ -113,6 +132,9 @@ export function startMariaDBContainer(): Promise<void> {
     const isWin = platform() === 'win32'
     const command = isWin ? 'docker.exe' : 'docker'
     const args = ['compose', 'up', '-d', '--build', 'mariadb']
+    if (verboseMode) {
+      logger.debug(`Launching Docker compose command for MariaDB: ${command} ${args.join(' ')}`)
+    }
     const dockerProcess = spawn(command, args)
 
     let output = ''
@@ -121,17 +143,26 @@ export function startMariaDBContainer(): Promise<void> {
     dockerProcess.stdout.on('data', (data) => {
       const text = data.toString().trim()
       output += text + '\n'
+      if (verboseMode && text) {
+        logger.debug(`[mariadb stdout] ${text}`)
+      }
       console.log('MariaDB startup stdout:', text)
     })
 
     dockerProcess.stderr.on('data', (data) => {
       const text = data.toString().trim()
       errorOutput += text + '\n'
+      if (verboseMode && text) {
+        logger.debug(`[mariadb stderr] ${text}`)
+      }
       console.log('MariaDB startup stderr:', text)
     })
 
     dockerProcess.on('close', (code) => {
       console.log(`MariaDB container startup completed with code ${code}`)
+      if (verboseMode) {
+        logger.debug(`MariaDB compose process exited with code ${code}`)
+      }
       if (code === 0) {
         console.log('MariaDB container started successfully')
         resolve()
@@ -143,6 +174,9 @@ export function startMariaDBContainer(): Promise<void> {
 
     dockerProcess.on('error', (error) => {
       console.error('Error starting MariaDB container:', error)
+      if (verboseMode) {
+        logger.debug(`MariaDB compose process error: ${error.message}`)
+      }
       reject(error)
     })
   })
@@ -154,9 +188,15 @@ export function stopDockerCompose(): Promise<void> {
     const isWin = platform() === 'win32'
     const command = isWin ? 'docker.exe' : 'docker'
     const args = ['compose', 'down']
+    if (verboseMode) {
+      logger.debug(`Launching Docker compose down command: ${command} ${args.join(' ')}`)
+    }
     const dockerProcess = spawn(command, args)
 
     dockerProcess.on('close', (code) => {
+      if (verboseMode) {
+        logger.debug(`Docker compose down process exited with code ${code}`)
+      }
       if (code === 0) {
         console.log('Docker containers stopped')
         resolve()
@@ -181,10 +221,16 @@ export function getDockerContainers(): Promise<Container[]> {
     exec('docker compose ps --format "{{.ID}}|{{.Names}}|{{.State}}" -a', async (error, stdout) => {
       if (error) {
         console.error('Error getting container status:', error)
+        if (verboseMode) {
+          logger.debug(`docker compose ps error: ${error.message}`)
+        }
         reject(error)
         return
       }
 
+      if (verboseMode) {
+        logger.debug(`[docker compose ps output]\n${stdout}`)
+      }
       const containers = stdout
         .trim()
         .split('\n')
@@ -322,6 +368,9 @@ function getVersionForContainer(
       exec(`docker inspect --format="{{index .Config.Image}}" ${containerId}`, (error, stdout) => {
         if (error) {
           console.error(`Error getting version for container ${containerId}:`, error)
+          if (verboseMode) {
+            logger.debug(`docker inspect error for ${containerId}: ${error.message}`)
+          }
           resolve(undefined)
           return
         }
@@ -339,10 +388,16 @@ export function restartContainer(containerId: string): Promise<boolean> {
     exec(`docker restart ${containerId}`, (error, stdout) => {
       if (error) {
         console.error('Error restarting container:', error)
+        if (verboseMode) {
+          logger.debug(`docker restart error for ${containerId}: ${error.message}`)
+        }
         reject(error)
         return
       }
       console.log('Container restart output:', stdout)
+      if (verboseMode) {
+        logger.debug(`[docker restart stdout] ${stdout.trim()}`)
+      }
       resolve(true)
     })
   })

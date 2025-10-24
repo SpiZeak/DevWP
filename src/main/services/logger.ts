@@ -2,6 +2,7 @@ import winston from 'winston'
 import DailyRotateFile from 'winston-daily-rotate-file'
 import { app } from 'electron'
 import { join } from 'path'
+import { isVerboseMode } from '../runtimeFlags'
 
 // Log levels
 const levels = {
@@ -44,12 +45,14 @@ const consoleFormat = winston.format.combine(
 // Get log directory
 const logDir = join(app.getPath('userData'), 'logs')
 
+const verboseMode = isVerboseMode()
+
 // Create transports
 const transports = [
   // Console transport for development
   new winston.transports.Console({
     format: consoleFormat,
-    level: process.env.NODE_ENV === 'development' ? 'debug' : 'info'
+    level: process.env.NODE_ENV === 'development' || verboseMode ? 'debug' : 'info'
   }),
 
   // Daily rotating file for all logs
@@ -58,7 +61,7 @@ const transports = [
     datePattern: 'YYYY-MM-DD',
     maxFiles: process.env.LOG_MAX_FILES || '14d',
     format: format,
-    level: process.env.LOG_LEVEL || 'info'
+    level: verboseMode ? 'debug' : process.env.LOG_LEVEL || 'info'
   }),
 
   // Separate file for errors
@@ -77,6 +80,10 @@ export const logger = winston.createLogger({
   transports,
   exitOnError: false
 })
+
+if (verboseMode) {
+  logger.debug('Verbose mode enabled')
+}
 
 // Utility functions for structured logging
 export const logSiteOperation = (

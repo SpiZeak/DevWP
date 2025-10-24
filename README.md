@@ -97,11 +97,17 @@ See [Certificate Trust Setup](docs/certificate-trust-setup.md) for detailed SSL 
 # Start development server
 bun run dev
 
+# Enable verbose container logs
+bun run dev -- --verbose
+
 # Other commands
 bun run lint      # Check code quality
 bun run format    # Format code
 bun run typecheck # Type checking
 bun run build     # Build for production
+
+# Verbose logging (any command)
+DEVWP_VERBOSE=true bun run dev
 ```
 
 ## Building
