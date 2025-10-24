@@ -346,7 +346,6 @@ export async function deleteSiteConfiguration(domain: string): Promise<void> {
 // Migrate existing sites from filesystem to database
 export async function migrateExistingSites(): Promise<void> {
   const { promises: fs } = await import('fs')
-  const { join } = await import('path')
 
   try {
     const webrootBase = await getWebrootPath()
