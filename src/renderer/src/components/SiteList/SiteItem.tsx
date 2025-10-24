@@ -9,7 +9,6 @@ interface SiteItemProps {
   isLast: boolean
   onOpenUrl: (url: string) => void
   onScan: (site: Site) => void
-  onDelete: (site: Site) => void
   onOpenWpCli: (site: Site) => void
   onEditSite: (site: Site) => void
   scanningSite: string | null
@@ -20,7 +19,6 @@ const SiteItem: React.FC<SiteItemProps> = ({
   isLast,
   onOpenUrl,
   onScan,
-  onDelete,
   onOpenWpCli,
   onEditSite,
   scanningSite
@@ -94,14 +92,6 @@ const SiteItem: React.FC<SiteItemProps> = ({
                 content="󱉶"
               />
             )}
-          </button>
-          <button
-            onClick={(): void => onDelete(site)}
-            className="group/btn relative bg-gunmetal-500 hover:bg-crimson disabled:bg-gunmetal-300 hover:shadow-lg rounded-lg size-10 hover:scale-105 disabled:hover:scale-100 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
-            title="Delete Site"
-            disabled={isProvisioning}
-          >
-            <Icon className="text-seasalt group-hover/btn:text-warm-charcoal text-xl" content="󰧧" />
           </button>
           <button
             onClick={(): void => onOpenWpCli(site)}

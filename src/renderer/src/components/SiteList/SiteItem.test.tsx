@@ -8,7 +8,6 @@ describe('SiteItem', () => {
   let mockSite: Site
   let mockOnOpenUrl: ReturnType<typeof vi.fn>
   let mockOnScan: ReturnType<typeof vi.fn>
-  let mockOnDelete: ReturnType<typeof vi.fn>
   let mockOnOpenWpCli: ReturnType<typeof vi.fn>
   let mockOnEditSite: ReturnType<typeof vi.fn>
   let mockInvoke: ReturnType<typeof vi.fn>
@@ -16,7 +15,6 @@ describe('SiteItem', () => {
   beforeEach(() => {
     mockOnOpenUrl = vi.fn()
     mockOnScan = vi.fn()
-    mockOnDelete = vi.fn()
     mockOnOpenWpCli = vi.fn()
     mockOnEditSite = vi.fn()
     mockInvoke = vi.fn()
@@ -42,7 +40,6 @@ describe('SiteItem', () => {
         isLast={false}
         onOpenUrl={mockOnOpenUrl}
         onScan={mockOnScan}
-        onDelete={mockOnDelete}
         onOpenWpCli={mockOnOpenWpCli}
         onEditSite={mockOnEditSite}
         scanningSite={null}
@@ -209,31 +206,6 @@ describe('SiteItem', () => {
     })
   })
 
-  describe('Delete Button', () => {
-    it('should call onDelete with site', async () => {
-      renderSiteItem()
-
-      const deleteButton = screen.getByTitle('Delete Site')
-      await userEvent.click(deleteButton)
-
-      expect(mockOnDelete).toHaveBeenCalledWith(mockSite)
-    })
-
-    it('should be disabled during provisioning', () => {
-      mockSite.status = 'provisioning'
-      renderSiteItem()
-
-      const deleteButton = screen.getByTitle('Delete Site')
-      expect(deleteButton).toBeDisabled()
-    })
-
-    it('should have crimson hover effect', () => {
-      renderSiteItem()
-      const deleteButton = screen.getByTitle('Delete Site')
-      expect(deleteButton).toHaveClass('hover:bg-crimson')
-    })
-  })
-
   describe('WP-CLI Button', () => {
     it('should call onOpenWpCli with site', async () => {
       renderSiteItem()
@@ -316,9 +288,13 @@ describe('SiteItem', () => {
 
       expect(screen.getByTitle('Open Site')).toBeInTheDocument()
       expect(screen.getByTitle('Run SonarQube Scan')).toBeInTheDocument()
-      expect(screen.getByTitle('Delete Site')).toBeInTheDocument()
       expect(screen.getByTitle('Run WP-CLI Command')).toBeInTheDocument()
       expect(screen.getByTitle('Edit Site Settings')).toBeInTheDocument()
+    })
+
+    it('should not render delete button on the site card', () => {
+      renderSiteItem()
+      expect(screen.queryByTitle('Delete Site')).not.toBeInTheDocument()
     })
 
     it('should update titles during provisioning', () => {

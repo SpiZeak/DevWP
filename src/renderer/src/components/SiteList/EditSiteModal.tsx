@@ -14,6 +14,7 @@ interface EditSiteModalProps {
   site: Site | null
   onClose: () => void
   onSubmit: (site: Site, data: EditSiteData) => void
+  onDelete: (site: Site) => Promise<void> | void
 }
 
 interface FormInputProps {
@@ -40,7 +41,13 @@ const FormInput: React.FC<FormInputProps> = ({ label, value, onChange, placehold
   )
 }
 
-const EditSiteModal: React.FC<EditSiteModalProps> = ({ isOpen, site, onClose, onSubmit }) => {
+const EditSiteModal: React.FC<EditSiteModalProps> = ({
+  isOpen,
+  site,
+  onClose,
+  onSubmit,
+  onDelete
+}) => {
   const [editData, setEditData] = useState<EditSiteData>({
     aliases: '',
     webRoot: ''
@@ -55,10 +62,8 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({ isOpen, site, onClose, on
     }
   }, [isOpen, site])
 
-  if (!isOpen || !site) return null
-
-  const handleSubmit = (): void => {
-    onSubmit(site, editData)
+  if (!isOpen || !site) {
+    return null
   }
 
   const updateField = (field: keyof EditSiteData, value: string): void => {
@@ -66,8 +71,16 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({ isOpen, site, onClose, on
   }
 
   const handleWebRootChange = (value: string): void => {
-    // Remove leading/trailing slashes and trim
     updateField('webRoot', value.trim().replace(/^\/+|\/+$/g, ''))
+  }
+
+  const handleSubmit = (): void => {
+    onSubmit(site, editData)
+  }
+
+  const handleDelete = (): void => {
+    if (site.status === 'provisioning') return
+    void onDelete(site)
   }
 
   const renderWebRootHelpText = (): React.ReactNode => (
@@ -123,7 +136,23 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({ isOpen, site, onClose, on
           helpText={renderWebRootHelpText()}
         />
 
-        <div className="flex justify-end gap-2.5">
+        <div className="bg-gunmetal-400/60 mt-6 px-4 py-4 border border-gunmetal-600 rounded-lg">
+          <h4 className="mb-2 font-semibold text-seasalt text-sm">Danger Zone</h4>
+          <p className="mb-3 text-seasalt-400 text-xs">
+            Deleting this site removes Docker containers, files, and the database snapshot. This
+            action cannot be undone.
+          </p>
+          <button
+            onClick={handleDelete}
+            className="bg-crimson hover:bg-crimson/80 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt disabled:text-seasalt-400 transition-colors cursor-pointer disabled:cursor-not-allowed"
+            title="Delete Site"
+            disabled={site.status === 'provisioning'}
+          >
+            Delete Site
+          </button>
+        </div>
+
+        <div className="flex justify-end gap-2.5 mt-4">
           <button
             onClick={onClose}
             className="bg-gunmetal-400 hover:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt-300 hover:text-seasalt transition-colors cursor-pointer"

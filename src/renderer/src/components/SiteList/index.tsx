@@ -91,7 +91,8 @@ const SiteList: React.FC = () => {
     if (confirm(`Are you sure you want to delete the site ${site.name}?`)) {
       try {
         await window.electronAPI.deleteSite(site)
-        fetchSites()
+        setEditSiteModal({ open: false, site: null })
+        await fetchSites()
       } catch (error) {
         console.error('Failed to delete site:', error)
       }
@@ -358,7 +359,6 @@ const SiteList: React.FC = () => {
                   isLast={index === filteredSites.length - 1}
                   onOpenUrl={openSiteUrl}
                   onScan={handleScanSite}
-                  onDelete={handleDeleteSite}
                   onOpenWpCli={handleOpenWpCliModal}
                   onEditSite={handleOpenEditSiteModal}
                   scanningSite={scanningSite}
@@ -393,6 +393,7 @@ const SiteList: React.FC = () => {
               site={editSiteModal.site}
               onClose={handleCloseEditSiteModal}
               onSubmit={handleUpdateSite}
+              onDelete={handleDeleteSite}
             />
           </Suspense>
         )}
