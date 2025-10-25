@@ -13,7 +13,10 @@ vi.mock('electron', () => ({
   ipcMain: {
     handle: vi.fn()
   },
-  BrowserWindow: vi.fn()
+  BrowserWindow: vi.fn(),
+  app: {
+    getPath: vi.fn(() => '/tmp/devwp')
+  }
 }))
 vi.mock('../services/docker')
 
