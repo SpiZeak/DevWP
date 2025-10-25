@@ -1,64 +1,100 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
 import { renderWithProviders, screen } from '../test/test-utils'
 import Versions from './Versions'
 
-// Mock the window.electron API
 const mockVersions = {
   electron: '38.2.2',
   chrome: '128.0.0',
   node: '20.18.1'
 }
 
+const mockAppVersion = '1.4.0'
+
+let originalElectron: typeof window.electron | undefined
+let originalElectronAPI: typeof window.electronAPI | undefined
+let mockGetAppVersion: ReturnType<typeof vi.fn>
+
 describe('Versions Component', () => {
   beforeEach(() => {
-    // Mock the window.electron.process.versions
-    vi.stubGlobal('window', {
-      electron: {
-        process: {
-          versions: mockVersions
-        }
+    originalElectron = window.electron
+    originalElectronAPI = window.electronAPI
+
+    mockGetAppVersion = vi.fn().mockResolvedValue(mockAppVersion)
+    ;(window as any).electron = {
+      process: {
+        versions: mockVersions
       }
-    })
+    }
+    ;(window as any).electronAPI = {
+      getAppVersion: mockGetAppVersion
+    }
   })
 
-  it('should render all version information', () => {
-    renderWithProviders(<Versions />)
+  afterEach(() => {
+    if (originalElectron !== undefined) {
+      ;(window as any).electron = originalElectron
+    } else {
+      delete (window as any).electron
+    }
 
-    // Check that all version labels are present
+    if (originalElectronAPI !== undefined) {
+      ;(window as any).electronAPI = originalElectronAPI
+    } else {
+      delete (window as any).electronAPI
+    }
+
+    vi.restoreAllMocks()
+  })
+
+  it('renders version details when modal is open', async () => {
+    renderWithProviders(<Versions isOpen onClose={() => {}} />)
+
+    expect(screen.getByRole('dialog', { name: 'About DevWP' })).toBeInTheDocument()
+    expect(screen.getByText('DevWP')).toBeInTheDocument()
     expect(screen.getByText('Electron')).toBeInTheDocument()
     expect(screen.getByText('Chromium')).toBeInTheDocument()
     expect(screen.getByText('Node')).toBeInTheDocument()
     expect(screen.getByText('Developer')).toBeInTheDocument()
+
+    expect(await screen.findByText(`v${mockAppVersion}`)).toBeInTheDocument()
+    expect(screen.getByText(`v${mockVersions.electron}`)).toBeInTheDocument()
+    expect(screen.getByText(`v${mockVersions.chrome}`)).toBeInTheDocument()
+    expect(screen.getByText(`v${mockVersions.node}`)).toBeInTheDocument()
   })
 
-  it('should display correct version numbers', () => {
-    renderWithProviders(<Versions />)
+  it('does not render when modal is closed', () => {
+    renderWithProviders(<Versions isOpen={false} onClose={() => {}} />)
 
-    // Use getAllByText since version numbers might appear multiple times
-    expect(screen.getAllByText(`v${mockVersions.electron}`).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(`v${mockVersions.chrome}`).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(`v${mockVersions.node}`).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('should render developer link with correct attributes', () => {
-    renderWithProviders(<Versions />)
+  it('invokes getAppVersion when opened', async () => {
+    renderWithProviders(<Versions isOpen onClose={() => {}} />)
 
-    const links = screen.getAllByRole('link', { name: 'Trewhitt' })
-    expect(links.length).toBeGreaterThan(0)
+    await screen.findByText(`v${mockAppVersion}`)
 
-    const link = links[0]
+    expect(mockGetAppVersion).toHaveBeenCalled()
+  })
+
+  it('calls onClose when the close button is clicked', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+
+    renderWithProviders(<Versions isOpen onClose={onClose} />)
+
+    const closeButton = screen.getByRole('button', { name: 'Close About modal' })
+    await user.click(closeButton)
+
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('renders developer link with correct attributes', async () => {
+    renderWithProviders(<Versions isOpen onClose={() => {}} />)
+
+    const link = await screen.findByRole('link', { name: 'Trewhitt' })
     expect(link).toHaveAttribute('href', 'https://trewhitt.au')
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
-  })
-
-  it('should render as a list with correct structure', () => {
-    const { container } = renderWithProviders(<Versions />)
-
-    const list = container.querySelector('ul')
-    expect(list).toBeInTheDocument()
-
-    const listItems = container.querySelectorAll('li')
-    expect(listItems.length).toBeGreaterThanOrEqual(4) // Electron, Chromium, Node, Developer
   })
 })

@@ -11,6 +11,7 @@ import Icon from './ui/Icon'
 
 interface ServicesProps {
   onOpenSettings: () => void
+  onOpenVersions: () => void
 }
 
 interface Container {
@@ -41,7 +42,7 @@ const containerIconMapping: Record<string, React.ReactNode> = {
   devwp_sonarqube: <img className="w-10 h-8 object-contain" src={sonarCubeIcon} alt="SonarQube" />
 }
 
-const Services: React.FC<ServicesProps> = ({ onOpenSettings }) => {
+const Services: React.FC<ServicesProps> = ({ onOpenSettings, onOpenVersions }) => {
   const [containers, setContainers] = useState([] as Container[])
   const [loading, setLoading] = useState(true)
   const [restarting, setRestarting] = useState({})
@@ -88,13 +89,22 @@ const Services: React.FC<ServicesProps> = ({ onOpenSettings }) => {
     <div className="mr-6 mb-5 rounded-lg">
       <div className="flex justify-between items-center mb-4">
         <h2 className="font-semibold text-seasalt text-lg">Services</h2>
-        <button
-          onClick={onOpenSettings}
-          className="flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors"
-          title="Settings"
-        >
-          <Icon content="⚙" className="text-lg" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onOpenVersions}
+            className="flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors"
+            title="About DevWP"
+          >
+            <Icon content="ℹ" className="text-lg" />
+          </button>
+          <button
+            onClick={onOpenSettings}
+            className="flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors"
+            title="Settings"
+          >
+            <Icon content="⚙" className="text-lg" />
+          </button>
+        </div>
       </div>
       <XdebugSwitch />
       {loading ? (
@@ -122,7 +132,7 @@ const Services: React.FC<ServicesProps> = ({ onOpenSettings }) => {
                   </div>
                 </div>
                 <button
-                  className={`flex flex-shrink-0 justify-center items-center bg-gunmetal-500 disabled:opacity-50 rounded-full size-7 text-2xl text-seasalt hover:text-warm-charcoal transition-all duration-200 cursor-pointer disabled:cursor-not-allowed icon ${restarting[container.id] ? '' : 'hover:rotate-30 hover:bg-pumpkin hover:text-warm-charcoal hover:scale-110'}`}
+                  className={`flex shrink-0 justify-center items-center bg-gunmetal-500 disabled:opacity-50 rounded-full size-7 text-2xl text-seasalt hover:text-warm-charcoal transition-all duration-200 cursor-pointer disabled:cursor-not-allowed icon ${restarting[container.id] ? '' : 'hover:rotate-30 hover:bg-pumpkin hover:text-warm-charcoal hover:scale-110'}`}
                   onClick={() => restartContainer(container.id, container.name)}
                   disabled={restarting[container.id]}
                   title="Restart service"

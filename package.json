@@ -1,6 +1,6 @@
 {
   "name": "devwp",
-  "version": "0.0.29",
+  "version": "0.0.31",
   "description": "An Electron application with React and TypeScript",
   "main": "./out/main/index.js",
   "author": "example.com",

@@ -98,8 +98,8 @@ The workflow automatically runs when a new release is **published** on GitHub:
 
 ```bash
 # Create and push a tag
-git tag v0.0.30
-git push origin v0.0.30
+git tag v0.0.31
+git push origin v0.0.31
 
 # Then publish the release on GitHub (or wait for release.yml to create it)
 # The aur-deploy.yml workflow will run after release.yml completes
@@ -110,7 +110,7 @@ git push origin v0.0.30
 You can also manually trigger the workflow:
 
 1. Go to: `Actions` → `Deploy to AUR` → `Run workflow`
-2. Enter the version number (e.g., `0.0.30`)
+2. Enter the version number (e.g., `0.0.31`)
 3. Click `Run workflow`
 
 This is useful for:
@@ -240,9 +240,9 @@ If you need to modify the deployment process:
 
 **Recommended process:**
 
-1. Update `package.json` version (e.g., `0.0.30` → `0.0.30`)
-2. Commit changes: `git commit -am "Bump version to 0.0.30"`
-3. Create tag: `git tag v0.0.30`
+1. Update `package.json` version (e.g., `0.0.31` → `0.0.31`)
+2. Commit changes: `git commit -am "Bump version to 0.0.31"`
+3. Create tag: `git tag v0.0.31`
 4. Push: `git push && git push --tags`
 5. Wait for `release.yml` to build and publish release
 6. `aur-deploy.yml` will automatically run after release is published

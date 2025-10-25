@@ -80,6 +80,7 @@ declare global {
       getWebrootPath: () => Promise<string>
       getXdebugEnabledSetting: () => Promise<boolean>
       pickDirectory: (defaultPath?: string) => Promise<string | null>
+      getAppVersion: () => Promise<string>
     }
   }
 }

@@ -60,7 +60,7 @@ jobs:
           path: |
             dist/**/devwp-*-setup.exe
             dist/**/devwp-*.dmg
-            dist/**/devwp-*.deb
+            dist/**/devwp_*.deb
           if-no-files-found: ignore # Only upload platform installers; skip when not produced
 
   create_release:

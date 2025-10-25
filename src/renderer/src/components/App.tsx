@@ -9,6 +9,7 @@ const SettingsModal = lazy(() => import('./Settings/SettingsModal'))
 
 function App(): JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false)
+  const [isVersionsOpen, setIsVersionsOpen] = useState<boolean>(false)
 
   const handleOpenSettings = (): void => {
     setIsSettingsOpen(true)
@@ -18,13 +19,21 @@ function App(): JSX.Element {
     setIsSettingsOpen(false)
   }
 
+  const handleOpenVersions = (): void => {
+    setIsVersionsOpen(true)
+  }
+
+  const handleCloseVersions = (): void => {
+    setIsVersionsOpen(false)
+  }
+
   return (
     <>
       <div className="flex gap-6 p-6 w-full">
-        <Services onOpenSettings={handleOpenSettings} />
+        <Services onOpenSettings={handleOpenSettings} onOpenVersions={handleOpenVersions} />
         <SiteList />
       </div>
-      <Versions />
+      <Versions isOpen={isVersionsOpen} onClose={handleCloseVersions} />
       <DockerLoader />
 
       <Suspense fallback={<div>Loading...</div>}>

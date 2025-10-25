@@ -4,6 +4,7 @@ import { createWindow } from './window'
 import { registerContainerHandlers, stopContainerMonitoring } from './ipc/container'
 import { registerSiteHandlers } from './ipc/site'
 import { registerSettingsHandlers } from './ipc/settings'
+import { registerAppInfoHandlers } from './ipc/appInfo'
 import { stopDockerCompose, startMariaDBContainer } from './services/docker'
 import { initializeConfigDatabase } from './services/database'
 import { initializeXdebugStatus } from './services/xdebug'
@@ -56,6 +57,7 @@ app.whenReady().then(async () => {
   registerContainerHandlers()
   registerSiteHandlers()
   registerSettingsHandlers()
+  registerAppInfoHandlers()
   console.log('IPC handlers registered successfully')
 
   // Initialize Xdebug status from database after database is ready

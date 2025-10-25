@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   scanSiteWithSonarQube: (siteDomain: string) =>
     ipcRenderer.invoke('scan-site-sonarqube', siteDomain),
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   // Add WP-CLI streaming support
   onWpCliStream: (callback) => {
     const listener = (_event, data) => callback(data)
