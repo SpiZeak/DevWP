@@ -57,7 +57,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts-${{ matrix.os }}
-          path: dist/ # electron-builder outputs to 'dist' directory
+          path: |
+            dist/**/*.exe
+            dist/**/*.dmg
+            dist/**/*.deb
+          if-no-files-found: ignore # Only upload platform installers; skip when not produced
 
   create_release:
     name: Create GitHub Release
