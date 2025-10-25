@@ -58,9 +58,9 @@ jobs:
         with:
           name: build-artifacts-${{ matrix.os }}
           path: |
-            dist/**/*.exe
-            dist/**/*.dmg
-            dist/**/*.deb
+            dist/**/devwp-*-setup.exe
+            dist/**/devwp-*.dmg
+            dist/**/devwp-*.deb
           if-no-files-found: ignore # Only upload platform installers; skip when not produced
 
   create_release:
