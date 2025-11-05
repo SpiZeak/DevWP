@@ -31,7 +31,7 @@ cp ../aur/.SRCINFO .
 
 # Add and commit
 git add PKGBUILD .SRCINFO
-git commit -m "Initial commit: devwp-bin 0.0.26"
+git commit -m "Initial commit: devwp-bin 0.0.31"
 
 # Push to AUR
 git push origin master
@@ -46,7 +46,7 @@ Before the first submission, update these fields in `PKGBUILD`:
 # Maintainer: Your Real Name <your.email@example.com>
 
 # Calculate and update the SHA256 checksum
-sha256sum devwp-0.0.26.AppImage
+sha256sum devwp-0.0.31.AppImage
 # Update sha256sums=('...') in PKGBUILD
 ```
 
@@ -59,7 +59,7 @@ When releasing a new version:
 Edit `PKGBUILD`:
 
 ```bash
-pkgver=0.0.21  # New version
+pkgver=0.0.31  # New version
 pkgrel=1       # Reset to 1 for new version
 ```
 
@@ -69,10 +69,10 @@ Update the source URL to match the new version.
 
 ```bash
 # Download the new AppImage
-wget https://github.com/SpiZeak/DevWP/releases/download/v0.0.21/devwp-0.0.21.AppImage
+wget https://github.com/SpiZeak/DevWP/releases/download/v0.0.31/devwp-0.0.31.AppImage
 
 # Calculate SHA256
-sha256sum devwp-0.0.21.AppImage
+sha256sum devwp-0.0.31.AppImage
 
 # Update sha256sums in PKGBUILD
 sha256sums=('NEW_CHECKSUM_HERE')
@@ -103,7 +103,7 @@ makepkg --printsrcinfo > .SRCINFO
 ```bash
 # In the AUR repository directory
 git add PKGBUILD .SRCINFO
-git commit -m "Update to version 0.0.21"
+git commit -m "Update to version 0.0.31"
 git push
 ```
 
@@ -282,21 +282,6 @@ chmod u+w ~/www
 # Or reset and let DevWP recreate
 rm -rf ~/.config/devwp
 devwp  # Will recreate on launch
-```
-
-### Desktop File Not Found
-
-If you get an error like `cannot stat 'squashfs-root/devwp.desktop'`, the AppImage structure may have changed. The PKGBUILD now handles multiple possible locations automatically, but you can inspect the AppImage structure:
-
-```bash
-# Use the inspection script
-./inspect-appimage.sh /path/to/devwp-x.x.x.AppImage
-
-# Or manually:
-chmod +x devwp-0.0.26.AppImage
-./devwp-0.0.26.AppImage --appimage-extract
-find squashfs-root -name "*.desktop"
-find squashfs-root -name "*.png" | grep -i icon
 ```
 
 The PKGBUILD will now:

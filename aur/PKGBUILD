@@ -1,7 +1,7 @@
 # Maintainer: Max Trewhitt <max@trewhitt.au>
 pkgname=devwp-bin
-pkgver=0.0.26
-pkgrel=2
+pkgver=0.0.31
+pkgrel=1
 pkgdesc="An Electron-based desktop application for managing local WordPress development sites"
 arch=('x86_64')
 url="https://github.com/SpiZeak/DevWP"
@@ -20,9 +20,8 @@ source=(
     "${pkgname}-${pkgver}-compose.yml::${url}/raw/v${pkgver}/compose.yml"
     "${pkgname}-${pkgver}-config.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz"
 )
-sha256sums=('aff99a2d3e6174ffbb585066fb83754abdc1d1de89836ff74ac45537b6c93ced')
-    '95f43bb7ec9ff8e128b569d580f31d66864455f47f6fd5ee8244557d333b5818'
-    'SKIP'
+sha256sums=('0f3449e57ed76f1062f18efb40237926ceef73c468257e0f04bbb90ebe73a662'
+    '88ee24e899eb9ca940b6ec0aeb22b11a130a5e6b6c848065b9232916ef0d01a6'
     'SKIP'
 )
 noextract=("${pkgname}-${pkgver}.AppImage")
@@ -56,13 +55,12 @@ package() {
     install -dm755 "${pkgdir}/opt/${pkgname}/config"
     cp -r config/* "${pkgdir}/opt/${pkgname}/config/"
 
+    # Ensure dynamically generated nginx configs can be written by the runtime user
+    chmod 777 "${pkgdir}/opt/${pkgname}/config/nginx/sites-enabled"
+
     # Ensure certs directory exists (Docker certs service will populate it)
     # Must be writable by Docker containers
     install -dm777 "${pkgdir}/opt/${pkgname}/config/certs"
-
-    # Create www directory for WordPress sites (must be writable)
-    install -dm777 "${pkgdir}/opt/${pkgname}/www"
-    install -Dm644 /dev/null "${pkgdir}/opt/${pkgname}/www/.gitkeep"
 
     # Create wrapper script with necessary Electron flags
     install -dm755 "${pkgdir}/usr/bin"

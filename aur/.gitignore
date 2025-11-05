@@ -6,6 +6,7 @@ src/
 pkg/
 *.pkg.tar.zst
 *.pkg.tar.xz
+*-compose.yml
 
 # Ignore downloaded files
 *.sig

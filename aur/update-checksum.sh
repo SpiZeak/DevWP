@@ -5,7 +5,7 @@ set -e
 
 if [ -z "$1" ]; then
     echo "Usage: $0 <version>"
-    echo "Example: $0 0.0.21"
+    echo "Example: $0 0.0.31"
     exit 1
 fi
 
@@ -25,7 +25,7 @@ echo "Checksum: $CHECKSUM"
 echo "Updating PKGBUILD..."
 sed -i "s/^pkgver=.*/pkgver=${VERSION}/" "$PKGBUILD_FILE"
 sed -i "s/^pkgrel=.*/pkgrel=1/" "$PKGBUILD_FILE"
-sed -i "s/^sha256sums=.*/sha256sums=('${CHECKSUM}')/" "$PKGBUILD_FILE"
+sed -i "s/^sha256sums=('[^']*'/sha256sums=('${CHECKSUM}'/" "$PKGBUILD_FILE"
 
 # Generate .SRCINFO
 echo "Generating .SRCINFO..."
