@@ -1,10 +1,14 @@
-import { spawn, exec } from 'child_process'
-import { platform } from 'os'
+import { exec, spawn } from 'child_process'
 import { BrowserWindow } from 'electron'
-import logger from './logger'
+import { platform } from 'os'
 import { isVerboseMode } from '../runtimeFlags'
+import logger from './logger'
 
 const verboseMode = isVerboseMode()
+const composeEnv: NodeJS.ProcessEnv = {
+  ...process.env,
+  COMPOSE_PROJECT_NAME: 'devwp'
+}
 
 // Function to start Docker Compose
 export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
@@ -15,7 +19,7 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
     if (verboseMode) {
       logger.debug(`Launching Docker compose command: ${command} ${args.join(' ')}`)
     }
-    const dockerProcess = spawn(command, args)
+    const dockerProcess = spawn(command, args, { env: composeEnv })
 
     // Send initial status if window exists
     if (mainWindow) {
@@ -135,14 +139,11 @@ export function startMariaDBContainer(): Promise<void> {
     if (verboseMode) {
       logger.debug(`Launching Docker compose command for MariaDB: ${command} ${args.join(' ')}`)
     }
-    const dockerProcess = spawn(command, args)
-
-    let output = ''
+    const dockerProcess = spawn(command, args, { env: composeEnv })
     let errorOutput = ''
 
     dockerProcess.stdout.on('data', (data) => {
       const text = data.toString().trim()
-      output += text + '\n'
       if (verboseMode && text) {
         logger.debug(`[mariadb stdout] ${text}`)
       }
@@ -191,7 +192,7 @@ export function stopDockerCompose(): Promise<void> {
     if (verboseMode) {
       logger.debug(`Launching Docker compose down command: ${command} ${args.join(' ')}`)
     }
-    const dockerProcess = spawn(command, args)
+    const dockerProcess = spawn(command, args, { env: composeEnv })
 
     dockerProcess.on('close', (code) => {
       if (verboseMode) {
@@ -218,44 +219,47 @@ interface Container {
 
 export function getDockerContainers(): Promise<Container[]> {
   return new Promise((resolve, reject) => {
-    exec('docker compose ps --format "{{.ID}}|{{.Names}}|{{.State}}" -a', async (error, stdout) => {
-      if (error) {
-        console.error('Error getting container status:', error)
-        if (verboseMode) {
-          logger.debug(`docker compose ps error: ${error.message}`)
-        }
-        reject(error)
-        return
-      }
-
-      if (verboseMode) {
-        logger.debug(`[docker compose ps output]\n${stdout}`)
-      }
-      const containers = stdout
-        .trim()
-        .split('\n')
-        .filter(Boolean)
-        .map((line) => {
-          const [id, name, state] = line.split('|')
-          return { id, name, state: state.toLowerCase(), version: undefined }
-        })
-        .filter((container) => container.name !== 'devwp_certs') as Container[]
-
-      // Fetch version information only for running containers
-      try {
-        for (const container of containers) {
-          // Only get version if container is running
-          if (container.state === 'running') {
-            const version = await getContainerVersion(container.id, container.name)
-            container.version = version
+    exec(
+      'docker compose ps --format "{{.ID}}|{{.Names}}|{{.State}}" -a',
+      { env: composeEnv },
+      async (error, stdout) => {
+        if (error) {
+          console.error('Error getting container status:', error)
+          if (verboseMode) {
+            logger.debug(`docker compose ps error: ${error.message}`)
           }
+          reject(error)
+          return
         }
-      } catch (versionError) {
-        console.error('Error fetching container versions:', versionError)
-      }
 
-      resolve(containers)
-    })
+        if (verboseMode) {
+          logger.debug(`[docker compose ps output]\n${stdout}`)
+        }
+        const containers = stdout
+          .trim()
+          .split('\n')
+          .filter(Boolean)
+          .map((line) => {
+            const [id, name, state] = line.split('|')
+            return { id, name, state: state.toLowerCase(), version: undefined }
+          })
+          .filter((container) => container.name !== 'devwp_certs') as Container[]
+
+        // Fetch version information only for running containers
+        try {
+          for (const container of containers) {
+            // Only get version if container is running
+            if (container.state === 'running') {
+              const version = await getContainerVersion(container.id, container.name)
+              container.version = version
+            }
+          }
+        } catch (versionError) {
+          console.error('Error fetching container versions:', versionError)
+        }
+        resolve(containers)
+      }
+    )
   })
 }
 
@@ -326,7 +330,7 @@ function getVersionForContainer(
           return
         }
         // Example output: "mariadb  Ver 15.1 Distrib 11.3.2-MariaDB, for debian-linux-gnu (x86_64) using  EditLine wrapper"
-        const match = mariaDbStdout.match(/\s+([\d\.]+)-MariaDB/) // Adjusted regex for MariaDB
+        const match = mariaDbStdout.match(/\s+([\d.]+)-MariaDB/)
         resolve(match ? match[1] : undefined)
       })
       break
