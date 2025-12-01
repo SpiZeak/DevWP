@@ -19,6 +19,8 @@ RUN apk update && \
     oniguruma-dev \
     libxml2-dev \
     libsodium-dev \
+    imagemagick-dev \
+    imagemagick \
     shadow \
     git \
     $PHPIZE_DEPS
@@ -58,6 +60,10 @@ RUN pecl install xdebug && \
 # Install Redis
 RUN pecl install redis && \
     docker-php-ext-enable redis
+
+# Install Imagick
+RUN pecl install imagick && \
+    docker-php-ext-enable imagick
 
 # Use the default production configuration
 RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"
