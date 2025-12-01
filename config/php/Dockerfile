@@ -37,13 +37,12 @@ RUN curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli
     chmod +x wp-cli.phar && \
     mv wp-cli.phar /usr/local/bin/wp
 
-# Install PHP extensions
+# Install PHP extensions (Opcache already ships with php:fpm-alpine)
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp --with-avif && \
     docker-php-ext-install -j$(nproc) \
     mysqli \
     pdo_mysql \
     gd \
-    opcache \
     exif \
     zip \
     intl \
@@ -53,8 +52,17 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp --with-a
     bcmath \
     sodium
 
-# Install Xdebug
-RUN pecl install xdebug && \
+# Install Xdebug (fallback to building from source when PECL lacks PHP 8.5 support)
+RUN if ! pecl install xdebug; then \
+    echo "PECL does not have a compatible Xdebug build, compiling from source" && \
+    git clone --depth=1 https://github.com/xdebug/xdebug.git /tmp/xdebug && \
+    cd /tmp/xdebug && \
+    phpize && \
+    ./configure --enable-xdebug && \
+    make -j"$(nproc)" && \
+    make install && \
+    rm -rf /tmp/xdebug; \
+    fi && \
     docker-php-ext-enable xdebug
 
 # Install Redis

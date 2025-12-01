@@ -47,6 +47,9 @@ const logDir = join(app.getPath('userData'), 'logs')
 
 const verboseMode = isVerboseMode()
 
+// Inform about log directory
+console.log('Log files will be stored in:', logDir)
+
 // Create transports
 const transports = [
   // Console transport for development

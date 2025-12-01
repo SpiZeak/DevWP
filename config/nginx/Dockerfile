@@ -22,15 +22,15 @@ RUN apk add --no-cache --virtual .build-deps \
 # Create required directory
 RUN mkdir -p /usr/src
 
-# Download and compile LibreSSL 4.1.0 from Swedish FTP mirror
+# Download and compile LibreSSL 4.2.1 from Swedish FTP mirror
 RUN cd /usr/src && \
-	curl -sSL https://ftp.lysator.liu.se/pub/OpenBSD/LibreSSL/libressl-4.1.0.tar.gz -o libressl-4.1.0.tar.gz && \
-	tar -zxf libressl-4.1.0.tar.gz && \
-	cd libressl-4.1.0 && \
+	curl -sSL https://ftp.lysator.liu.se/pub/OpenBSD/LibreSSL/libressl-4.2.1.tar.gz -o libressl-4.2.1.tar.gz && \
+	tar -zxf libressl-4.2.1.tar.gz && \
+	cd libressl-4.2.1 && \
 	mkdir build && \
 	cd build && \
 	cmake .. \
-	-DCMAKE_INSTALL_PREFIX=/usr/local/libressl-4.1.0 \
+	-DCMAKE_INSTALL_PREFIX=/usr/local/libressl-4.2.1 \
 	-DCMAKE_BUILD_TYPE=Release && \
 	make -j$(nproc) && \
 	make install
@@ -63,7 +63,7 @@ RUN cd /usr/src/nginx-$NGINX_VERSION && \
 	--with-http_gzip_static_module \
 	--with-compat \
 	--add-dynamic-module=../ngx_brotli \
-	--with-openssl=/usr/src/libressl-4.1.0 \
+	--with-openssl=/usr/src/libressl-4.2.1 \
 	--with-openssl-opt=enable-tls1_3 && \
 	make && make install
 
@@ -82,12 +82,12 @@ RUN addgroup -g ${GROUP_ID} -S appuser && \
 
 # Copy modules and LibreSSL from builder
 COPY --from=builder /usr/lib/nginx/modules/*.so /usr/lib/nginx/modules/
-COPY --from=builder /usr/local/libressl-4.1.0 /usr/local/libressl-4.1.0
+COPY --from=builder /usr/local/libressl-4.2.1 /usr/local/libressl-4.2.1
 COPY --from=builder /usr/sbin/nginx /usr/sbin/nginx
 
 # Set up environment for LibreSSL
-ENV LD_LIBRARY_PATH=/usr/local/libressl-4.1.0/lib:$LD_LIBRARY_PATH
-ENV PATH=/usr/local/libressl-4.1.0/bin:$PATH
+ENV LD_LIBRARY_PATH=/usr/local/libressl-4.2.1/lib:$LD_LIBRARY_PATH
+ENV PATH=/usr/local/libressl-4.2.1/bin:$PATH
 
 RUN rm /etc/nginx/conf.d/default.conf
 
