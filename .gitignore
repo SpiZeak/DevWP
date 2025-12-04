@@ -2,6 +2,7 @@
 config/nginx/sites-enabled/*
 www/*
 config/certs/*
+config/mariadb/files/*
 node_modules
 dist
 out
