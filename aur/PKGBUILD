@@ -1,6 +1,6 @@
 # Maintainer: Max Trewhitt <max@trewhitt.au>
 pkgname=devwp-bin
-pkgver=0.0.31
+pkgver=0.0.34
 pkgrel=1
 pkgdesc="An Electron-based desktop application for managing local WordPress development sites"
 arch=('x86_64')

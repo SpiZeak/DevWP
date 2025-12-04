@@ -5,7 +5,7 @@ set -e
 
 if [ -z "$1" ]; then
     echo "Usage: $0 <version>"
-    echo "Example: $0 0.0.31"
+    echo "Example: $0 0.0.34"
     exit 1
 fi
 

@@ -6,7 +6,7 @@ on:
   workflow_dispatch: # Allow manual triggering
     inputs:
       version:
-        description: 'Version to deploy (e.g., 0.0.32)'
+        description: 'Version to deploy (e.g., 0.0.34)'
         required: true
         type: string
 

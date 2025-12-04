@@ -31,7 +31,7 @@ cp ../aur/.SRCINFO .
 
 # Add and commit
 git add PKGBUILD .SRCINFO
-git commit -m "Initial commit: devwp-bin 0.0.31"
+git commit -m "Initial commit: devwp-bin 0.0.34"
 
 # Push to AUR
 git push origin master
@@ -46,7 +46,7 @@ Before the first submission, update these fields in `PKGBUILD`:
 # Maintainer: Your Real Name <your.email@example.com>
 
 # Calculate and update the SHA256 checksum
-sha256sum devwp-0.0.31.AppImage
+sha256sum devwp-0.0.34.AppImage
 # Update sha256sums=('...') in PKGBUILD
 ```
 
@@ -59,7 +59,7 @@ When releasing a new version:
 Edit `PKGBUILD`:
 
 ```bash
-pkgver=0.0.31  # New version
+pkgver=0.0.34  # New version
 pkgrel=1       # Reset to 1 for new version
 ```
 
@@ -69,10 +69,10 @@ Update the source URL to match the new version.
 
 ```bash
 # Download the new AppImage
-wget https://github.com/SpiZeak/DevWP/releases/download/v0.0.31/devwp-0.0.31.AppImage
+wget https://github.com/SpiZeak/DevWP/releases/download/v0.0.34/devwp-0.0.34.AppImage
 
 # Calculate SHA256
-sha256sum devwp-0.0.31.AppImage
+sha256sum devwp-0.0.34.AppImage
 
 # Update sha256sums in PKGBUILD
 sha256sums=('NEW_CHECKSUM_HERE')
@@ -103,7 +103,7 @@ makepkg --printsrcinfo > .SRCINFO
 ```bash
 # In the AUR repository directory
 git add PKGBUILD .SRCINFO
-git commit -m "Update to version 0.0.31"
+git commit -m "Update to version 0.0.34"
 git push
 ```
 
