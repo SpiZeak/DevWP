@@ -53,6 +53,17 @@ jobs:
           # CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
           # CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
 
+      - name: Compress Linux unpacked directory (zstd)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          if [ -d "dist/linux-unpacked" ]; then
+            tar -C dist --zstd -cf dist/linux-unpacked.tar.zst linux-unpacked
+            ls -lh dist/linux-unpacked.tar.zst
+          else
+            echo "dist/linux-unpacked not found" >&2
+            exit 1
+          fi
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -61,6 +72,7 @@ jobs:
             dist/**/devwp-*-setup.exe
             dist/**/devwp-*.dmg
             dist/**/devwp_*.deb
+            dist/**/linux-unpacked.tar.zst
           if-no-files-found: ignore # Only upload platform installers; skip when not produced
 
   create_release:
