@@ -1,16 +1,17 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderWithProviders, screen } from '../../test/test-utils'
+import type { Site } from '@renderer/env'
 import userEvent from '@testing-library/user-event'
+import type { Mock } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { renderWithProviders, screen } from '../../test/test-utils'
 import SiteItem from './SiteItem'
-import { Site } from '@renderer/env'
 
 describe('SiteItem', () => {
   let mockSite: Site
-  let mockOnOpenUrl: ReturnType<typeof vi.fn>
-  let mockOnScan: ReturnType<typeof vi.fn>
-  let mockOnOpenWpCli: ReturnType<typeof vi.fn>
-  let mockOnEditSite: ReturnType<typeof vi.fn>
-  let mockInvoke: ReturnType<typeof vi.fn>
+  let mockOnOpenUrl: Mock<(url: string) => void>
+  let mockOnScan: Mock<(site: Site) => void>
+  let mockOnOpenWpCli: Mock<(site: Site) => void>
+  let mockOnEditSite: Mock<(site: Site) => void>
+  let mockInvoke: Mock<(channel: string, payload?: unknown) => unknown>
 
   beforeEach(() => {
     mockOnOpenUrl = vi.fn()
