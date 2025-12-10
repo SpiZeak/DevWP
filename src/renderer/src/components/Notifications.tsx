@@ -1,31 +1,33 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react';
 
 interface Notification {
-  id: number
-  type: 'success' | 'error'
-  message: string
+  id: number;
+  type: 'success' | 'error';
+  message: string;
 }
 
 const Notifications: React.FC = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
     const removeListener = window.electronAPI.onNotification((data) => {
       const newNotification = {
         id: Date.now(),
-        ...data
-      }
-      setNotifications((prev) => [...prev, newNotification])
+        ...data,
+      };
+      setNotifications((prev) => [...prev, newNotification]);
 
       setTimeout(() => {
-        setNotifications((prev) => prev.filter((n) => n.id !== newNotification.id))
-      }, 5000)
-    })
+        setNotifications((prev) =>
+          prev.filter((n) => n.id !== newNotification.id),
+        );
+      }, 5000);
+    });
 
     return () => {
-      removeListener()
-    }
-  }, [])
+      removeListener();
+    };
+  }, []);
 
   return (
     <div className="notification-container">
@@ -39,7 +41,7 @@ const Notifications: React.FC = () => {
         </div>
       ))}
     </div>
-  )
-}
+  );
+};
 
-export default Notifications
+export default Notifications;

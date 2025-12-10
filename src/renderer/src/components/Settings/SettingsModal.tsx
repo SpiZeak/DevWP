@@ -1,80 +1,83 @@
-import { useState, useEffect } from 'react'
-import Icon from '../ui/Icon'
-import Spinner from '../ui/Spinner'
+import { useEffect, useState } from 'react';
+import Icon from '../ui/Icon';
+import Spinner from '../ui/Spinner';
 
 interface SettingsModalProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-  const [webrootPath, setWebrootPath] = useState<string>('')
-  const [originalWebrootPath, setOriginalWebrootPath] = useState<string>('')
-  const [loading, setLoading] = useState<boolean>(false)
-  const [saving, setSaving] = useState<boolean>(false)
-  const [hasChanges, setHasChanges] = useState<boolean>(false)
+  const [webrootPath, setWebrootPath] = useState<string>('');
+  const [originalWebrootPath, setOriginalWebrootPath] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [hasChanges, setHasChanges] = useState<boolean>(false);
 
   useEffect(() => {
     if (isOpen) {
-      loadSettings()
+      loadSettings();
     }
-  }, [isOpen])
+  }, [isOpen]);
 
   useEffect(() => {
-    setHasChanges(webrootPath !== originalWebrootPath)
-  }, [webrootPath, originalWebrootPath])
+    setHasChanges(webrootPath !== originalWebrootPath);
+  }, [webrootPath, originalWebrootPath]);
 
   const loadSettings = async (): Promise<void> => {
     try {
-      setLoading(true)
-      const path = await window.electronAPI.getWebrootPath()
-      setWebrootPath(path)
-      setOriginalWebrootPath(path)
+      setLoading(true);
+      const path = await window.electronAPI.getWebrootPath();
+      setWebrootPath(path);
+      setOriginalWebrootPath(path);
     } catch (error) {
-      console.error('Failed to load settings:', error)
+      console.error('Failed to load settings:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleSaveSettings = async (): Promise<void> => {
     try {
-      setSaving(true)
-      const result = await window.electronAPI.saveSetting('webroot_path', webrootPath)
+      setSaving(true);
+      const result = await window.electronAPI.saveSetting(
+        'webroot_path',
+        webrootPath,
+      );
 
       if (result.success) {
-        setOriginalWebrootPath(webrootPath)
-        console.log('Settings saved successfully')
+        setOriginalWebrootPath(webrootPath);
+        console.log('Settings saved successfully');
       } else {
-        console.error('Failed to save settings:', result.error)
+        console.error('Failed to save settings:', result.error);
       }
     } catch (error) {
-      console.error('Failed to save settings:', error)
+      console.error('Failed to save settings:', error);
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
-  }
+  };
 
   const handleClose = (): void => {
     if (hasChanges) {
       // Reset to original values
-      setWebrootPath(originalWebrootPath)
+      setWebrootPath(originalWebrootPath);
     }
-    onClose()
-  }
+    onClose();
+  };
 
   const handleSelectDirectory = async (): Promise<void> => {
     try {
-      const selectedPath = await window.electronAPI.pickDirectory(webrootPath)
+      const selectedPath = await window.electronAPI.pickDirectory(webrootPath);
       if (selectedPath) {
-        setWebrootPath(selectedPath)
+        setWebrootPath(selectedPath);
       }
     } catch (error) {
-      console.error('Failed to select directory:', error)
+      console.error('Failed to select directory:', error);
     }
-  }
+  };
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="z-50 fixed inset-0 flex justify-center items-center bg-black bg-opacity-50">
@@ -97,7 +100,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         ) : (
           <div className="space-y-6">
             <div>
-              <label className="block mb-2 font-medium text-seasalt text-sm">Webroot Path</label>
+              <label className="block mb-2 font-medium text-seasalt text-sm">
+                Webroot Path
+              </label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -140,7 +145,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default SettingsModal
+export default SettingsModal;

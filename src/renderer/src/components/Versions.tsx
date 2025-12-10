@@ -1,71 +1,77 @@
-import { useEffect, useMemo, useState, JSX } from 'react'
-import type { MouseEvent } from 'react'
-import Icon from './ui/Icon'
+import type { MouseEvent } from 'react';
+import { type JSX, useEffect, useMemo, useState } from 'react';
+import Icon from './ui/Icon';
 
 interface VersionsProps {
-  isOpen: boolean
-  onClose: () => void
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
   const systemVersions = useMemo(
-    () => window.electron?.process?.versions ?? ({} as Partial<NodeJS.ProcessVersions>),
-    []
-  )
-  const [appVersion, setAppVersion] = useState<string | null>(null)
-  const [versionError, setVersionError] = useState<boolean>(false)
+    () =>
+      window.electron?.process?.versions ??
+      ({} as Partial<NodeJS.ProcessVersions>),
+    [],
+  );
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [versionError, setVersionError] = useState<boolean>(false);
 
   useEffect(() => {
-    let isMounted = true
+    let isMounted = true;
 
     const fetchVersion = async (): Promise<void> => {
       try {
-        const version = await window.electronAPI.getAppVersion()
+        const version = await window.electronAPI.getAppVersion();
         if (isMounted) {
-          setAppVersion(version)
-          setVersionError(false)
+          setAppVersion(version);
+          setVersionError(false);
         }
       } catch (error) {
-        console.error('Failed to load DevWP version:', error)
+        console.error('Failed to load DevWP version:', error);
         if (isMounted) {
-          setVersionError(true)
+          setVersionError(true);
         }
       }
-    }
+    };
 
     if (isOpen) {
-      setVersionError(false)
-      fetchVersion().catch(() => {})
+      setVersionError(false);
+      fetchVersion().catch(() => {});
     }
 
     return () => {
-      isMounted = false
-    }
-  }, [isOpen])
+      isMounted = false;
+    };
+  }, [isOpen]);
 
   if (!isOpen) {
-    return null
+    return null;
   }
 
   const devwpVersionLabel = versionError
     ? 'Unavailable'
     : appVersion
       ? `v${appVersion}`
-      : 'Loading...'
+      : 'Loading...';
 
   const electronVersionLabel = systemVersions.electron
     ? `v${systemVersions.electron}`
-    : 'Unavailable'
-  const chromiumVersionLabel = systemVersions.chrome ? `v${systemVersions.chrome}` : 'Unavailable'
-  const nodeVersionLabel = systemVersions.node ? `v${systemVersions.node}` : 'Unavailable'
+    : 'Unavailable';
+  const chromiumVersionLabel = systemVersions.chrome
+    ? `v${systemVersions.chrome}`
+    : 'Unavailable';
+  const nodeVersionLabel = systemVersions.node
+    ? `v${systemVersions.node}`
+    : 'Unavailable';
 
   const handleOverlayClick = (): void => {
-    onClose()
-  }
+    onClose();
+  };
 
   const handleContentClick = (event: MouseEvent<HTMLDivElement>): void => {
-    event.stopPropagation()
-  }
+    event.stopPropagation();
+  };
 
   return (
     <div
@@ -80,7 +86,10 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
         onClick={handleContentClick}
       >
         <div className="flex justify-between items-center mb-6">
-          <h2 id="versions-modal-title" className="font-semibold text-seasalt text-xl">
+          <h2
+            id="versions-modal-title"
+            className="font-semibold text-seasalt text-xl"
+          >
             About DevWP
           </h2>
           <button
@@ -94,23 +103,41 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
         </div>
         <ul className="space-y-4">
           <li className="flex justify-between items-center">
-            <span className="text-seasalt-400 text-xs uppercase tracking-wide">DevWP</span>
-            <span className="font-semibold text-seasalt text-sm">{devwpVersionLabel}</span>
+            <span className="text-seasalt-400 text-xs uppercase tracking-wide">
+              DevWP
+            </span>
+            <span className="font-semibold text-seasalt text-sm">
+              {devwpVersionLabel}
+            </span>
           </li>
           <li className="flex justify-between items-center">
-            <span className="text-seasalt-400 text-xs uppercase tracking-wide">Electron</span>
-            <span className="font-semibold text-seasalt text-sm">{electronVersionLabel}</span>
+            <span className="text-seasalt-400 text-xs uppercase tracking-wide">
+              Electron
+            </span>
+            <span className="font-semibold text-seasalt text-sm">
+              {electronVersionLabel}
+            </span>
           </li>
           <li className="flex justify-between items-center">
-            <span className="text-seasalt-400 text-xs uppercase tracking-wide">Chromium</span>
-            <span className="font-semibold text-seasalt text-sm">{chromiumVersionLabel}</span>
+            <span className="text-seasalt-400 text-xs uppercase tracking-wide">
+              Chromium
+            </span>
+            <span className="font-semibold text-seasalt text-sm">
+              {chromiumVersionLabel}
+            </span>
           </li>
           <li className="flex justify-between items-center">
-            <span className="text-seasalt-400 text-xs uppercase tracking-wide">Node</span>
-            <span className="font-semibold text-seasalt text-sm">{nodeVersionLabel}</span>
+            <span className="text-seasalt-400 text-xs uppercase tracking-wide">
+              Node
+            </span>
+            <span className="font-semibold text-seasalt text-sm">
+              {nodeVersionLabel}
+            </span>
           </li>
           <li className="flex justify-between items-center">
-            <span className="text-seasalt-400 text-xs uppercase tracking-wide">Developer</span>
+            <span className="text-seasalt-400 text-xs uppercase tracking-wide">
+              Developer
+            </span>
             <a
               href="https://trewhitt.au"
               target="_blank"
@@ -123,7 +150,7 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
         </ul>
       </div>
     </div>
-  )
+  );
 }
 
-export default Versions
+export default Versions;

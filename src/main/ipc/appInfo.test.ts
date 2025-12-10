@@ -1,37 +1,40 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { ipcMain, app, type IpcMainInvokeEvent } from 'electron'
-import { registerAppInfoHandlers } from './appInfo'
+import { app, type IpcMainInvokeEvent, ipcMain } from 'electron';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { registerAppInfoHandlers } from './appInfo';
 
 vi.mock('electron', () => ({
   ipcMain: {
-    handle: vi.fn()
+    handle: vi.fn(),
   },
   app: {
-    getVersion: vi.fn().mockReturnValue('1.2.3')
-  }
-}))
+    getVersion: vi.fn().mockReturnValue('1.2.3'),
+  },
+}));
 
 describe('App Info IPC Handlers', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-  })
+    vi.clearAllMocks();
+  });
 
   it('registers the get-app-version handler', () => {
-    registerAppInfoHandlers()
+    registerAppInfoHandlers();
 
-    expect(ipcMain.handle).toHaveBeenCalledWith('get-app-version', expect.any(Function))
-  })
+    expect(ipcMain.handle).toHaveBeenCalledWith(
+      'get-app-version',
+      expect.any(Function),
+    );
+  });
 
   it('returns the application version when invoked', async () => {
-    registerAppInfoHandlers()
+    registerAppInfoHandlers();
 
     const handler = vi
       .mocked(ipcMain.handle)
-      .mock.calls.find((call) => call[0] === 'get-app-version')?.[1]
+      .mock.calls.find((call) => call[0] === 'get-app-version')?.[1];
 
-    const result = await handler!({} as IpcMainInvokeEvent)
+    const result = await handler!({} as IpcMainInvokeEvent);
 
-    expect(app.getVersion).toHaveBeenCalled()
-    expect(result).toBe('1.2.3')
-  })
-})
+    expect(app.getVersion).toHaveBeenCalled();
+    expect(result).toBe('1.2.3');
+  });
+});

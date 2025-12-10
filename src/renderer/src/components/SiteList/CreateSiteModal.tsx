@@ -1,36 +1,36 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react';
 
 export interface NewSiteData {
-  domain: string
-  webRoot: string
-  aliases: string
+  domain: string;
+  webRoot: string;
+  aliases: string;
   multisite: {
-    enabled: boolean
-    type: 'subdomain' | 'subdirectory'
-  }
+    enabled: boolean;
+    type: 'subdomain' | 'subdirectory';
+  };
 }
 
 interface CreateSiteModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onSubmit: (siteData: NewSiteData) => void
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (siteData: NewSiteData) => void;
 }
 
 interface FormInputProps {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  placeholder: string
-  autoFocus?: boolean
-  helpText?: React.ReactNode
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  autoFocus?: boolean;
+  helpText?: React.ReactNode;
 }
 
 interface MultisiteOptionProps {
-  type: 'subdomain' | 'subdirectory'
-  isSelected: boolean
-  onClick: () => void
-  label: string
-  example: string
+  type: 'subdomain' | 'subdirectory';
+  isSelected: boolean;
+  onClick: () => void;
+  label: string;
+  example: string;
 }
 
 const FormInput: React.FC<FormInputProps> = ({
@@ -39,7 +39,7 @@ const FormInput: React.FC<FormInputProps> = ({
   onChange,
   placeholder,
   autoFocus = false,
-  helpText
+  helpText,
 }) => (
   <div className="mb-5">
     <label className="block mb-1 text-sm">{label}</label>
@@ -53,20 +53,21 @@ const FormInput: React.FC<FormInputProps> = ({
     />
     {helpText && helpText}
   </div>
-)
+);
 
 const MultisiteOption: React.FC<MultisiteOptionProps> = ({
   type,
   isSelected,
   onClick,
   label,
-  example
+  example,
 }) => {
   const baseClasses =
-    'flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer transition-all border-2'
-  const selectedClasses = 'border-pumpkin bg-gunmetal-400 text-pumpkin font-semibold'
+    'flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer transition-all border-2';
+  const selectedClasses =
+    'border-pumpkin bg-gunmetal-400 text-pumpkin font-semibold';
   const unselectedClasses =
-    'border-gunmetal-500 bg-gunmetal-500 hover:bg-gunmetal-400 hover:text-pumpkin hover:border-gunmetal-400'
+    'border-gunmetal-500 bg-gunmetal-500 hover:bg-gunmetal-400 hover:text-pumpkin hover:border-gunmetal-400';
 
   return (
     <div
@@ -84,69 +85,83 @@ const MultisiteOption: React.FC<MultisiteOptionProps> = ({
       />
       <label htmlFor={`multisite-${type}`} className="cursor-pointer">
         {label}
-        <span className={`ml-1 text-xs ${isSelected ? 'text-pumpkin-300' : 'text-seasalt-300'}`}>
+        <span
+          className={`ml-1 text-xs ${isSelected ? 'text-pumpkin-300' : 'text-seasalt-300'}`}
+        >
           ({example})
         </span>
       </label>
     </div>
-  )
-}
+  );
+};
 
-const CreateSiteModal: React.FC<CreateSiteModalProps> = ({ isOpen, onClose, onSubmit }) => {
+const CreateSiteModal: React.FC<CreateSiteModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+}) => {
   const initialSiteData: NewSiteData = {
     domain: 'example.test',
     webRoot: '',
     aliases: '',
     multisite: {
       enabled: false,
-      type: 'subdirectory'
-    }
-  }
+      type: 'subdirectory',
+    },
+  };
 
-  const [newSite, setNewSite] = useState<NewSiteData>(initialSiteData)
+  const [newSite, setNewSite] = useState<NewSiteData>(initialSiteData);
 
   useEffect(() => {
     if (!isOpen) {
-      setNewSite(initialSiteData)
+      setNewSite(initialSiteData);
     }
-  }, [isOpen])
+  }, [isOpen]);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   const formatDomain = (domain: string): string => {
-    return /.+\..*$/.test(domain) ? domain : `${domain}.test`
-  }
+    return /.+\..*$/.test(domain) ? domain : `${domain}.test`;
+  };
 
   const updateSiteField = (field: keyof NewSiteData, value: any) => {
-    setNewSite((prev) => ({ ...prev, [field]: value }))
-  }
+    setNewSite((prev) => ({ ...prev, [field]: value }));
+  };
 
-  const updateMultisiteField = (field: keyof NewSiteData['multisite'], value: any) => {
+  const updateMultisiteField = (
+    field: keyof NewSiteData['multisite'],
+    value: any,
+  ) => {
     setNewSite((prev) => ({
       ...prev,
-      multisite: { ...prev.multisite, [field]: value }
-    }))
-  }
+      multisite: { ...prev.multisite, [field]: value },
+    }));
+  };
 
   const handleWebRootChange = (value: string) => {
-    updateSiteField('webRoot', value.trim().replace(/^\/+|\/+$/g, ''))
-  }
+    updateSiteField('webRoot', value.trim().replace(/^\/+|\/+$/g, ''));
+  };
 
   const handleSubmit = (): void => {
     const siteDataToSend = {
       ...newSite,
       domain: formatDomain(newSite.domain),
-      aliases: newSite.aliases.split(' ').filter(Boolean).map(formatDomain).join(' ')
-    }
-    onSubmit(siteDataToSend)
-  }
+      aliases: newSite.aliases
+        .split(' ')
+        .filter(Boolean)
+        .map(formatDomain)
+        .join(' '),
+    };
+    onSubmit(siteDataToSend);
+  };
 
-  const formattedDomain = formatDomain(newSite.domain)
-  const isSubmitDisabled = !newSite.domain.replace('.test', '')
+  const formattedDomain = formatDomain(newSite.domain);
+  const isSubmitDisabled = !newSite.domain.replace('.test', '');
 
   const renderWebRootHelpText = () => (
     <div className="mt-2 text-seasalt text-xs">
-      Site will be created in www/<span className="font-bold text-pumpkin">{formattedDomain}</span>.
+      Site will be created in www/
+      <span className="font-bold text-pumpkin">{formattedDomain}</span>.
       {newSite.webRoot ? (
         <>
           {' '}
@@ -158,9 +173,10 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({ isOpen, onClose, onSu
         ' Web server will point to the site root.'
       )}
       <br />
-      Accessible at https://<span className="font-bold text-pumpkin">{formattedDomain}</span>
+      Accessible at https://
+      <span className="font-bold text-pumpkin">{formattedDomain}</span>
     </div>
-  )
+  );
 
   return (
     <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70">
@@ -198,7 +214,9 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({ isOpen, onClose, onSu
                 type="checkbox"
                 id="multisite-enabled"
                 checked={newSite.multisite.enabled}
-                onChange={(e) => updateMultisiteField('enabled', e.target.checked)}
+                onChange={(e) =>
+                  updateMultisiteField('enabled', e.target.checked)
+                }
                 className="peer opacity-0 w-0 h-0"
               />
               <span className="top-0 right-0 bottom-0 before:bottom-0.5 left-0 before:left-0.5 absolute before:absolute bg-gunmetal-400 before:bg-seasalt peer-checked:bg-pumpkin peer-focus:shadow-sm rounded-3xl before:rounded-full before:w-4.5 before:h-4.5 before:content-[''] transition-all before:transition-all peer-checked:before:translate-x-5 duration-400 before:duration-400 cursor-pointer"></span>
@@ -248,7 +266,7 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({ isOpen, onClose, onSu
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default CreateSiteModal
+export default CreateSiteModal;

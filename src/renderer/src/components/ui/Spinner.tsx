@@ -1,10 +1,10 @@
-import { JSX } from 'react'
+import type { JSX } from 'react';
 
 type SpinnerProps = {
-  className?: string
-  svgClass?: string
-  title?: string
-}
+  className?: string;
+  svgClass?: string;
+  title?: string;
+};
 
 const Spinner = (props: SpinnerProps): JSX.Element => (
   <div
@@ -34,6 +34,6 @@ const Spinner = (props: SpinnerProps): JSX.Element => (
       ></path>
     </svg>
   </div>
-)
+);
 
-export default Spinner
+export default Spinner;

@@ -1,34 +1,42 @@
-import { Site } from '@renderer/env'
-import { useState, useEffect } from 'react'
-import Icon from '../ui/Icon'
+import type { Site } from '@renderer/env';
+import { useEffect, useState } from 'react';
+import Icon from '../ui/Icon';
 
 /* eslint-disable react/prop-types */
 
 interface EditSiteData {
-  aliases: string
-  webRoot: string
+  aliases: string;
+  webRoot: string;
 }
 
 interface EditSiteModalProps {
-  isOpen: boolean
-  site: Site | null
-  onClose: () => void
-  onSubmit: (site: Site, data: EditSiteData) => void
-  onDelete: (site: Site) => Promise<void> | void
+  isOpen: boolean;
+  site: Site | null;
+  onClose: () => void;
+  onSubmit: (site: Site, data: EditSiteData) => void;
+  onDelete: (site: Site) => Promise<void> | void;
 }
 
 interface FormInputProps {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  placeholder: string
-  helpText?: React.ReactNode
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  helpText?: React.ReactNode;
 }
 
-const FormInput: React.FC<FormInputProps> = ({ label, value, onChange, placeholder, helpText }) => {
+const FormInput: React.FC<FormInputProps> = ({
+  label,
+  value,
+  onChange,
+  placeholder,
+  helpText,
+}) => {
   return (
     <div className="mb-6">
-      <label className="block mb-2 font-medium text-seasalt text-sm">{label}</label>
+      <label className="block mb-2 font-medium text-seasalt text-sm">
+        {label}
+      </label>
       <input
         type="text"
         className="bg-gunmetal-400 p-3 border border-gunmetal-600 focus:border-pumpkin-500 rounded-lg focus:outline-none w-full text-seasalt transition-colors placeholder-seasalt-400"
@@ -38,50 +46,50 @@ const FormInput: React.FC<FormInputProps> = ({ label, value, onChange, placehold
       />
       {helpText && helpText}
     </div>
-  )
-}
+  );
+};
 
 const EditSiteModal: React.FC<EditSiteModalProps> = ({
   isOpen,
   site,
   onClose,
   onSubmit,
-  onDelete
+  onDelete,
 }) => {
   const [editData, setEditData] = useState<EditSiteData>({
     aliases: '',
-    webRoot: ''
-  })
+    webRoot: '',
+  });
 
   useEffect(() => {
     if (isOpen && site) {
       setEditData({
         aliases: site.aliases || '',
-        webRoot: site.webRoot || ''
-      })
+        webRoot: site.webRoot || '',
+      });
     }
-  }, [isOpen, site])
+  }, [isOpen, site]);
 
   if (!isOpen || !site) {
-    return null
+    return null;
   }
 
   const updateField = (field: keyof EditSiteData, value: string): void => {
-    setEditData((prev) => ({ ...prev, [field]: value }))
-  }
+    setEditData((prev) => ({ ...prev, [field]: value }));
+  };
 
   const handleWebRootChange = (value: string): void => {
-    updateField('webRoot', value.trim().replace(/^\/+|\/+$/g, ''))
-  }
+    updateField('webRoot', value.trim().replace(/^\/+|\/+$/g, ''));
+  };
 
   const handleSubmit = (): void => {
-    onSubmit(site, editData)
-  }
+    onSubmit(site, editData);
+  };
 
   const handleDelete = (): void => {
-    if (site.status === 'provisioning') return
-    void onDelete(site)
-  }
+    if (site.status === 'provisioning') return;
+    void onDelete(site);
+  };
 
   const renderWebRootHelpText = (): React.ReactNode => (
     <div className="mt-2 text-seasalt text-xs">
@@ -95,9 +103,10 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({
         'Web server will point to the site root.'
       )}
       <br />
-      Site accessible at <span className="font-bold text-pumpkin">{site.url}</span>
+      Site accessible at{' '}
+      <span className="font-bold text-pumpkin">{site.url}</span>
     </div>
-  )
+  );
 
   return (
     <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70">
@@ -116,7 +125,9 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({
         <div className="bg-gunmetal-400 mb-4 p-3 border-pumpkin border-l-4 rounded-lg">
           <div className="flex items-center gap-2 mb-1">
             <Icon className="text-pumpkin" content="󰌨" />
-            <span className="font-semibold text-seasalt text-sm">{site.name}</span>
+            <span className="font-semibold text-seasalt text-sm">
+              {site.name}
+            </span>
           </div>
           <div className="text-seasalt-400 text-xs">{site.path}</div>
         </div>
@@ -137,10 +148,12 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({
         />
 
         <div className="bg-gunmetal-400/60 mt-6 px-4 py-4 border border-gunmetal-600 rounded-lg">
-          <h4 className="mb-2 font-semibold text-seasalt text-sm">Danger Zone</h4>
+          <h4 className="mb-2 font-semibold text-seasalt text-sm">
+            Danger Zone
+          </h4>
           <p className="mb-3 text-seasalt-400 text-xs">
-            Deleting this site removes Docker containers, files, and the database snapshot. This
-            action cannot be undone.
+            Deleting this site removes Docker containers, files, and the
+            database snapshot. This action cannot be undone.
           </p>
           <button
             onClick={handleDelete}
@@ -168,7 +181,7 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default EditSiteModal
+export default EditSiteModal;

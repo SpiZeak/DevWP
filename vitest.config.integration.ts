@@ -1,5 +1,5 @@
-import { defineConfig } from 'vitest/config'
-import { resolve } from 'path'
+import { resolve } from 'path';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
@@ -11,12 +11,12 @@ export default defineConfig({
     testTimeout: 30000, // Longer timeout for Docker operations
     hookTimeout: 30000,
     setupFiles: ['./src/test/integration-setup.ts'],
-    passWithNoTests: true // Don't fail if no integration tests exist yet
+    passWithNoTests: true, // Don't fail if no integration tests exist yet
   },
   resolve: {
     alias: {
       '@main': resolve(__dirname, './src/main'),
-      '@renderer': resolve(__dirname, './src/renderer/src')
-    }
-  }
-})
+      '@renderer': resolve(__dirname, './src/renderer/src'),
+    },
+  },
+});

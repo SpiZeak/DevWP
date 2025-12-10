@@ -1,9 +1,9 @@
-import react from '@vitejs/plugin-react'
-import { resolve } from 'path'
-import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react';
+import { resolve } from 'path';
+import { defineConfig } from 'vitest/config';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const plugins = [react()] as any
+const plugins = [react()] as any;
 
 export default defineConfig({
   plugins,
@@ -21,18 +21,21 @@ export default defineConfig({
         '**/types.ts',
         '**/*.d.ts',
         'src/renderer/src/main.tsx',
-        'src/preload/index.ts'
-      ]
+        'src/preload/index.ts',
+      ],
     },
     // Use projects to separate environments
     projects: [
       {
         test: {
           name: 'main',
-          include: ['src/main/**/*.{test,spec}.ts', 'src/preload/**/*.{test,spec}.ts'],
+          include: [
+            'src/main/**/*.{test,spec}.ts',
+            'src/preload/**/*.{test,spec}.ts',
+          ],
           environment: 'node',
-          globals: true
-        }
+          globals: true,
+        },
       },
       {
         test: {
@@ -40,16 +43,16 @@ export default defineConfig({
           include: ['src/renderer/**/*.{test,spec}.{ts,tsx}'],
           environment: 'jsdom',
           globals: true,
-          setupFiles: ['./src/renderer/src/test/setup.ts']
-        }
-      }
-    ]
+          setupFiles: ['./src/renderer/src/test/setup.ts'],
+        },
+      },
+    ],
   },
   resolve: {
     alias: {
       '@renderer': resolve(__dirname, 'src/renderer/src'),
       '@main': resolve(__dirname, 'src/main'),
-      '@preload': resolve(__dirname, 'src/preload')
-    }
-  }
-})
+      '@preload': resolve(__dirname, 'src/preload'),
+    },
+  },
+});

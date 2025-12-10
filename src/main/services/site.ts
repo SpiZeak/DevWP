@@ -1,33 +1,37 @@
-import { join } from 'path'
-import { promises as fs, constants } from 'fs' // Import constants
-import { exec } from 'child_process'
-import { generateNginxConfig, removeNginxConfig, reloadNginxConfig } from './nginx'
-import { modifyHostsFile } from './hosts'
+import { exec } from 'child_process';
+import { constants, promises as fs } from 'fs'; // Import constants
+import { join } from 'path';
 import {
-  initializeConfigDatabase,
-  saveSiteConfiguration,
+  deleteSiteConfiguration,
   getAllSiteConfigurations,
   getSiteConfiguration,
-  deleteSiteConfiguration,
-  migrateExistingSites,
   getWebrootPath,
-  type SiteConfiguration
-} from './database'
+  initializeConfigDatabase,
+  migrateExistingSites,
+  type SiteConfiguration,
+  saveSiteConfiguration,
+} from './database';
+import { modifyHostsFile } from './hosts';
+import {
+  generateNginxConfig,
+  reloadNginxConfig,
+  removeNginxConfig,
+} from './nginx';
 
 export interface Site {
-  name: string
-  path: string
-  url: string
-  status?: string
+  name: string;
+  path: string;
+  url: string;
+  status?: string;
   // Add configuration data from database
-  aliases?: string
-  webRoot?: string
+  aliases?: string;
+  webRoot?: string;
   multisite?: {
-    enabled: boolean
-    type: 'subdomain' | 'subdirectory'
-  }
-  createdAt?: Date
-  updatedAt?: Date
+    enabled: boolean;
+    type: 'subdomain' | 'subdirectory';
+  };
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 // Sanitize a site domain to create a valid MySQL/MariaDB database name
@@ -41,185 +45,210 @@ function sanitizeDatabaseName(siteDomain: string): string {
   let dbName = siteDomain
     .replace(/[^a-zA-Z0-9_$]/g, '_') // Replace invalid chars with underscore
     .replace(/_{2,}/g, '_') // Replace consecutive underscores with single
-    .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+    .replace(/^_+|_+$/g, ''); // Remove leading/trailing underscores
 
   // Ensure it starts with a letter or underscore
   if (dbName && !/^[a-zA-Z_]/.test(dbName)) {
-    dbName = 'db_' + dbName
+    dbName = 'db_' + dbName;
   }
 
   // Ensure it's not empty - abort if no valid database name can be created
   if (!dbName) {
-    throw new Error(`Cannot create a valid database name from site domain: '${siteDomain}'`)
+    throw new Error(
+      `Cannot create a valid database name from site domain: '${siteDomain}'`,
+    );
   }
 
   // Limit to 64 characters (MySQL limit)
   if (dbName.length > 64) {
-    dbName = dbName.substring(0, 64).replace(/_+$/, '') // Remove trailing underscores after truncation
+    dbName = dbName.substring(0, 64).replace(/_+$/, ''); // Remove trailing underscores after truncation
   }
 
-  return dbName
+  return dbName;
 }
 
 // Install WordPress in the newly created site
 async function installWordPress(
   siteDomain: string,
   dbName: string,
-  webRoot?: string
+  webRoot?: string,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const baseSiteDir = `/src/www/${siteDomain}`
-    const wpInstallPath = webRoot ? `${baseSiteDir}/${webRoot}` : baseSiteDir
+    const baseSiteDir = `/src/www/${siteDomain}`;
+    const wpInstallPath = webRoot ? `${baseSiteDir}/${webRoot}` : baseSiteDir;
 
     // Command to download WordPress core
-    const downloadCmd = `docker compose exec php wp core download --path=${wpInstallPath} --force`
+    const downloadCmd = `docker compose exec php wp core download --path=${wpInstallPath} --force`;
 
     // Command to create wp-config.php
-    const configCmd = `docker compose exec php wp config create --path=${wpInstallPath} --dbname=${dbName} --dbuser=root --dbpass=root --dbhost=mariadb --force`
+    const configCmd = `docker compose exec php wp config create --path=${wpInstallPath} --dbname=${dbName} --dbuser=root --dbpass=root --dbhost=mariadb --force`;
 
     // Command to install WordPress
-    const installCmd = `docker compose exec php wp core install --path=${wpInstallPath} --url=https://${siteDomain} --title="${siteDomain}" --admin_user=root --admin_password=root --admin_email=admin@${siteDomain}`
+    const installCmd = `docker compose exec php wp core install --path=${wpInstallPath} --url=https://${siteDomain} --title="${siteDomain}" --admin_user=root --admin_password=root --admin_email=admin@${siteDomain}`;
 
-    console.log(`Downloading WordPress to ${wpInstallPath}...`)
+    console.log(`Downloading WordPress to ${wpInstallPath}...`);
     exec(downloadCmd, (downloadError, _, downloadStderr) => {
       if (downloadError) {
-        console.error(`Error downloading WordPress: ${downloadStderr}`)
-        reject(downloadError)
-        return
+        console.error(`Error downloading WordPress: ${downloadStderr}`);
+        reject(downloadError);
+        return;
       }
 
-      console.log('Downloaded WordPress core')
-      console.log('Creating wp-config.php...')
+      console.log('Downloaded WordPress core');
+      console.log('Creating wp-config.php...');
 
       exec(configCmd, (configError, _, configStderr) => {
         if (configError) {
-          console.error(`Error creating wp-config.php: ${configStderr}`)
-          reject(configError)
-          return
+          console.error(`Error creating wp-config.php: ${configStderr}`);
+          reject(configError);
+          return;
         }
 
-        console.log('Created wp-config.php')
-        console.log('Installing WordPress...')
+        console.log('Created wp-config.php');
+        console.log('Installing WordPress...');
 
         exec(installCmd, (installError, _, installStderr) => {
           if (installError) {
-            console.error(`Error installing WordPress: ${installStderr}`)
-            reject(installError)
-            return
+            console.error(`Error installing WordPress: ${installStderr}`);
+            reject(installError);
+            return;
           }
 
-          console.log(`Successfully installed WordPress on ${siteDomain}`)
-          resolve()
-        })
-      })
-    })
-  })
+          console.log(`Successfully installed WordPress on ${siteDomain}`);
+          resolve();
+        });
+      });
+    });
+  });
 }
 
-type CleanupTask = () => Promise<void> | void
+type CleanupTask = () => Promise<void> | void;
 
 async function createSite(site: {
-  domain: string
-  webRoot?: string
-  aliases?: string
+  domain: string;
+  webRoot?: string;
+  aliases?: string;
   multisite?: {
-    enabled: boolean
-    type: 'subdomain' | 'subdirectory'
-  }
+    enabled: boolean;
+    type: 'subdomain' | 'subdirectory';
+  };
 }): Promise<boolean> {
-  const siteDomain = site.domain
-  const siteAliases = site.aliases ? site.aliases.split(' ').filter(Boolean) : []
-  const allDomains = [siteDomain, ...siteAliases]
-  const webrootBase = await getWebrootPath()
-  const siteBasePath = join(webrootBase, siteDomain)
-  const actualWebRootPath = site.webRoot ? join(siteBasePath, site.webRoot) : siteBasePath
-  const nginxRootDirective = `/src/www/${siteDomain}${site.webRoot ? '/' + site.webRoot : ''}`
+  const siteDomain = site.domain;
+  const siteAliases = site.aliases
+    ? site.aliases.split(' ').filter(Boolean)
+    : [];
+  const allDomains = [siteDomain, ...siteAliases];
+  const webrootBase = await getWebrootPath();
+  const siteBasePath = join(webrootBase, siteDomain);
+  const actualWebRootPath = site.webRoot
+    ? join(siteBasePath, site.webRoot)
+    : siteBasePath;
+  const nginxRootDirective = `/src/www/${siteDomain}${site.webRoot ? '/' + site.webRoot : ''}`;
 
-  let dbName: string
+  let dbName: string;
   try {
-    dbName = sanitizeDatabaseName(siteDomain)
+    dbName = sanitizeDatabaseName(siteDomain);
   } catch (error: any) {
-    throw new Error(`Invalid site domain: ${error.message}`)
+    throw new Error(`Invalid site domain: ${error.message}`);
   }
 
-  const sonarProjectKey = dbName
-  const sonarProjectName = siteDomain
-  const cleanupTasks: CleanupTask[] = []
+  const sonarProjectKey = dbName;
+  const sonarProjectName = siteDomain;
+  const cleanupTasks: CleanupTask[] = [];
 
   const runCleanup = async (): Promise<void> => {
-    const tasks = [...cleanupTasks].reverse()
+    const tasks = [...cleanupTasks].reverse();
     for (const task of tasks) {
       try {
-        await task()
+        await task();
       } catch (cleanupError: any) {
-        console.error(`Cleanup step failed for ${siteDomain}:`, cleanupError)
+        console.error(`Cleanup step failed for ${siteDomain}:`, cleanupError);
       }
     }
-  }
+  };
 
   try {
-    await initializeConfigDatabase()
+    await initializeConfigDatabase();
 
-    const existingSite = await getSiteConfiguration(siteDomain)
+    const existingSite = await getSiteConfiguration(siteDomain);
     if (existingSite) {
-      throw new Error(`Site '${siteDomain}' already exists in configuration.`)
+      throw new Error(`Site '${siteDomain}' already exists in configuration.`);
     }
 
     try {
-      await fs.access(siteBasePath, constants.F_OK)
-      throw new Error(`Site directory '${siteBasePath}' already exists.`)
+      await fs.access(siteBasePath, constants.F_OK);
+      throw new Error(`Site directory '${siteBasePath}' already exists.`);
     } catch (error: any) {
       if (error.code && error.code !== 'ENOENT') {
-        console.error(`Error checking site directory for ${siteDomain}:`, error)
-        throw new Error(`Error checking site directory: ${error.message}`)
+        console.error(
+          `Error checking site directory for ${siteDomain}:`,
+          error,
+        );
+        throw new Error(`Error checking site directory: ${error.message}`);
       }
-      console.log(`Site directory ${siteBasePath} does not exist. Creating...`)
+      console.log(`Site directory ${siteBasePath} does not exist. Creating...`);
     }
 
-    await fs.mkdir(actualWebRootPath, { recursive: true })
-    console.log(`Created directory structure: ${actualWebRootPath}`)
+    await fs.mkdir(actualWebRootPath, { recursive: true });
+    console.log(`Created directory structure: ${actualWebRootPath}`);
     cleanupTasks.push(async () => {
-      await fs.rm(siteBasePath, { recursive: true, force: true })
-      console.log(`Removed directory structure during cleanup: ${siteBasePath}`)
-    })
+      await fs.rm(siteBasePath, { recursive: true, force: true });
+      console.log(
+        `Removed directory structure during cleanup: ${siteBasePath}`,
+      );
+    });
 
-    const addedHosts: string[] = []
+    const addedHosts: string[] = [];
     for (const domain of allDomains) {
-      await modifyHostsFile(domain, 'add')
-      addedHosts.push(domain)
+      await modifyHostsFile(domain, 'add');
+      addedHosts.push(domain);
     }
     cleanupTasks.push(async () => {
       for (const domain of addedHosts) {
         try {
-          await modifyHostsFile(domain, 'remove')
+          await modifyHostsFile(domain, 'remove');
         } catch (hostsError) {
-          console.error(`Failed to rollback hosts entry for ${domain}:`, hostsError)
+          console.error(
+            `Failed to rollback hosts entry for ${domain}:`,
+            hostsError,
+          );
         }
       }
-    })
+    });
 
-    await generateNginxConfig(siteDomain, nginxRootDirective, site.aliases, site.multisite)
+    await generateNginxConfig(
+      siteDomain,
+      nginxRootDirective,
+      site.aliases,
+      site.multisite,
+    );
     cleanupTasks.push(async () => {
       try {
-        await removeNginxConfig(siteDomain)
+        await removeNginxConfig(siteDomain);
       } catch (nginxError) {
-        console.error(`Failed to rollback Nginx config for ${siteDomain}:`, nginxError)
+        console.error(
+          `Failed to rollback Nginx config for ${siteDomain}:`,
+          nginxError,
+        );
       }
-    })
+    });
 
-    await createDatabase(dbName)
+    await createDatabase(dbName);
     cleanupTasks.push(async () => {
       try {
-        await dropDatabase(dbName)
+        await dropDatabase(dbName);
       } catch (dbError) {
-        console.error(`Failed to drop database ${dbName} during cleanup:`, dbError)
+        console.error(
+          `Failed to drop database ${dbName} during cleanup:`,
+          dbError,
+        );
       }
-    })
+    });
 
-    await installWordPress(siteDomain, dbName, site.webRoot)
+    await installWordPress(siteDomain, dbName, site.webRoot);
 
     if (site.multisite?.enabled) {
-      await convertToMultisite(siteDomain, site.multisite, site.webRoot)
+      await convertToMultisite(siteDomain, site.multisite, site.webRoot);
     }
 
     const siteConfig: SiteConfiguration = {
@@ -228,42 +257,44 @@ async function createSite(site: {
       webRoot: site.webRoot,
       multisite: site.multisite,
       createdAt: new Date(),
-      updatedAt: new Date()
-    }
-    await saveSiteConfiguration(siteConfig)
-    console.log(`Saved site configuration to database: ${siteDomain}`)
+      updatedAt: new Date(),
+    };
+    await saveSiteConfiguration(siteConfig);
+    console.log(`Saved site configuration to database: ${siteDomain}`);
 
-    cleanupTasks.length = 0 // Successful completion, no cleanup required
+    cleanupTasks.length = 0; // Successful completion, no cleanup required
 
     try {
-      await createSonarQubeProject(sonarProjectName, sonarProjectKey)
+      await createSonarQubeProject(sonarProjectName, sonarProjectKey);
     } catch (sonarError: any) {
-      console.warn(`Failed to create SonarQube project for ${site.domain}: ${sonarError.message}`)
+      console.warn(
+        `Failed to create SonarQube project for ${site.domain}: ${sonarError.message}`,
+      );
     }
 
-    return true
+    return true;
   } catch (error: any) {
-    await runCleanup()
-    const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`Site provisioning failed: ${message}`)
+    await runCleanup();
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Site provisioning failed: ${message}`);
   }
 }
 
 // Create a database for the site
 async function createDatabase(dbName: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const createDbCmd = `docker exec devwp_mariadb mariadb -u root -proot -e "CREATE DATABASE IF NOT EXISTS ${dbName}"`
+    const createDbCmd = `docker exec devwp_mariadb mariadb -u root -proot -e "CREATE DATABASE IF NOT EXISTS ${dbName}"`;
 
     exec(createDbCmd, (error, _, stderr) => {
       if (error) {
-        console.error(`Error creating database: ${stderr}`)
-        reject(error)
-        return
+        console.error(`Error creating database: ${stderr}`);
+        reject(error);
+        return;
       }
-      console.log(`Created database: ${dbName}`)
-      resolve()
-    })
-  })
+      console.log(`Created database: ${dbName}`);
+      resolve();
+    });
+  });
 }
 
 // Update generateIndexHtml to include database information
@@ -271,16 +302,16 @@ export async function generateIndexHtml(
   domain: string,
   siteFilesystemBasePath: string, // This is www/domain
   dbName?: string,
-  webRoot?: string
+  webRoot?: string,
 ): Promise<void> {
   try {
     const actualWebRootOnHost = webRoot
       ? join(siteFilesystemBasePath, webRoot)
-      : siteFilesystemBasePath
-    const nginxWebRootPath = `/src/www/${domain}${webRoot ? '/' + webRoot : ''}`
+      : siteFilesystemBasePath;
+    const nginxWebRootPath = `/src/www/${domain}${webRoot ? '/' + webRoot : ''}`;
 
     // Ensure the target directory for index.html exists
-    await fs.mkdir(actualWebRootOnHost, { recursive: true })
+    await fs.mkdir(actualWebRootOnHost, { recursive: true });
 
     const dbInfoHtml = dbName
       ? `
@@ -293,7 +324,7 @@ export async function generateIndexHtml(
                 <li><strong>Database Host:</strong> mariadb</li>
             </ul>
         </div>`
-      : ''
+      : '';
 
     const indexHtmlContent = `<!DOCTYPE html>
 <html lang="en">
@@ -375,33 +406,33 @@ export async function generateIndexHtml(
         <p>Generated by DevWP - Your Local WordPress Development Environment.<br />Brought to you by <a href="https://trewhitt.se">Trewhitt</a></p>
     </div>
 </body>
-</html>`
+</html>`;
 
-    const indexPath = join(actualWebRootOnHost, 'index.html')
-    await fs.writeFile(indexPath, indexHtmlContent, 'utf8')
-    await fs.chmod(indexPath, 0o766)
-    console.log(`Created index.html for ${domain} at ${indexPath}`)
+    const indexPath = join(actualWebRootOnHost, 'index.html');
+    await fs.writeFile(indexPath, indexHtmlContent, 'utf8');
+    await fs.chmod(indexPath, 0o766);
+    console.log(`Created index.html for ${domain} at ${indexPath}`);
   } catch (error) {
-    console.error(`Failed to generate index.html for ${domain}:`, error)
-    throw error
+    console.error(`Failed to generate index.html for ${domain}:`, error);
+    throw error;
   }
 }
 
 // Drop a database when deleting a site
 async function dropDatabase(dbName: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const dropDbCmd = `docker exec devwp_mariadb mariadb -u root -proot -e "DROP DATABASE IF EXISTS ${dbName}"`
+    const dropDbCmd = `docker exec devwp_mariadb mariadb -u root -proot -e "DROP DATABASE IF EXISTS ${dbName}"`;
 
     exec(dropDbCmd, (error, _, stderr) => {
       if (error) {
-        console.error(`Error dropping database: ${stderr}`)
-        reject(error)
-        return
+        console.error(`Error dropping database: ${stderr}`);
+        reject(error);
+        return;
       }
-      console.log(`Dropped database: ${dbName}`)
-      resolve()
-    })
-  })
+      console.log(`Dropped database: ${dbName}`);
+      resolve();
+    });
+  });
 }
 
 // Clear Redis cache for a site
@@ -410,130 +441,130 @@ async function clearRedisCache(siteDomain: string): Promise<void> {
     // Using wildcard pattern to match any keys related to this site
     // This command uses a Redis EVAL script to find and delete keys on the server-side,
     // avoiding shell-specific piping (like | and xargs) which is not compatible with Windows cmd.
-    const clearCacheCmd = `docker exec devwp_redis redis-cli EVAL "local keys = redis.call('KEYS', ARGV[1]); if #keys > 0 then return redis.call('DEL', unpack(keys)) else return 0 end" 0 "*${siteDomain}*"`
+    const clearCacheCmd = `docker exec devwp_redis redis-cli EVAL "local keys = redis.call('KEYS', ARGV[1]); if #keys > 0 then return redis.call('DEL', unpack(keys)) else return 0 end" 0 "*${siteDomain}*"`;
 
     exec(clearCacheCmd, (error, _, stderr) => {
       if (error) {
-        console.error(`Error clearing Redis cache: ${stderr}`)
-        reject(error)
-        return
+        console.error(`Error clearing Redis cache: ${stderr}`);
+        reject(error);
+        return;
       }
-      console.log(`Cleared Redis cache for: ${siteDomain}`)
-      resolve()
-    })
-  })
+      console.log(`Cleared Redis cache for: ${siteDomain}`);
+      resolve();
+    });
+  });
 }
 
 function deleteSite(site: { name: string }): Promise<boolean> {
   return new Promise((resolve, reject) => {
-    ;(async () => {
+    (async () => {
       try {
-        const webrootBase = await getWebrootPath()
-        const sitePath = join(webrootBase, site.name)
+        const webrootBase = await getWebrootPath();
+        const sitePath = join(webrootBase, site.name);
 
-        let dbName: string
+        let dbName: string;
         try {
-          dbName = sanitizeDatabaseName(site.name)
+          dbName = sanitizeDatabaseName(site.name);
         } catch (error: any) {
-          reject(new Error(`Invalid site name: ${error.message}`))
-          return
+          reject(new Error(`Invalid site name: ${error.message}`));
+          return;
         }
 
-        const sonarProjectKey = dbName // Use the same key convention
+        const sonarProjectKey = dbName; // Use the same key convention
 
         // Initialize database if not already done
-        await initializeConfigDatabase()
+        await initializeConfigDatabase();
 
         // Get site configuration before deleting it to retrieve aliases
-        const siteConfig = await getSiteConfiguration(site.name)
+        const siteConfig = await getSiteConfiguration(site.name);
 
         // Delete from database
-        await deleteSiteConfiguration(site.name)
-        console.log(`Removed site configuration from database: ${site.name}`)
+        await deleteSiteConfiguration(site.name);
+        console.log(`Removed site configuration from database: ${site.name}`);
 
         // Continue with file system cleanup
-        await fs.rm(sitePath, { recursive: true, force: true })
+        await fs.rm(sitePath, { recursive: true, force: true });
 
         // Remove primary domain from hosts file
-        await modifyHostsFile(site.name, 'remove')
+        await modifyHostsFile(site.name, 'remove');
 
         // Remove aliases from hosts file if they exist
         if (siteConfig?.aliases) {
-          const aliases = siteConfig.aliases.split(' ').filter(Boolean)
+          const aliases = siteConfig.aliases.split(' ').filter(Boolean);
           for (const alias of aliases) {
-            await modifyHostsFile(alias, 'remove')
+            await modifyHostsFile(alias, 'remove');
           }
-          console.log(`Removed aliases from hosts file: ${aliases.join(', ')}`)
+          console.log(`Removed aliases from hosts file: ${aliases.join(', ')}`);
         }
 
-        await removeNginxConfig(site.name)
-        await dropDatabase(dbName)
-        await clearRedisCache(site.name)
+        await removeNginxConfig(site.name);
+        await dropDatabase(dbName);
+        await clearRedisCache(site.name);
 
         // Clear Redis cache for aliases if they exist
         if (siteConfig?.aliases) {
-          const aliases = siteConfig.aliases.split(' ').filter(Boolean)
+          const aliases = siteConfig.aliases.split(' ').filter(Boolean);
           for (const alias of aliases) {
-            await clearRedisCache(alias)
+            await clearRedisCache(alias);
           }
-          console.log(`Cleared Redis cache for aliases: ${aliases.join(', ')}`)
+          console.log(`Cleared Redis cache for aliases: ${aliases.join(', ')}`);
         }
 
         // Attempt to delete SonarQube project
         try {
-          await deleteSonarQubeProject(sonarProjectKey)
+          await deleteSonarQubeProject(sonarProjectKey);
         } catch (sonarError: any) {
           console.warn(
-            `Failed to delete SonarQube project ${sonarProjectKey}: ${sonarError.message}`
-          )
+            `Failed to delete SonarQube project ${sonarProjectKey}: ${sonarError.message}`,
+          );
           // Log the error but don't fail the site deletion
         }
 
-        resolve(true)
+        resolve(true);
       } catch (cleanupError: any) {
-        reject(`Error cleaning up site: ${cleanupError}`)
+        reject(`Error cleaning up site: ${cleanupError}`);
       }
-    })()
-  })
+    })();
+  });
 }
 
 function getSites(): Promise<Site[]> {
   return new Promise((resolve, reject) => {
-    ;(async () => {
+    (async () => {
       try {
         // Note: Database should already be initialized during app startup
         // We don't call initializeConfigDatabase() here to avoid repeated docker calls
 
         // Migrate existing sites to database if needed
-        await migrateExistingSites()
+        await migrateExistingSites();
 
         // Get sites from database first
-        const siteConfigs = await getAllSiteConfigurations()
+        const siteConfigs = await getAllSiteConfigurations();
 
         // Also check filesystem for any sites not in database (fallback)
-        const webrootBase = await getWebrootPath()
-        const wwwPath = webrootBase
-        let filesystemSites: string[] = []
+        const webrootBase = await getWebrootPath();
+        const wwwPath = webrootBase;
+        let filesystemSites: string[] = [];
 
         try {
-          const entries = await fs.readdir(wwwPath, { withFileTypes: true })
+          const entries = await fs.readdir(wwwPath, { withFileTypes: true });
           filesystemSites = entries
             .filter((entry) => entry.isDirectory())
             .filter((entry) => !['.', '..', '.git'].includes(entry.name))
-            .map((entry) => entry.name)
+            .map((entry) => entry.name);
         } catch (fsError) {
           // If www directory doesn't exist, that's fine - no filesystem sites
-          console.log('No www directory found, using database sites only')
+          console.log('No www directory found, using database sites only');
         }
 
         // Combine database configurations with filesystem presence
-        const dbSiteNames = siteConfigs.map((config) => config.domain)
-        const allSiteNames = [...new Set([...dbSiteNames, ...filesystemSites])]
+        const dbSiteNames = siteConfigs.map((config) => config.domain);
+        const allSiteNames = [...new Set([...dbSiteNames, ...filesystemSites])];
 
-        const sites: Site[] = []
+        const sites: Site[] = [];
 
         for (const siteName of allSiteNames) {
-          const config = siteConfigs.find((c) => c.domain === siteName)
+          const config = siteConfigs.find((c) => c.domain === siteName);
 
           const site: Site = {
             name: siteName,
@@ -544,69 +575,76 @@ function getSites(): Promise<Site[]> {
             webRoot: config?.webRoot,
             multisite: config?.multisite,
             createdAt: config?.createdAt,
-            updatedAt: config?.updatedAt
-          }
+            updatedAt: config?.updatedAt,
+          };
 
-          sites.push(site)
+          sites.push(site);
         }
 
-        resolve(sites)
+        resolve(sites);
       } catch (error: any) {
-        console.error(`Error getting sites:`, error)
-        reject(`Error getting sites: ${error.message}`)
+        console.error(`Error getting sites:`, error);
+        reject(`Error getting sites: ${error.message}`);
       }
-    })()
-  })
+    })();
+  });
 }
 
 // Convert a site to multisite
 async function convertToMultisite(
   siteDomain: string,
-  multisite: { enabled: boolean; type: 'subdomain' | 'subdirectory' } | undefined,
-  webRoot?: string
+  multisite:
+    | { enabled: boolean; type: 'subdomain' | 'subdirectory' }
+    | undefined,
+  webRoot?: string,
 ): Promise<void> {
-  if (!multisite?.enabled) return
+  if (!multisite?.enabled) return;
 
   return new Promise((resolve, reject) => {
-    const baseSiteDir = `/src/www/${siteDomain}`
-    const wpInstallPath = webRoot ? `${baseSiteDir}/${webRoot}` : baseSiteDir
-    const subdomains = multisite.type === 'subdomain' ? '--subdomains' : ''
+    const baseSiteDir = `/src/www/${siteDomain}`;
+    const wpInstallPath = webRoot ? `${baseSiteDir}/${webRoot}` : baseSiteDir;
+    const subdomains = multisite.type === 'subdomain' ? '--subdomains' : '';
 
     // Command to enable multisite in wp-config.php
-    const enableMultisiteCmd = `docker compose exec php wp core multisite-convert ${subdomains} --path=${wpInstallPath} --base=/`
+    const enableMultisiteCmd = `docker compose exec php wp core multisite-convert ${subdomains} --path=${wpInstallPath} --base=/`;
 
     console.log(
-      `Converting ${siteDomain} to multisite (${multisite.type} mode) at ${wpInstallPath}...`
-    )
+      `Converting ${siteDomain} to multisite (${multisite.type} mode) at ${wpInstallPath}...`,
+    );
     exec(enableMultisiteCmd, (error, stdout, stderr) => {
       if (error) {
-        console.error(`Error converting to multisite: ${stderr}`)
-        reject(error)
-        return
+        console.error(`Error converting to multisite: ${stderr}`);
+        reject(error);
+        return;
       }
 
-      console.log(`Successfully converted ${siteDomain} to multisite (${multisite.type})`)
-      console.log(stdout)
-      resolve()
-    })
-  })
+      console.log(
+        `Successfully converted ${siteDomain} to multisite (${multisite.type})`,
+      );
+      console.log(stdout);
+      resolve();
+    });
+  });
 }
 
 // Create a SonarQube project
-async function createSonarQubeProject(projectName: string, projectKey: string): Promise<void> {
+async function createSonarQubeProject(
+  projectName: string,
+  projectKey: string,
+): Promise<void> {
   // Use token-based authentication instead of deprecated login/password
   // For SonarQube Community Edition, the default admin token should be generated or configured
   // This uses the default admin token pattern for local development
-  const sonarToken = process.env.SONAR_TOKEN || 'sqa_admin_token_placeholder'
+  const sonarToken = process.env.SONAR_TOKEN || 'sqa_admin_token_placeholder';
 
   // Ensure curl is installed in the php container:
   // Add 'RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*' to config/php/Dockerfile if needed
-  const createProjectCmd = `docker compose exec php curl -H 'Authorization: Bearer ${sonarToken}' -X POST 'http://sonarqube:9000/api/projects/create' -d 'name=${encodeURIComponent(projectName)}&project=${encodeURIComponent(projectKey)}'`
+  const createProjectCmd = `docker compose exec php curl -H 'Authorization: Bearer ${sonarToken}' -X POST 'http://sonarqube:9000/api/projects/create' -d 'name=${encodeURIComponent(projectName)}&project=${encodeURIComponent(projectKey)}'`;
 
   return new Promise((resolve, reject) => {
     console.log(
-      `Creating SonarQube project: ${projectName} (Key: ${projectKey}) using token authentication...`
-    )
+      `Creating SonarQube project: ${projectName} (Key: ${projectKey}) using token authentication...`,
+    );
     exec(createProjectCmd, (error, stdout, stderr) => {
       // SonarQube API might return errors in stdout with a 200 OK status initially,
       // or non-200 status codes for auth errors etc.
@@ -616,7 +654,9 @@ async function createSonarQubeProject(projectName: string, projectKey: string): 
 
       if (error) {
         // This usually catches network errors or if curl command fails fundamentally
-        console.error(`Error executing SonarQube project creation command: ${stderr}`)
+        console.error(
+          `Error executing SonarQube project creation command: ${stderr}`,
+        );
         // Check if the error is due to authentication failure (HTTP 401)
         if (
           stderr.includes('401') ||
@@ -624,132 +664,154 @@ async function createSonarQubeProject(projectName: string, projectKey: string): 
           stderr.includes('Not authorized')
         ) {
           console.error(
-            'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token.'
-          )
+            'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token.',
+          );
           reject(
             new Error(
-              'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).'
-            )
-          )
+              'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).',
+            ),
+          );
         } else {
-          reject(new Error(`Failed to execute curl command: ${error.message}`))
+          reject(new Error(`Failed to execute curl command: ${error.message}`));
         }
-        return
+        return;
       }
 
       // Check stdout for specific SonarQube API error messages (often returned with non-error HTTP status)
       // Example error: {"errors":[{"msg":"Project key already exists: ..."}]}
       // Example auth error (sometimes in stdout): {"errors":[{"msg":"Authentication required"}]}
       if (stdout.includes('"errors":')) {
-        if (stdout.includes('Authentication required') || stdout.includes('Not authorized')) {
+        if (
+          stdout.includes('Authentication required') ||
+          stdout.includes('Not authorized')
+        ) {
           console.error(
-            'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token.'
-          )
+            'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token.',
+          );
           reject(
             new Error(
-              'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).'
-            )
-          )
+              'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).',
+            ),
+          );
         } else {
-          console.error(`SonarQube API error creating project ${projectKey}: ${stdout}`)
-          reject(new Error(`SonarQube API error: ${stdout}`))
+          console.error(
+            `SonarQube API error creating project ${projectKey}: ${stdout}`,
+          );
+          reject(new Error(`SonarQube API error: ${stdout}`));
         }
-        return
+        return;
       }
 
       // If stderr is present but no 'error' object, it might be informational from curl
       if (stderr) {
-        console.warn(`SonarQube project creation stderr (may be informational): ${stderr}`)
+        console.warn(
+          `SonarQube project creation stderr (may be informational): ${stderr}`,
+        );
       }
 
-      console.log(`Successfully initiated SonarQube project creation for: ${projectName}`)
+      console.log(
+        `Successfully initiated SonarQube project creation for: ${projectName}`,
+      );
       // Note: API call is asynchronous on the SonarQube server side.
       // We resolve here assuming the API call was accepted.
-      resolve()
-    })
-  })
+      resolve();
+    });
+  });
 }
 
 // Delete a SonarQube project
 async function deleteSonarQubeProject(projectKey: string): Promise<void> {
   // Use token-based authentication instead of deprecated login/password
-  const sonarToken = process.env.SONAR_TOKEN || 'sqa_admin_token_placeholder'
+  const sonarToken = process.env.SONAR_TOKEN || 'sqa_admin_token_placeholder';
 
   // Ensure curl is installed in the php container
-  const deleteProjectCmd = `docker compose exec php curl -H 'Authorization: Bearer ${sonarToken}' -X POST 'http://sonarqube:9000/api/projects/delete' -d 'project=${encodeURIComponent(projectKey)}'`
+  const deleteProjectCmd = `docker compose exec php curl -H 'Authorization: Bearer ${sonarToken}' -X POST 'http://sonarqube:9000/api/projects/delete' -d 'project=${encodeURIComponent(projectKey)}'`;
 
   return new Promise((resolve, reject) => {
-    console.log(`Deleting SonarQube project (Key: ${projectKey}) using token authentication...`)
+    console.log(
+      `Deleting SonarQube project (Key: ${projectKey}) using token authentication...`,
+    );
     exec(deleteProjectCmd, (error, stdout, stderr) => {
       // Similar error handling as createSonarQubeProject
 
       if (error) {
-        console.error(`Error executing SonarQube project deletion command: ${stderr}`)
+        console.error(
+          `Error executing SonarQube project deletion command: ${stderr}`,
+        );
         if (
           stderr.includes('401') ||
           stdout.includes('Authentication required') ||
           stderr.includes('Not authorized')
         ) {
           console.error(
-            'SonarQube authentication failed. Check the SONAR_TOKEN environment variable.'
-          )
+            'SonarQube authentication failed. Check the SONAR_TOKEN environment variable.',
+          );
           reject(
             new Error(
-              'SonarQube authentication failed. Check the SONAR_TOKEN environment variable.'
-            )
-          )
+              'SonarQube authentication failed. Check the SONAR_TOKEN environment variable.',
+            ),
+          );
         } else {
-          reject(new Error(`Failed to execute curl command: ${error.message}`))
+          reject(new Error(`Failed to execute curl command: ${error.message}`));
         }
-        return
+        return;
       }
 
       // Check stdout for API errors (e.g., project not found might be here or indicated by status code handled by error object)
       // SonarQube might return 204 No Content on success, or errors in JSON.
       if (stdout.includes('"errors":')) {
-        if (stdout.includes('Authentication required') || stdout.includes('Not authorized')) {
+        if (
+          stdout.includes('Authentication required') ||
+          stdout.includes('Not authorized')
+        ) {
           console.error(
-            'SonarQube authentication failed. Check the SONAR_TOKEN environment variable.'
-          )
+            'SonarQube authentication failed. Check the SONAR_TOKEN environment variable.',
+          );
           reject(
             new Error(
-              'SonarQube authentication failed. Check the SONAR_TOKEN environment variable.'
-            )
-          )
+              'SonarQube authentication failed. Check the SONAR_TOKEN environment variable.',
+            ),
+          );
         } else if (stdout.includes('not found')) {
           console.warn(
-            `SonarQube project ${projectKey} not found for deletion (may have already been deleted).`
-          )
-          resolve() // Resolve successfully if project not found
+            `SonarQube project ${projectKey} not found for deletion (may have already been deleted).`,
+          );
+          resolve(); // Resolve successfully if project not found
         } else {
-          console.error(`SonarQube API error deleting project ${projectKey}: ${stdout}`)
-          reject(new Error(`SonarQube API error: ${stdout}`))
+          console.error(
+            `SonarQube API error deleting project ${projectKey}: ${stdout}`,
+          );
+          reject(new Error(`SonarQube API error: ${stdout}`));
         }
-        return
+        return;
       }
 
       // Check stderr for potential issues not caught by 'error'
       if (stderr) {
         // Ignore "Empty reply from server" which can happen with 204 responses in some curl versions
         if (!stderr.includes('Empty reply from server')) {
-          console.warn(`SonarQube project deletion stderr (may be informational): ${stderr}`)
+          console.warn(
+            `SonarQube project deletion stderr (may be informational): ${stderr}`,
+          );
         }
       }
 
-      console.log(`Successfully initiated SonarQube project deletion for: ${projectKey}`)
+      console.log(
+        `Successfully initiated SonarQube project deletion for: ${projectKey}`,
+      );
       // API call is asynchronous on the SonarQube server side.
-      resolve()
-    })
-  })
+      resolve();
+    });
+  });
 }
 
 // Scan a site with SonarQube using token authentication
 export async function scanSiteWithSonarQube(siteDomain: string): Promise<void> {
-  let projectKey: string
+  let projectKey: string;
   try {
-    projectKey = sanitizeDatabaseName(siteDomain)
+    projectKey = sanitizeDatabaseName(siteDomain);
   } catch (error: any) {
-    throw new Error(`Invalid site domain for SonarQube scan: ${error.message}`)
+    throw new Error(`Invalid site domain for SonarQube scan: ${error.message}`);
   }
   // SonarQube scanner needs to know the webRoot if sources are there.
   // However, getSites doesn't know webRoot. This implies scanSiteWithSonarQube
@@ -757,11 +819,11 @@ export async function scanSiteWithSonarQube(siteDomain: string): Promise<void> {
   // directly used by SonarQube path unless it's the *only* content.
   // Let's assume SonarQube scans the entire www/siteDomain directory for now.
   // If webRoot is consistently where all scannable code is, this path should be adjusted.
-  const sourcePathInContainer = `/src/www/${siteDomain}` // Path inside the scanner container
-  const sonarHostUrl = 'http://sonarqube:9000'
+  const sourcePathInContainer = `/src/www/${siteDomain}`; // Path inside the scanner container
+  const sonarHostUrl = 'http://sonarqube:9000';
 
   // Use token-based authentication instead of deprecated login/password
-  const sonarToken = process.env.SONAR_TOKEN || 'sqa_admin_token_placeholder'
+  const sonarToken = process.env.SONAR_TOKEN || 'sqa_admin_token_placeholder';
 
   // Construct the sonar-scanner command using token authentication
   // Note: Assumes the sonarqube-scanner service is running and has access to the source code volume
@@ -769,15 +831,17 @@ export async function scanSiteWithSonarQube(siteDomain: string): Promise<void> {
     -Dsonar.projectKey=${projectKey} \
     -Dsonar.sources=${sourcePathInContainer} \
     -Dsonar.host.url=${sonarHostUrl} \
-    -Dsonar.token=${sonarToken}`
+    -Dsonar.token=${sonarToken}`;
 
   return new Promise((resolve, reject) => {
     console.log(
-      `Starting SonarQube scan for project: ${projectKey} (Site: ${siteDomain}) using token authentication...`
-    )
+      `Starting SonarQube scan for project: ${projectKey} (Site: ${siteDomain}) using token authentication...`,
+    );
     exec(scanCmd, (error, stdout, stderr) => {
       if (error) {
-        console.error(`Error executing SonarQube scan command for ${siteDomain}: ${stderr}`)
+        console.error(
+          `Error executing SonarQube scan command for ${siteDomain}: ${stderr}`,
+        );
         // Provide more specific feedback if possible
         if (
           stderr.includes('Authentication failed') ||
@@ -786,114 +850,129 @@ export async function scanSiteWithSonarQube(siteDomain: string): Promise<void> {
         ) {
           reject(
             new Error(
-              'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).'
-            )
-          )
+              'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).',
+            ),
+          );
         } else if (stderr.includes('Project not found')) {
           reject(
             new Error(
-              `SonarQube project '${projectKey}' not found. Ensure it was created successfully.`
-            )
-          )
+              `SonarQube project '${projectKey}' not found. Ensure it was created successfully.`,
+            ),
+          );
         } else {
-          reject(new Error(`SonarQube scan failed: ${error.message}`))
+          reject(new Error(`SonarQube scan failed: ${error.message}`));
         }
-        return
+        return;
       }
 
       // Log stdout and stderr for debugging purposes (scanner output)
       if (stdout) {
-        console.log(`SonarQube scan stdout for ${siteDomain}:\n${stdout}`)
+        console.log(`SonarQube scan stdout for ${siteDomain}:\n${stdout}`);
       }
       if (stderr) {
-        console.warn(`SonarQube scan stderr for ${siteDomain}:\n${stderr}`) // Use warn as stderr might contain non-fatal info
+        console.warn(`SonarQube scan stderr for ${siteDomain}:\n${stderr}`); // Use warn as stderr might contain non-fatal info
       }
 
       // Check stdout for explicit success or failure messages if the exit code is 0 but scan failed
       if (stdout.includes('EXECUTION_FAILURE')) {
-        console.error(`SonarQube scan for ${siteDomain} reported execution failure.`)
-        reject(new Error('SonarQube scan execution failed. Check scanner logs.'))
-        return
+        console.error(
+          `SonarQube scan for ${siteDomain} reported execution failure.`,
+        );
+        reject(
+          new Error('SonarQube scan execution failed. Check scanner logs.'),
+        );
+        return;
       }
 
       // Check for authentication errors in stdout as well
-      if (stdout.includes('Not authorized') || stdout.includes('Authentication required')) {
+      if (
+        stdout.includes('Not authorized') ||
+        stdout.includes('Authentication required')
+      ) {
         reject(
           new Error(
-            'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).'
-          )
-        )
-        return
+            'SonarQube authentication failed. Check the SONAR_TOKEN environment variable or configure a valid API token in SonarQube (Administration > Security > Users > Tokens).',
+          ),
+        );
+        return;
       }
 
-      console.log(`Successfully completed SonarQube scan initiation for: ${siteDomain}`)
+      console.log(
+        `Successfully completed SonarQube scan initiation for: ${siteDomain}`,
+      );
       // Note: The scan itself runs asynchronously on the SonarQube server.
       // This promise resolves when the scanner CLI finishes its execution.
-      resolve()
-    })
-  })
+      resolve();
+    });
+  });
 }
 
 // Update site configuration
 async function updateSite(
   site: Site,
-  updateData: { aliases?: string; webRoot?: string }
+  updateData: { aliases?: string; webRoot?: string },
 ): Promise<void> {
-  console.log('updateSite called with:', { site, updateData })
+  console.log('updateSite called with:', { site, updateData });
   try {
     // Get current site configuration
-    let currentConfig = await getSiteConfiguration(site.name)
-    console.log('Current config:', currentConfig)
+    let currentConfig = await getSiteConfiguration(site.name);
+    console.log('Current config:', currentConfig);
 
     if (!currentConfig) {
       // Create a basic configuration if it doesn't exist
-      console.log(`Creating new configuration for site: ${site.name}`)
+      console.log(`Creating new configuration for site: ${site.name}`);
       currentConfig = {
         domain: site.name,
         createdAt: new Date(),
-        updatedAt: new Date()
-      }
+        updatedAt: new Date(),
+      };
     }
 
     // Update the configuration with new data
     const updatedConfig = {
       ...currentConfig,
-      aliases: updateData.aliases !== undefined ? updateData.aliases : currentConfig.aliases,
-      webRoot: updateData.webRoot !== undefined ? updateData.webRoot : currentConfig.webRoot,
-      updatedAt: new Date()
-    }
+      aliases:
+        updateData.aliases !== undefined
+          ? updateData.aliases
+          : currentConfig.aliases,
+      webRoot:
+        updateData.webRoot !== undefined
+          ? updateData.webRoot
+          : currentConfig.webRoot,
+      updatedAt: new Date(),
+    };
 
-    console.log('Updated config:', updatedConfig)
+    console.log('Updated config:', updatedConfig);
 
     // Save the updated configuration
-    await saveSiteConfiguration(updatedConfig)
-    console.log('Configuration saved successfully')
+    await saveSiteConfiguration(updatedConfig);
+    console.log('Configuration saved successfully');
 
     // Regenerate nginx configuration with updated settings
     const nginxRootDirective = `/src/www/${site.name}${
       updatedConfig.webRoot ? '/' + updatedConfig.webRoot : ''
-    }`
+    }`;
 
-    console.log('Nginx root directive:', nginxRootDirective)
+    console.log('Nginx root directive:', nginxRootDirective);
 
     // Regenerate nginx config
     await generateNginxConfig(
       site.name,
       nginxRootDirective,
       updatedConfig.aliases,
-      updatedConfig.multisite
-    )
-    console.log('Nginx config generated successfully')
+      updatedConfig.multisite,
+    );
+    console.log('Nginx config generated successfully');
 
     // Reload nginx to apply the new configuration
-    await reloadNginxConfig()
-    console.log('Nginx reloaded successfully')
+    await reloadNginxConfig();
+    console.log('Nginx reloaded successfully');
 
-    console.log(`Successfully updated site configuration for: ${site.name}`)
+    console.log(`Successfully updated site configuration for: ${site.name}`);
   } catch (error) {
-    console.error(`Failed to update site ${site.name}:`, error)
-    throw error
+    console.error(`Failed to update site ${site.name}:`, error);
+    throw error;
   }
 }
 
-export { createSite, deleteSite, getSites, updateSite }
+export { createSite, deleteSite, getSites, updateSite };

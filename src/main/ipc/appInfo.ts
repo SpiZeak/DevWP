@@ -1,5 +1,5 @@
-import { ipcMain, app } from 'electron'
+import { app, ipcMain } from 'electron';
 
 export function registerAppInfoHandlers(): void {
-  ipcMain.handle('get-app-version', () => app.getVersion())
+  ipcMain.handle('get-app-version', () => app.getVersion());
 }

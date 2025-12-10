@@ -1,9 +1,9 @@
-import { spawn } from 'child_process'
-import { ipcMain } from 'electron'
+import { spawn } from 'child_process';
+import { ipcMain } from 'electron';
 
 export function registerWpCliHandlers(): void {
   // Remove existing handlers before registering new ones
-  ipcMain.removeHandler('run-wp-cli')
+  ipcMain.removeHandler('run-wp-cli');
 
   ipcMain.handle('run-wp-cli', async (event, { site, command }) => {
     return new Promise((resolve) => {
@@ -16,57 +16,61 @@ export function registerWpCliHandlers(): void {
         '-d',
         'error_reporting="E_ALL & ~E_DEPRECATED & ~E_WARNING"',
         '/usr/local/bin/wp',
-        ...command.split(' ')
-      ])
+        ...command.split(' '),
+      ]);
 
-      let output = ''
-      let error = ''
+      let output = '';
+      let error = '';
 
       wpCliProcess.stdout.on('data', (data) => {
-        const chunk = data.toString()
-        output += chunk
+        const chunk = data.toString();
+        output += chunk;
         // Send streaming data to renderer
         event.sender.send('wp-cli-stream', {
           type: 'stdout',
           data: chunk,
-          siteId: site.name
-        })
-      })
+          siteId: site.name,
+        });
+      });
 
       wpCliProcess.stderr.on('data', (data) => {
-        const chunk = data.toString()
-        error += chunk
+        const chunk = data.toString();
+        error += chunk;
         // Send streaming data to renderer
         event.sender.send('wp-cli-stream', {
           type: 'stderr',
           data: chunk,
-          siteId: site.name
-        })
-      })
+          siteId: site.name,
+        });
+      });
 
       wpCliProcess.on('close', (code) => {
         // Send final result
         event.sender.send('wp-cli-stream', {
           type: 'complete',
           code,
-          siteId: site.name
-        })
+          siteId: site.name,
+        });
 
         if (code === 0) {
-          resolve({ success: true, output, error })
+          resolve({ success: true, output, error });
         } else {
-          resolve({ success: false, error: error || `Process exited with code ${code}`, output })
+          resolve({
+            success: false,
+            error: error || `Process exited with code ${code}`,
+            output,
+          });
         }
-      })
+      });
 
       wpCliProcess.on('error', (err) => {
         event.sender.send('wp-cli-stream', {
           type: 'error',
           error: err.message,
-          siteId: site.name
-        })
-        resolve({ success: false, error: err.message })
-      })
-    })
-  })
+          siteId: site.name,
+        });
+        resolve({ success: false, error: err.message });
+      });
+    });
+  });
 }

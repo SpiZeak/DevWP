@@ -1,30 +1,29 @@
-import { JSX } from 'react'
-import dockerLogo from '../assets/docker.svg'
-import { useState, useEffect } from 'react'
-import Spinner from './ui/Spinner'
+import { type JSX, useEffect, useState } from 'react';
+import dockerLogo from '../assets/docker.svg';
+import Spinner from './ui/Spinner';
 
 function DockerLoader(): JSX.Element | null {
   const [dockerStatus, setDockerStatus] = useState({
     status: 'idle',
-    message: ''
-  })
+    message: '',
+  });
 
-  const [isVisible, setIsVisible] = useState(true)
+  const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
     const removeListener = window.electronAPI.onDockerStatus((status) => {
-      setDockerStatus(status)
+      setDockerStatus(status);
 
       if (status.status === 'complete') {
         // Hide loader after a brief delay to show completion
-        setTimeout(() => setIsVisible(false), 1000)
+        setTimeout(() => setIsVisible(false), 1000);
       }
-    })
+    });
 
-    return removeListener
-  }, [])
+    return removeListener;
+  }, []);
 
-  if (!isVisible) return null
+  if (!isVisible) return null;
 
   return (
     <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/90">
@@ -34,9 +33,13 @@ function DockerLoader(): JSX.Element | null {
           alt="Docker Logo"
           className="left-1.5 relative mx-auto my-10 w-20 h-20"
         />
-        {dockerStatus.status !== 'error' && <Spinner className="mb-4" svgClass="size-10" />}
+        {dockerStatus.status !== 'error' && (
+          <Spinner className="mb-4" svgClass="size-10" />
+        )}
         <h3>Starting Docker Environment</h3>
-        <p className="mt-4 h-15 overflow-y-auto text-seasalt text-sm">{dockerStatus.message}</p>
+        <p className="mt-4 h-15 overflow-y-auto text-seasalt text-sm">
+          {dockerStatus.message}
+        </p>
         {dockerStatus.status === 'error' && (
           <div className="mt-4 text-crimson-400">
             There was an error starting Docker. Check the logs for details.
@@ -44,7 +47,7 @@ function DockerLoader(): JSX.Element | null {
         )}
       </div>
     </div>
-  )
+  );
 }
 
-export default DockerLoader
+export default DockerLoader;

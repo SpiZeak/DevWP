@@ -1,87 +1,87 @@
-import { Site } from '@renderer/env'
-import { useState, useEffect, useRef } from 'react'
+import type { Site } from '@renderer/env';
+import { useEffect, useRef, useState } from 'react';
 
 interface WpCliModalProps {
-  isOpen: boolean
-  site: Site | null
-  onClose: () => void
+  isOpen: boolean;
+  site: Site | null;
+  onClose: () => void;
 }
 
 const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
-  const [wpCliCommand, setWpCliCommand] = useState<string>('')
-  const [wpCliOutput, setWpCliOutput] = useState<string>('')
-  const [wpCliError, setWpCliError] = useState<string>('')
-  const [wpCliLoading, setWpCliLoading] = useState<boolean>(false)
-  const outputRef = useRef<HTMLPreElement>(null)
+  const [wpCliCommand, setWpCliCommand] = useState<string>('');
+  const [wpCliOutput, setWpCliOutput] = useState<string>('');
+  const [wpCliError, setWpCliError] = useState<string>('');
+  const [wpCliLoading, setWpCliLoading] = useState<boolean>(false);
+  const outputRef = useRef<HTMLPreElement>(null);
 
   useEffect(() => {
-    if (!isOpen || !site) return
+    if (!isOpen || !site) return;
 
     // Set up streaming listener
     const removeListener = window.electronAPI.onWpCliStream((data) => {
       // Only handle streams for the current site
-      if (data.siteId !== site.name) return
+      if (data.siteId !== site.name) return;
 
       switch (data.type) {
         case 'stdout':
-          setWpCliOutput((prev) => prev + data.data)
-          break
+          setWpCliOutput((prev) => prev + data.data);
+          break;
         case 'stderr':
-          setWpCliError((prev) => prev + data.data)
-          break
+          setWpCliError((prev) => prev + data.data);
+          break;
         case 'complete':
-          setWpCliLoading(false)
-          break
+          setWpCliLoading(false);
+          break;
         case 'error':
-          setWpCliError((prev) => prev + data.error)
-          setWpCliLoading(false)
-          break
+          setWpCliError((prev) => prev + data.error);
+          setWpCliLoading(false);
+          break;
       }
-    })
+    });
 
-    return removeListener
-  }, [isOpen, site])
+    return removeListener;
+  }, [isOpen, site]);
 
   // Auto-scroll to bottom when output changes
   useEffect(() => {
     if (outputRef.current) {
-      outputRef.current.scrollTop = outputRef.current.scrollHeight
+      outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
-  }, [wpCliOutput, wpCliError])
+  }, [wpCliOutput, wpCliError]);
 
-  if (!isOpen || !site) return null
+  if (!isOpen || !site) return null;
 
   const handleRunWpCli = async (): Promise<void> => {
-    setWpCliLoading(true)
-    setWpCliOutput('')
-    setWpCliError('')
+    setWpCliLoading(true);
+    setWpCliOutput('');
+    setWpCliError('');
 
     try {
       await window.electron.ipcRenderer.invoke('run-wp-cli', {
         site: site,
-        command: wpCliCommand
-      })
+        command: wpCliCommand,
+      });
     } catch (e) {
-      setWpCliError(String(e))
-      setWpCliLoading(false)
+      setWpCliError(String(e));
+      setWpCliLoading(false);
     }
-  }
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
-    e.preventDefault()
+    e.preventDefault();
     if (!wpCliLoading && wpCliCommand.trim()) {
-      handleRunWpCli()
+      handleRunWpCli();
     }
-  }
+  };
 
   const handleClose = (): void => {
-    setWpCliCommand('')
-    setWpCliOutput('')
-    setWpCliError('')
-    onClose()
-  }
+    setWpCliCommand('');
+    setWpCliOutput('');
+    setWpCliError('');
+    onClose();
+  };
 
-  const hasOutput = wpCliOutput || wpCliError
+  const hasOutput = wpCliOutput || wpCliError;
 
   return (
     <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70">
@@ -102,7 +102,8 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
               autoFocus
             />
             <div className="mt-1 text-seasalt-400 text-xs">
-              Only enter the command after <span className="font-bold">wp</span>, e.g.{' '}
+              Only enter the command after <span className="font-bold">wp</span>
+              , e.g.{' '}
               <code className="bg-gunmetal-500 px-1 rounded">plugin list</code>
             </div>
           </div>
@@ -133,7 +134,9 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
               ref={outputRef}
               className="bg-warm-charcoal-200 p-2.5 border border-gunmetal-600 rounded max-h-[300px] overflow-auto font-mono text-seasalt text-xs break-words whitespace-pre-wrap"
             >
-              {wpCliOutput && <span className="text-emerald">{wpCliOutput}</span>}
+              {wpCliOutput && (
+                <span className="text-emerald">{wpCliOutput}</span>
+              )}
               {wpCliError && <span className="text-crimson">{wpCliError}</span>}
               {wpCliLoading && <span className="text-amber">▊</span>}
             </pre>
@@ -141,7 +144,7 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
         )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default WpCliModal
+export default WpCliModal;

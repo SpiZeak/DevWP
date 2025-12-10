@@ -1,64 +1,72 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest'
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mock,
+  vi,
+} from 'vitest';
 
 // Mock modules
-const BrowserWindowMock = vi.fn()
+const BrowserWindowMock = vi.fn();
 
 class BrowserWindowConstructor {
   constructor(...args: any[]) {
-    return BrowserWindowMock(...args)
+    return BrowserWindowMock(...args);
   }
 }
 const shellMock = {
   openExternal: vi.fn(),
-  openPath: vi.fn()
-}
+  openPath: vi.fn(),
+};
 const ipcMainMock = {
-  handle: vi.fn()
-}
+  handle: vi.fn(),
+};
 const appMock = {
-  getAppPath: vi.fn()
-}
+  getAppPath: vi.fn(),
+};
 const dockerModuleMock = {
-  startDockerCompose: vi.fn()
-}
+  startDockerCompose: vi.fn(),
+};
 const containerIpcModuleMock = {
-  startContainerMonitoring: vi.fn()
-}
+  startContainerMonitoring: vi.fn(),
+};
 const xdebugIpcModuleMock = {
-  registerXdebugHandlers: vi.fn()
-}
+  registerXdebugHandlers: vi.fn(),
+};
 const wpCliIpcModuleMock = {
-  registerWpCliHandlers: vi.fn()
-}
+  registerWpCliHandlers: vi.fn(),
+};
 
 vi.mock('electron', () => ({
   BrowserWindow: BrowserWindowConstructor,
   shell: shellMock,
   ipcMain: ipcMainMock,
-  app: appMock
-}))
-vi.mock('./services/docker', () => dockerModuleMock)
-vi.mock('./ipc/container', () => containerIpcModuleMock)
-vi.mock('./ipc/xdebug', () => xdebugIpcModuleMock)
-vi.mock('./ipc/wpCli', () => wpCliIpcModuleMock)
+  app: appMock,
+}));
+vi.mock('./services/docker', () => dockerModuleMock);
+vi.mock('./ipc/container', () => containerIpcModuleMock);
+vi.mock('./ipc/xdebug', () => xdebugIpcModuleMock);
+vi.mock('./ipc/wpCli', () => wpCliIpcModuleMock);
 vi.mock('@electron-toolkit/utils', () => ({
   is: {
-    dev: false
-  }
-}))
+    dev: false,
+  },
+}));
 
-const docker = await import('./services/docker')
-const containerIpc = await import('./ipc/container')
-const xdebugIpc = await import('./ipc/xdebug')
-const wpCliIpc = await import('./ipc/wpCli')
-const { createWindow } = await import('./window')
+const docker = await import('./services/docker');
+const containerIpc = await import('./ipc/container');
+const xdebugIpc = await import('./ipc/xdebug');
+const wpCliIpc = await import('./ipc/wpCli');
+const { createWindow } = await import('./window');
 
 describe('Window Creation', () => {
-  let mockWindow: any
+  let mockWindow: any;
 
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.clearAllMocks();
 
     mockWindow = {
       show: vi.fn(),
@@ -68,22 +76,22 @@ describe('Window Creation', () => {
       webContents: {
         setWindowOpenHandler: vi.fn(),
         on: vi.fn(),
-        send: vi.fn()
-      }
-    }
+        send: vi.fn(),
+      },
+    };
 
-    BrowserWindowMock.mockImplementation(() => mockWindow as any)
+    BrowserWindowMock.mockImplementation(() => mockWindow as any);
 
-    appMock.getAppPath.mockReturnValue('/app/path')
-  })
+    appMock.getAppPath.mockReturnValue('/app/path');
+  });
 
   afterEach(() => {
-    vi.restoreAllMocks()
-  })
+    vi.restoreAllMocks();
+  });
 
   describe('createWindow', () => {
     it('should create a browser window with correct configuration', () => {
-      createWindow()
+      createWindow();
 
       expect(BrowserWindowMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -93,13 +101,13 @@ describe('Window Creation', () => {
           minHeight: 600,
           show: false,
           autoHideMenuBar: true,
-          titleBarStyle: 'default'
-        })
-      )
-    })
+          titleBarStyle: 'default',
+        }),
+      );
+    });
 
     it('should configure web preferences with security settings', () => {
-      createWindow()
+      createWindow();
 
       expect(BrowserWindowMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -109,179 +117,205 @@ describe('Window Creation', () => {
             nodeIntegration: false,
             webSecurity: true,
             allowRunningInsecureContent: false,
-            experimentalFeatures: false
-          })
-        })
-      )
-    })
+            experimentalFeatures: false,
+          }),
+        }),
+      );
+    });
 
     it('should register IPC handlers for external links', () => {
-      createWindow()
+      createWindow();
 
-      expect(ipcMainMock.handle).toHaveBeenCalledWith('open-external', expect.any(Function))
-    })
+      expect(ipcMainMock.handle).toHaveBeenCalledWith(
+        'open-external',
+        expect.any(Function),
+      );
+    });
 
     it('should register IPC handler for directory opening', () => {
-      createWindow()
+      createWindow();
 
-      expect(ipcMainMock.handle).toHaveBeenCalledWith('open-directory', expect.any(Function))
-    })
+      expect(ipcMainMock.handle).toHaveBeenCalledWith(
+        'open-directory',
+        expect.any(Function),
+      );
+    });
 
     it('should show window on ready-to-show event', () => {
-      createWindow()
+      createWindow();
 
       const readyToShowHandler = mockWindow.on.mock.calls.find(
-        (call: any) => call[0] === 'ready-to-show'
-      )?.[1]
+        (call: any) => call[0] === 'ready-to-show',
+      )?.[1];
 
-      expect(readyToShowHandler).toBeDefined()
-      readyToShowHandler()
-      expect(mockWindow.show).toHaveBeenCalled()
-    })
+      expect(readyToShowHandler).toBeDefined();
+      readyToShowHandler();
+      expect(mockWindow.show).toHaveBeenCalled();
+    });
 
     it('should set window open handler to open external links', () => {
-      createWindow()
+      createWindow();
 
-      expect(mockWindow.webContents.setWindowOpenHandler).toHaveBeenCalledWith(expect.any(Function))
+      expect(mockWindow.webContents.setWindowOpenHandler).toHaveBeenCalledWith(
+        expect.any(Function),
+      );
 
-      const handler = mockWindow.webContents.setWindowOpenHandler.mock.calls[0][0]
-      const result = handler({ url: 'https://example.com' })
+      const handler =
+        mockWindow.webContents.setWindowOpenHandler.mock.calls[0][0];
+      const result = handler({ url: 'https://example.com' });
 
-      expect(shellMock.openExternal).toHaveBeenCalledWith('https://example.com')
-      expect(result).toEqual({ action: 'deny' })
-    })
+      expect(shellMock.openExternal).toHaveBeenCalledWith(
+        'https://example.com',
+      );
+      expect(result).toEqual({ action: 'deny' });
+    });
 
     it('should start Docker compose on did-finish-load', async () => {
-      ;(docker.startDockerCompose as Mock).mockResolvedValue(undefined)
+      (docker.startDockerCompose as Mock).mockResolvedValue(undefined);
 
-      createWindow()
+      createWindow();
 
       const didFinishLoadHandler = mockWindow.webContents.on.mock.calls.find(
-        (call: any) => call[0] === 'did-finish-load'
-      )?.[1]
+        (call: any) => call[0] === 'did-finish-load',
+      )?.[1];
 
-      expect(didFinishLoadHandler).toBeDefined()
-      didFinishLoadHandler()
+      expect(didFinishLoadHandler).toBeDefined();
+      didFinishLoadHandler();
 
       // Wait for async operations
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
-      expect(docker.startDockerCompose).toHaveBeenCalledWith(mockWindow)
-    })
+      expect(docker.startDockerCompose).toHaveBeenCalledWith(mockWindow);
+    });
 
     it('should start container monitoring on did-finish-load', () => {
-      createWindow()
+      createWindow();
 
       const didFinishLoadHandler = mockWindow.webContents.on.mock.calls.find(
-        (call: any) => call[0] === 'did-finish-load'
-      )?.[1]
+        (call: any) => call[0] === 'did-finish-load',
+      )?.[1];
 
-      didFinishLoadHandler()
+      didFinishLoadHandler();
 
-      expect(containerIpc.startContainerMonitoring).toHaveBeenCalledWith(mockWindow)
-    })
+      expect(containerIpc.startContainerMonitoring).toHaveBeenCalledWith(
+        mockWindow,
+      );
+    });
 
     it('should register Xdebug handlers on did-finish-load', () => {
-      createWindow()
+      createWindow();
 
       const didFinishLoadHandler = mockWindow.webContents.on.mock.calls.find(
-        (call: any) => call[0] === 'did-finish-load'
-      )?.[1]
+        (call: any) => call[0] === 'did-finish-load',
+      )?.[1];
 
-      didFinishLoadHandler()
+      didFinishLoadHandler();
 
-      expect(xdebugIpc.registerXdebugHandlers).toHaveBeenCalledWith(mockWindow)
-    })
+      expect(xdebugIpc.registerXdebugHandlers).toHaveBeenCalledWith(mockWindow);
+    });
 
     it('should register WP-CLI handlers on did-finish-load', () => {
-      createWindow()
+      createWindow();
 
       const didFinishLoadHandler = mockWindow.webContents.on.mock.calls.find(
-        (call: any) => call[0] === 'did-finish-load'
-      )?.[1]
+        (call: any) => call[0] === 'did-finish-load',
+      )?.[1];
 
-      didFinishLoadHandler()
+      didFinishLoadHandler();
 
-      expect(wpCliIpc.registerWpCliHandlers).toHaveBeenCalled()
-    })
+      expect(wpCliIpc.registerWpCliHandlers).toHaveBeenCalled();
+    });
 
     it('should handle Docker compose errors gracefully', async () => {
-      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const consoleError = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
-      ;(docker.startDockerCompose as Mock).mockRejectedValue(new Error('Docker failed'))
+      (docker.startDockerCompose as Mock).mockRejectedValue(
+        new Error('Docker failed'),
+      );
 
-      createWindow()
+      createWindow();
 
       const didFinishLoadHandler = mockWindow.webContents.on.mock.calls.find(
-        (call: any) => call[0] === 'did-finish-load'
-      )?.[1]
+        (call: any) => call[0] === 'did-finish-load',
+      )?.[1];
 
-      didFinishLoadHandler()
+      didFinishLoadHandler();
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 10));
 
-      expect(consoleError).toHaveBeenCalledWith('Docker compose failed:', expect.any(Error))
-      consoleError.mockRestore()
-    })
+      expect(consoleError).toHaveBeenCalledWith(
+        'Docker compose failed:',
+        expect.any(Error),
+      );
+      consoleError.mockRestore();
+    });
 
     it('should load file in production mode', () => {
-      createWindow()
+      createWindow();
 
       expect(mockWindow.loadFile).toHaveBeenCalledWith(
-        expect.stringContaining('renderer/index.html')
-      )
-    })
+        expect.stringContaining('renderer/index.html'),
+      );
+    });
 
     it('should return the created window', () => {
-      const window = createWindow()
+      const window = createWindow();
 
-      expect(window).toBe(mockWindow)
-    })
-  })
+      expect(window).toBe(mockWindow);
+    });
+  });
 
   describe('IPC Handlers', () => {
     it('should handle open-external requests', async () => {
-      shellMock.openExternal.mockResolvedValue(undefined)
+      shellMock.openExternal.mockResolvedValue(undefined);
 
-      createWindow()
+      createWindow();
 
-      const handler = ipcMainMock.handle.mock.calls.find((call) => call[0] === 'open-external')?.[1]
+      const handler = ipcMainMock.handle.mock.calls.find(
+        (call) => call[0] === 'open-external',
+      )?.[1];
 
-      expect(handler).toBeDefined()
-      const result = await handler!({} as any, 'https://example.com')
+      expect(handler).toBeDefined();
+      const result = await handler!({} as any, 'https://example.com');
 
-      expect(shellMock.openExternal).toHaveBeenCalledWith('https://example.com')
-      expect(result).toBe(true)
-    })
+      expect(shellMock.openExternal).toHaveBeenCalledWith(
+        'https://example.com',
+      );
+      expect(result).toBe(true);
+    });
 
     it('should handle open-directory requests successfully', async () => {
-      appMock.getAppPath.mockReturnValue('/app')
-      shellMock.openPath.mockResolvedValue('')
+      appMock.getAppPath.mockReturnValue('/app');
+      shellMock.openPath.mockResolvedValue('');
 
-      createWindow()
+      createWindow();
 
       const handler = ipcMainMock.handle.mock.calls.find(
-        (call) => call[0] === 'open-directory'
-      )?.[1]
+        (call) => call[0] === 'open-directory',
+      )?.[1];
 
-      expect(handler).toBeDefined()
-      const result = await handler!({} as any, 'www')
+      expect(handler).toBeDefined();
+      const result = await handler!({} as any, 'www');
 
-      expect(shellMock.openPath).toHaveBeenCalledWith('/app/www')
-      expect(result).toBe(true)
-    })
+      expect(shellMock.openPath).toHaveBeenCalledWith('/app/www');
+      expect(result).toBe(true);
+    });
 
     it('should handle open-directory errors', async () => {
-      appMock.getAppPath.mockReturnValue('/app')
-      shellMock.openPath.mockResolvedValue('Error opening path')
+      appMock.getAppPath.mockReturnValue('/app');
+      shellMock.openPath.mockResolvedValue('Error opening path');
 
-      createWindow()
+      createWindow();
 
       const handler = ipcMainMock.handle.mock.calls.find(
-        (call) => call[0] === 'open-directory'
-      )?.[1]
+        (call) => call[0] === 'open-directory',
+      )?.[1];
 
-      await expect(handler!({} as any, 'www')).rejects.toThrow('Failed to open directory')
-    })
-  })
-})
+      await expect(handler!({} as any, 'www')).rejects.toThrow(
+        'Failed to open directory',
+      );
+    });
+  });
+});

@@ -1,17 +1,17 @@
-import { Site } from '@renderer/env'
-import Spinner from '../ui/Spinner'
-import Icon from '../ui/Icon'
+import type { Site } from '@renderer/env';
+import Icon from '../ui/Icon';
+import Spinner from '../ui/Spinner';
 
 /* eslint-disable react/prop-types */
 
 interface SiteItemProps {
-  site: Site
-  isLast: boolean
-  onOpenUrl: (url: string) => void
-  onScan: (site: Site) => void
-  onOpenWpCli: (site: Site) => void
-  onEditSite: (site: Site) => void
-  scanningSite: string | null
+  site: Site;
+  isLast: boolean;
+  onOpenUrl: (url: string) => void;
+  onScan: (site: Site) => void;
+  onOpenWpCli: (site: Site) => void;
+  onEditSite: (site: Site) => void;
+  scanningSite: string | null;
 }
 
 const SiteItem: React.FC<SiteItemProps> = ({
@@ -21,12 +21,12 @@ const SiteItem: React.FC<SiteItemProps> = ({
   onScan,
   onOpenWpCli,
   onEditSite,
-  scanningSite
+  scanningSite,
 }) => {
-  const isProvisioning = site.status === 'provisioning'
+  const isProvisioning = site.status === 'provisioning';
   const handleOpenDirectory = (): void => {
-    window.electron.ipcRenderer.invoke('open-directory', site.path)
-  }
+    window.electron.ipcRenderer.invoke('open-directory', site.path);
+  };
 
   return (
     <li
@@ -44,7 +44,9 @@ const SiteItem: React.FC<SiteItemProps> = ({
             {site.status === 'provisioning' && (
               <div className="flex items-center gap-2 bg-amber/20 px-2 py-1 rounded-full">
                 <Spinner svgClass="size-3" title="Site is being provisioned" />
-                <span className="font-medium text-amber text-xs">Provisioning</span>
+                <span className="font-medium text-amber text-xs">
+                  Provisioning
+                </span>
               </div>
             )}
           </div>
@@ -85,7 +87,10 @@ const SiteItem: React.FC<SiteItemProps> = ({
             }
           >
             {scanningSite === site.name ? (
-              <Spinner svgClass="size-5 text-amber" title="Site is being scanned" />
+              <Spinner
+                svgClass="size-5 text-amber"
+                title="Site is being scanned"
+              />
             ) : (
               <Icon
                 className="text-seasalt group-hover/btn:text-warm-charcoal text-2xl"
@@ -99,7 +104,10 @@ const SiteItem: React.FC<SiteItemProps> = ({
             title="Run WP-CLI Command"
             disabled={isProvisioning}
           >
-            <Icon className="text-seasalt group-hover/btn:text-warm-charcoal text-xl" content="󰆍" />
+            <Icon
+              className="text-seasalt group-hover/btn:text-warm-charcoal text-xl"
+              content="󰆍"
+            />
           </button>
           <button
             onClick={(): void => onEditSite(site)}
@@ -107,12 +115,15 @@ const SiteItem: React.FC<SiteItemProps> = ({
             title="Edit Site Settings"
             disabled={isProvisioning}
           >
-            <Icon className="text-seasalt group-hover/btn:text-warm-charcoal text-xl" content="󰒓" />
+            <Icon
+              className="text-seasalt group-hover/btn:text-warm-charcoal text-xl"
+              content="󰒓"
+            />
           </button>
         </div>
       </div>
     </li>
-  )
-}
+  );
+};
 
-export default SiteItem
+export default SiteItem;
