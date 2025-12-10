@@ -1,8 +1,7 @@
-// @ts-expect-error: https://github.com/tailwindlabs/tailwindcss/discussions/16250
+import { resolve } from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'electron-vite';
-import { resolve } from 'path';
 
 export default defineConfig({
   main: {},
