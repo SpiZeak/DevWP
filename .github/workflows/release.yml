@@ -13,6 +13,8 @@ jobs:
   build:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    env:
+      ELECTRON_BUILDER_CACHE: $RUNNER_TEMP/.electron-builder
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
@@ -26,6 +28,16 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Clear electron-builder cache (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          if (Test-Path "$env:LOCALAPPDATA\electron-builder") { Remove-Item "$env:LOCALAPPDATA\electron-builder" -Recurse -Force }
+          if (Test-Path "$env:ELECTRON_BUILDER_CACHE") { Remove-Item "$env:ELECTRON_BUILDER_CACHE" -Recurse -Force }
+
+      - name: Verify app-builder binary (Windows)
+        if: matrix.os == 'windows-latest'
+        run: node node_modules/app-builder-bin/win/x64/app-builder.exe --version
 
       - name: Install snapcraft (Linux only)
         if: matrix.os == 'ubuntu-latest'
