@@ -37,7 +37,9 @@ jobs:
 
       - name: Verify app-builder binary (Windows)
         if: matrix.os == 'windows-latest'
-        run: node node_modules/app-builder-bin/win/x64/app-builder.exe --version
+        shell: pwsh
+        run: |
+          & "$(Resolve-Path node_modules/app-builder-bin/win/x64/app-builder.exe)" --version
 
       - name: Install snapcraft (Linux only)
         if: matrix.os == 'ubuntu-latest'
