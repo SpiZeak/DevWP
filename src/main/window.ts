@@ -1,4 +1,3 @@
-import { is } from '@electron-toolkit/utils';
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { join } from 'path';
 import icon from '../../resources/icon.png?asset';
@@ -72,8 +71,9 @@ export function createWindow(): BrowserWindow {
 
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
+  const rendererUrl = process.env['ELECTRON_RENDERER_URL'];
+  if (rendererUrl) {
+    mainWindow.loadURL(rendererUrl);
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
   }

@@ -1,12 +1,14 @@
 import fs from 'node:fs';
+import { builtinModules, createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { builtinModules, createRequire } from 'node:module';
 
 function usageAndExit(message) {
   if (message) console.error(message);
-  console.error('Usage: node scripts/verify-packaged-deps.mjs <path-to-app.asar>');
+  console.error(
+    'Usage: node scripts/verify-packaged-deps.mjs <path-to-app.asar>',
+  );
   process.exit(2);
 }
 
@@ -26,7 +28,9 @@ try {
     usageAndExit(`Extracted asar does not contain package.json: ${asarPath}`);
   }
 
-  const appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'));
+  const appPackageJson = JSON.parse(
+    fs.readFileSync(appPackageJsonPath, 'utf8'),
+  );
   const rootDeps = {
     ...(appPackageJson.dependencies ?? {}),
   };
@@ -37,7 +41,11 @@ try {
   const visitedPackageJsonPaths = new Set();
 
   /** @type {Array<{ name: string, baseDir: string, optional: boolean }>} */
-  const queue = Object.keys(rootDeps).map((name) => ({ name, baseDir: tmpRoot, optional: false }));
+  const queue = Object.keys(rootDeps).map((name) => ({
+    name,
+    baseDir: tmpRoot,
+    optional: false,
+  }));
 
   /** @type {Array<{ from: string, dep: string, reason: string }>} */
   const missing = [];
@@ -79,10 +87,17 @@ try {
       const requireFromBase = createRequire(path.join(baseDir, 'package.json'));
       const resolvedEntry = requireFromBase.resolve(name);
       depPackageJsonPath = findNearestPackageJson(resolvedEntry);
-      if (!depPackageJsonPath) throw new Error(`Could not locate package.json for ${name} from ${resolvedEntry}`);
+      if (!depPackageJsonPath)
+        throw new Error(
+          `Could not locate package.json for ${name} from ${resolvedEntry}`,
+        );
     } catch (err) {
       if (optional) continue;
-      missing.push({ from: baseDir, dep: name, reason: String(err?.message ?? err) });
+      missing.push({
+        from: baseDir,
+        dep: name,
+        reason: String(err?.message ?? err),
+      });
       continue;
     }
 
@@ -93,7 +108,11 @@ try {
     try {
       depPackageJson = JSON.parse(fs.readFileSync(depPackageJsonPath, 'utf8'));
     } catch (err) {
-      missing.push({ from: depPackageJsonPath, dep: name, reason: `Failed to read/parse package.json: ${String(err?.message ?? err)}` });
+      missing.push({
+        from: depPackageJsonPath,
+        dep: name,
+        reason: `Failed to read/parse package.json: ${String(err?.message ?? err)}`,
+      });
       continue;
     }
 
@@ -118,12 +137,18 @@ try {
     try {
       requireFromApp.resolve(depName);
     } catch (err) {
-      missing.push({ from: tmpRoot, dep: depName, reason: `Root dependency not resolvable: ${String(err?.message ?? err)}` });
+      missing.push({
+        from: tmpRoot,
+        dep: depName,
+        reason: `Root dependency not resolvable: ${String(err?.message ?? err)}`,
+      });
     }
   }
 
   if (missing.length > 0) {
-    console.error(`Missing dependencies in packaged app.asar (${missing.length}):`);
+    console.error(
+      `Missing dependencies in packaged app.asar (${missing.length}):`,
+    );
     for (const item of missing.slice(0, 50)) {
       console.error(`- ${item.dep} (from: ${item.from})`);
       console.error(`  ${item.reason}`);

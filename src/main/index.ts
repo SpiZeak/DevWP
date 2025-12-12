@@ -19,18 +19,37 @@ import { createWindow } from './window';
 
 app.commandLine.appendSwitch('gtk-version', '3');
 
+// In production/system-electron runs we never want Chromium extensions.
+// This prevents Electron from attempting to load persisted devtools extensions
+// and emitting deprecated session extension API warnings.
+if (!process.env['ELECTRON_RENDERER_URL']) {
+  app.commandLine.appendSwitch('disable-extensions');
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.whenReady().then(async () => {
-  // Treat the presence of the dev server URL as the authoritative "dev mode" signal.
-  // This keeps "system Electron" installs from behaving like dev builds just because
-  // Electron considers them "not packaged".
+  // Only install devtools when running under electron-vite dev.
+  // This avoids deprecated extension APIs + noisy warnings in packaged/system-electron runs.
   if (process.env['ELECTRON_RENDERER_URL']) {
     installExtension([REDUX_DEVTOOLS, REACT_DEVELOPER_TOOLS])
       .then(([redux, react]) =>
         console.log(`Added Extensions:  ${redux.name}, ${react.name}`),
       )
-      .catch((err) => console.log('An error occurred: ', err));
+      .catch((err) => console.log('Devtools extension install failed: ', err));
+  } else {
+    // If a previous run installed extensions, Electron may keep trying to load them.
+    // Removing this directory prevents warnings like ExtensionLoadWarning on startup.
+    try {
+      const fs = await import('node:fs');
+      const path = await import('node:path');
+      const extensionsDir = path.join(app.getPath('userData'), 'extensions');
+      if (fs.existsSync(extensionsDir)) {
+        fs.rmSync(extensionsDir, { recursive: true, force: true });
+      }
+    } catch {
+      // ignore
+    }
   }
 
   // Set app user model id for windows
