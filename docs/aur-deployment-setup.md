@@ -53,17 +53,17 @@ If you haven't created the AUR package yet:
 
 ```bash
 # Clone the empty repository
-git clone ssh://aur@aur.archlinux.org/devwp-bin.git
+git clone ssh://aur@aur.archlinux.org/devwp.git
 
-cd devwp-bin
+cd devwp
 
 # Copy your package files
 cp /path/to/DevWP/aur/PKGBUILD .
 cp /path/to/DevWP/aur/.SRCINFO .
-cp /path/to/DevWP/aur/devwp-bin.install .
+cp /path/to/DevWP/aur/devwp.install .
 
 # Commit and push
-git add PKGBUILD .SRCINFO devwp-bin.install
+git add PKGBUILD .SRCINFO devwp.install
 git commit -m "Initial commit: DevWP Electron application"
 git push origin master
 ```
@@ -146,7 +146,7 @@ This is useful for:
 
 ### Verify AUR Package
 
-Visit: https://aur.archlinux.org/packages/devwp-bin
+Visit: https://aur.archlinux.org/packages/devwp
 
 Check:
 
@@ -158,14 +158,14 @@ Check:
 
 ```bash
 # With yay
-yay -S devwp-bin
+yay -S devwp
 
 # With paru
-paru -S devwp-bin
+paru -S devwp
 
 # Manual installation
-git clone https://aur.archlinux.org/devwp-bin.git
-cd devwp-bin
+git clone https://aur.archlinux.org/devwp.git
+cd devwp
 makepkg -si
 ```
 
@@ -253,8 +253,8 @@ If you need to update the AUR package manually:
 
 ```bash
 # Clone the AUR repo
-git clone ssh://aur@aur.archlinux.org/devwp-bin.git
-cd devwp-bin
+git clone ssh://aur@aur.archlinux.org/devwp.git
+cd devwp
 
 # Make changes to PKGBUILD
 vim PKGBUILD

@@ -67,6 +67,10 @@ jobs:
           # CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
           # CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
 
+      - name: Verify packaged dependencies (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        run: node scripts/verify-packaged-deps.mjs dist/linux-unpacked/resources/app.asar
+
       - name: Compress Linux unpacked directory (zstd)
         if: matrix.os == 'ubuntu-latest'
         run: |

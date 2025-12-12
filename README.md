@@ -37,11 +37,11 @@ Download from [GitHub Releases](https://github.com/SpiZeak/DevWP/releases):
 
 ```bash
 # Using yay
-yay -S devwp-bin
+yay -S devwp
 
 # Manual installation
-git clone https://aur.archlinux.org/devwp-bin.git
-cd devwp-bin
+git clone https://aur.archlinux.org/devwp.git
+cd devwp
 makepkg -si
 ```
 

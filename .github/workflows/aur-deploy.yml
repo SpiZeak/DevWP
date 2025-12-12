@@ -87,7 +87,7 @@ jobs:
 
       - name: Clone AUR repository
         run: |
-          git clone ssh://aur@aur.archlinux.org/devwp-bin.git aur-repo
+          git clone ssh://aur@aur.archlinux.org/devwp.git aur-repo
           cd aur-repo
           ls -la
 
@@ -154,7 +154,7 @@ jobs:
           # AUR Deployment Complete ✅
 
           **Version:** ${VERSION}
-          **Package:** devwp-bin
+          **Package:** devwp
           **AppImage SHA256:** \`${SHA256}\`
 
           ## Next Steps
@@ -162,14 +162,14 @@ jobs:
           The package has been pushed to AUR. Users can install it with:
 
           \`\`\`bash
-          yay -S devwp-bin
+          yay -S devwp
           # or
-          paru -S devwp-bin
+          paru -S devwp
           \`\`\`
 
           ## Verification
 
-          Check the AUR page: https://aur.archlinux.org/packages/devwp-bin
+          Check the AUR page: https://aur.archlinux.org/packages/devwp
           EOF
 
       - name: Cleanup

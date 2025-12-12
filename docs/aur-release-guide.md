@@ -4,7 +4,7 @@ This guide explains how to publish and maintain DevWP on the Arch User Repositor
 
 ## Overview
 
-DevWP is distributed on AUR as a binary package (`devwp-bin`) that uses the pre-built AppImage from GitHub releases. This approach is simpler than building from source and provides faster installation for users.
+DevWP is distributed on AUR as a binary package (`devwp`) that uses the pre-built AppImage from GitHub releases. This approach is simpler than building from source and provides faster installation for users.
 
 ## One-Time Setup
 
@@ -18,7 +18,7 @@ DevWP is distributed on AUR as a binary package (`devwp-bin`) that uses the pre-
 
 ```bash
 # Initial clone (first time only)
-git clone ssh://aur@aur.archlinux.org/devwp-bin.git aur-publish
+git clone ssh://aur@aur.archlinux.org/devwp.git aur-publish
 cd aur-publish
 
 # Copy initial files from the project
@@ -69,7 +69,7 @@ makepkg --printsrcinfo > .SRCINFO
 
 # Commit and push
 git add PKGBUILD .SRCINFO
-git commit -m "Initial commit: devwp-bin 0.0.38"
+git commit -m "Initial commit: devwp 0.0.38"
 git push origin master
 ```
 
@@ -170,7 +170,7 @@ Use this checklist for each release:
 - [ ] Application launches and works
 - [ ] Changes committed to AUR repository
 - [ ] Package visible on AUR website
-- [ ] Test installation from AUR (`yay -S devwp-bin`)
+- [ ] Test installation from AUR (`yay -S devwp`)
 
 ## Troubleshooting
 
@@ -211,7 +211,7 @@ Verify the desktop file installation:
 
 ```bash
 # After building, check the package contents
-tar -tzf devwp-bin-*.pkg.tar.zst | grep desktop
+tar -tzf devwp-*.pkg.tar.zst | grep desktop
 ```
 
 ## Alternative: Source-Based Package
@@ -220,8 +220,10 @@ If you want to create a source-based package (`devwp`) instead of binary:
 
 1. Create new `PKGBUILD` that builds from source
 2. Clone from GitHub in the `source` array
-3. Run `bun install` and `bun run build:linux`
+3. Run `bun install --frozen-lockfile` and `bun run build:linux:verified`
 4. Package the built files
+
+The `build:linux:verified` script runs a post-build check against `dist/linux-unpacked/resources/app.asar` to ensure transitive runtime dependencies are present. This prevents “Cannot find module …” errors after installation.
 
 See `aur/PKGBUILD-source` template (to be created if needed).
 
@@ -252,7 +254,7 @@ To transfer package maintainership:
 
 ## Resources
 
-- **AUR Package**: https://aur.archlinux.org/packages/devwp-bin
+- **AUR Package**: https://aur.archlinux.org/packages/devwp
 - **AUR Guidelines**: https://wiki.archlinux.org/title/AUR_submission_guidelines
 - **PKGBUILD Guide**: https://wiki.archlinux.org/title/PKGBUILD
 - **Arch Packaging Standards**: https://wiki.archlinux.org/title/Arch_package_guidelines

@@ -49,12 +49,12 @@ cat ~/.ssh/aur_deploy
 ### 5. Initialize AUR Repo (First Time Only)
 
 ```bash
-git clone ssh://aur@aur.archlinux.org/devwp-bin.git
-cd devwp-bin
+git clone ssh://aur@aur.archlinux.org/devwp.git
+cd devwp
 cp ../DevWP/aur/PKGBUILD .
 cp ../DevWP/aur/.SRCINFO .
-cp ../DevWP/aur/devwp-bin.install .
-git add PKGBUILD .SRCINFO devwp-bin.install
+cp ../DevWP/aur/devwp.install .
+git add PKGBUILD .SRCINFO devwp.install
 git commit -m "Initial commit: DevWP v0.0.38"
 git push origin master
 ```
@@ -78,7 +78,7 @@ git push && git push --tags
 
 # 4. Done! Check:
 # GitHub: Actions tab for workflow status
-# AUR: https://aur.archlinux.org/packages/devwp-bin
+# AUR: https://aur.archlinux.org/packages/devwp
 ```
 
 ### Manual Deployment
@@ -94,10 +94,10 @@ git push && git push --tags
 
 ```bash
 # Check AUR package
-yay -Ss devwp-bin
+yay -Ss devwp
 
 # Install/Update
-yay -S devwp-bin
+yay -S devwp
 
 # Test
 devwp

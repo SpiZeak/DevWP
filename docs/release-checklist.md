@@ -56,7 +56,7 @@ Use this checklist when preparing a new DevWP release.
 - [ ] Verify package appears on AUR website
 - [ ] Test installation from AUR:
   ```bash
-  yay -S devwp-bin
+  yay -S devwp
   ```
 
 ## Post-Release
