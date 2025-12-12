@@ -22,11 +22,16 @@ app.commandLine.appendSwitch('gtk-version', '3');
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.whenReady().then(async () => {
-  installExtension([REDUX_DEVTOOLS, REACT_DEVELOPER_TOOLS])
-    .then(([redux, react]) =>
-      console.log(`Added Extensions:  ${redux.name}, ${react.name}`),
-    )
-    .catch((err) => console.log('An error occurred: ', err));
+  // Treat the presence of the dev server URL as the authoritative "dev mode" signal.
+  // This keeps "system Electron" installs from behaving like dev builds just because
+  // Electron considers them "not packaged".
+  if (process.env['ELECTRON_RENDERER_URL']) {
+    installExtension([REDUX_DEVTOOLS, REACT_DEVELOPER_TOOLS])
+      .then(([redux, react]) =>
+        console.log(`Added Extensions:  ${redux.name}, ${react.name}`),
+      )
+      .catch((err) => console.log('An error occurred: ', err));
+  }
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
