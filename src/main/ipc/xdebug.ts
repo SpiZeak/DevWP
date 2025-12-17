@@ -18,7 +18,10 @@ export function registerXdebugHandlers(window: BrowserWindow): void {
   ipcMain.handle('toggle-xdebug', async () => {
     console.log('Handling toggle-xdebug request');
     // Pass the stored window reference if toggleXdebug needs it
-    return toggleXdebug(mainWindowRef!);
+    if (!mainWindowRef) {
+      throw new Error('Main window reference is not available');
+    }
+    return toggleXdebug(mainWindowRef);
   });
 
   console.log('Xdebug handlers registered');

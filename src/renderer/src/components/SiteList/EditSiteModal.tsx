@@ -2,8 +2,6 @@ import type { Site } from '@renderer/env';
 import { useEffect, useState } from 'react';
 import Icon from '../ui/Icon';
 
-/* eslint-disable react/prop-types */
-
 interface EditSiteData {
   aliases: string;
   webRoot: string;

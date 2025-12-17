@@ -1,6 +1,6 @@
-import { exec, spawn } from 'child_process';
-import { promises as fs } from 'fs';
-import { join } from 'path';
+import { exec, spawn } from 'node:child_process';
+import { promises as fs } from 'node:fs';
+import { join } from 'node:path';
 
 const nginxConfigPath = join(process.cwd(), 'config', 'nginx');
 const sitesEnabledPath = join(nginxConfigPath, 'sites-enabled');
@@ -64,8 +64,9 @@ export async function removeNginxConfig(domain: string): Promise<void> {
     await fs.unlink(configPath);
     console.log(`Removed Nginx config for ${domain}`);
     await reloadNginx();
-  } catch (error: any) {
-    if (error.code === 'ENOENT') {
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === 'ENOENT') {
       console.log(`Nginx config for ${domain} not found, skipping removal.`);
       return;
     }

@@ -38,22 +38,26 @@ const FormInput: React.FC<FormInputProps> = ({
   value,
   onChange,
   placeholder,
-  autoFocus = false,
   helpText,
-}) => (
-  <div className="mb-5">
-    <label className="block mb-1 text-sm">{label}</label>
-    <input
-      type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="bg-gunmetal-400 p-2 border border-gunmetal-500 focus:border-pumpkin rounded focus:outline-none focus:ring-1 focus:ring-pumpkin w-full text-seasalt transition-colors"
-      placeholder={placeholder}
-      autoFocus={autoFocus}
-    />
-    {helpText && helpText}
-  </div>
-);
+}) => {
+  const inputId = `input-${label.replace(/\s+/g, '-').toLowerCase()}`;
+  return (
+    <div className="mb-5">
+      <label htmlFor={inputId} className="block mb-1 text-sm">
+        {label}
+      </label>
+      <input
+        id={inputId}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="bg-gunmetal-400 p-2 border border-gunmetal-500 focus:border-pumpkin rounded focus:outline-none focus:ring-1 focus:ring-pumpkin w-full text-seasalt transition-colors"
+        placeholder={placeholder}
+      />
+      {helpText && helpText}
+    </div>
+  );
+};
 
 const MultisiteOption: React.FC<MultisiteOptionProps> = ({
   type,
@@ -70,7 +74,8 @@ const MultisiteOption: React.FC<MultisiteOptionProps> = ({
     'border-gunmetal-500 bg-gunmetal-500 hover:bg-gunmetal-400 hover:text-pumpkin hover:border-gunmetal-400';
 
   return (
-    <div
+    <button
+      type="button"
       className={`${baseClasses} ${isSelected ? selectedClasses : unselectedClasses}`}
       onClick={onClick}
     >
@@ -91,7 +96,7 @@ const MultisiteOption: React.FC<MultisiteOptionProps> = ({
           ({example})
         </span>
       </label>
-    </div>
+    </button>
   );
 };
 
@@ -251,12 +256,14 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({
 
         <div className="flex justify-end gap-2.5">
           <button
+            type="button"
             onClick={onClose}
             className="bg-gunmetal-400 hover:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt-300 hover:text-seasalt transition-colors cursor-pointer"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleSubmit}
             disabled={isSubmitDisabled}
             className="bg-pumpkin hover:bg-pumpkin-600 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt-300 transition-colors cursor-pointer disabled:cursor-not-allowed"

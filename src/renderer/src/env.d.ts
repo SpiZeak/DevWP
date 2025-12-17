@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import { ElectronAPI } from '@electron-toolkit/preload';
+import type { ElectronAPI } from '@electron-toolkit/preload';
 
 export interface Site {
   name: string;
@@ -17,18 +17,24 @@ export interface Site {
   updatedAt?: Date;
 }
 
+type DockerStatus = 'starting' | 'progress' | 'complete' | 'error';
+
 declare global {
   interface Window {
     electron: ElectronAPI;
     api: {
-      onDockerStatusUpdate: (callback: (data: any) => void) => () => void;
+      onDockerStatusUpdate: (
+        callback: (data: { status: DockerStatus; message: string }) => void,
+      ) => () => void;
     };
     dockerControl: {
       startService: (serviceName: string) => void;
       stopService: (serviceName: string) => void;
       getStatus: (serviceName?: string) => void;
       getSites: () => Promise<Site[]>;
-      onDockerStatus: (callback: (data: any) => void) => () => void;
+      onDockerStatus: (
+        callback: (data: { status: DockerStatus; message: string }) => void,
+      ) => () => void;
     };
     electronAPI: {
       getXdebugStatus: () => Promise<boolean>;
@@ -61,7 +67,9 @@ declare global {
         }) => void,
       ) => () => void;
       getContainerStatus: () => Promise<void>;
-      onContainerStatus: (callback: (containers: any[]) => void) => () => void;
+      onContainerStatus: (
+        callback: (containers: Container[]) => void,
+      ) => () => void;
       restartContainer: (containerId: string) => Promise<void>;
       getSites: () => Promise<Site[]>;
       onWpCliStream: (

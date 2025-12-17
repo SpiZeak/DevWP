@@ -1,7 +1,7 @@
-import { promises as fs } from 'fs';
-import { writeFile } from 'fs/promises';
-import { platform, tmpdir } from 'os';
-import { join } from 'path';
+import { promises as fs } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
+import { platform, tmpdir } from 'node:os';
+import { join } from 'node:path';
 import sudo from 'sudo-prompt';
 
 const DEVWP_START = '# Start DevWP';

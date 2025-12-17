@@ -32,7 +32,7 @@ describe('App Info IPC Handlers', () => {
       .mocked(ipcMain.handle)
       .mock.calls.find((call) => call[0] === 'get-app-version')?.[1];
 
-    const result = await handler!({} as IpcMainInvokeEvent);
+    const result = await handler?.({} as IpcMainInvokeEvent);
 
     expect(app.getVersion).toHaveBeenCalled();
     expect(result).toBe('1.2.3');

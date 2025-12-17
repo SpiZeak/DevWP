@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* biome-ignore-all lint/suspicious/noExplicitAny: test mocks rely on any for flexibility */
 
 import { ipcMain } from 'electron';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -67,7 +67,7 @@ describe('Container IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'get-container-status')?.[1];
 
-      const result = await handler!({} as any);
+      const result = await handler?.({} as any);
 
       expect(docker.getDockerContainers).toHaveBeenCalled();
       expect(result).toEqual(mockContainers);
@@ -83,7 +83,7 @@ describe('Container IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'get-container-status')?.[1];
 
-      await expect(handler!({} as any)).rejects.toThrow(
+      await expect(handler?.({} as any)).rejects.toThrow(
         'Docker daemon not running',
       );
     });
@@ -97,7 +97,7 @@ describe('Container IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'get-container-status')?.[1];
 
-      const result = await handler!({} as any);
+      const result = await handler?.({} as any);
 
       expect(result).toEqual([]);
     });
@@ -115,7 +115,7 @@ describe('Container IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'restart-container')?.[1];
 
-      const result = await handler!({} as any, 'abc123');
+      const result = await handler?.({} as any, 'abc123');
 
       expect(docker.restartContainer).toHaveBeenCalledWith('abc123');
       expect(result).toEqual({ success: true });
@@ -131,7 +131,7 @@ describe('Container IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'restart-container')?.[1];
 
-      await expect(handler!({} as any, 'invalid-id')).rejects.toThrow(
+      await expect(handler?.({} as any, 'invalid-id')).rejects.toThrow(
         'Container not found',
       );
     });
@@ -149,7 +149,7 @@ describe('Container IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'restart-container')?.[1];
 
-      const result = await handler!({} as any, 'nginx_container');
+      const result = await handler?.({} as any, 'nginx_container');
 
       expect(result).toEqual(mockResult);
     });

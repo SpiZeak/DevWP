@@ -64,8 +64,8 @@ export function registerSettingsHandlers(): void {
     } catch (error) {
       console.error('Error getting webroot path:', error);
       // Return default fallback
-      const os = await import('os');
-      const path = await import('path');
+      const os = await import('node:os');
+      const path = await import('node:path');
       return path.join(os.homedir(), 'www');
     }
   });

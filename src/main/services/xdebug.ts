@@ -1,7 +1,7 @@
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
+import { promises as fs } from 'node:fs';
+import { join } from 'node:path';
 import type { BrowserWindow } from 'electron';
-import { promises as fs } from 'fs';
-import { join } from 'path';
 import { getSetting, saveSetting } from './database';
 
 let xdebugEnabled = false; // Consider if this global state is truly necessary
@@ -178,7 +178,7 @@ export async function toggleXdebug(
     }
 
     // Join the lines back, ensuring a final newline
-    const newContent = filteredLines.join('\n') + '\n';
+    const newContent = `${filteredLines.join('\n')}\n`;
 
     // Write the modified content back to the file
     try {

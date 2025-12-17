@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* biome-ignore-all lint/suspicious/noExplicitAny: test mocks rely on any for flexibility */
 
 import { type BrowserWindow, ipcMain } from 'electron';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -69,7 +69,7 @@ describe('Xdebug IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'get-xdebug-status')?.[1];
 
-      const result = await handler!({} as any);
+      const result = await handler?.({} as any);
 
       expect(xdebugService.getXdebugStatus).toHaveBeenCalled();
       expect(result).toBe(true);
@@ -85,7 +85,7 @@ describe('Xdebug IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'get-xdebug-status')?.[1];
 
-      await handler!({} as any);
+      await handler?.({} as any);
 
       expect(consoleLog).toHaveBeenCalledWith(
         'Handling get-xdebug-status request',
@@ -103,7 +103,9 @@ describe('Xdebug IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'get-xdebug-status')?.[1];
 
-      await expect(handler!({} as any)).rejects.toThrow('Failed to get status');
+      await expect(handler?.({} as any)).rejects.toThrow(
+        'Failed to get status',
+      );
     });
   });
 
@@ -117,7 +119,7 @@ describe('Xdebug IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'toggle-xdebug')?.[1];
 
-      const result = await handler!({} as any);
+      const result = await handler?.({} as any);
 
       expect(xdebugService.toggleXdebug).toHaveBeenCalledWith(mockWindow);
       expect(result).toBe(true);
@@ -133,7 +135,7 @@ describe('Xdebug IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'toggle-xdebug')?.[1];
 
-      await handler!({} as any);
+      await handler?.({} as any);
 
       expect(consoleLog).toHaveBeenCalledWith('Handling toggle-xdebug request');
       consoleLog.mockRestore();
@@ -149,7 +151,7 @@ describe('Xdebug IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'toggle-xdebug')?.[1];
 
-      await expect(handler!({} as any)).rejects.toThrow(
+      await expect(handler?.({} as any)).rejects.toThrow(
         'Failed to toggle Xdebug',
       );
     });
@@ -163,8 +165,8 @@ describe('Xdebug IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'toggle-xdebug')?.[1];
 
-      await handler!({} as any);
-      await handler!({} as any);
+      await handler?.({} as any);
+      await handler?.({} as any);
 
       expect(xdebugService.toggleXdebug).toHaveBeenCalledTimes(2);
       expect(xdebugService.toggleXdebug).toHaveBeenNthCalledWith(1, mockWindow);
@@ -198,7 +200,7 @@ describe('Xdebug IPC Handlers', () => {
         .filter((call) => call[0] === 'toggle-xdebug')
         .pop()?.[1];
 
-      await handler!({} as any);
+      await handler?.({} as any);
 
       expect(xdebugService.toggleXdebug).toHaveBeenCalledWith(window2);
     });

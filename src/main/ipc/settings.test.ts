@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* biome-ignore-all lint/suspicious/noExplicitAny: test mocks rely on any for flexibility */
 
 import { dialog, ipcMain } from 'electron';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -67,7 +67,7 @@ describe('Settings IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'get-settings')?.[1];
 
-      const result = await handler!({} as any);
+      const result = await handler?.({} as any);
 
       expect(database.getAllSettings).toHaveBeenCalled();
       expect(result).toEqual(mockSettings);
@@ -87,7 +87,7 @@ describe('Settings IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'get-settings')?.[1];
 
-      const result = await handler!({} as any);
+      const result = await handler?.({} as any);
 
       expect(result).toEqual({});
       expect(consoleError).toHaveBeenCalledWith(
@@ -108,7 +108,7 @@ describe('Settings IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'get-setting')?.[1];
 
-      const result = await handler!({} as any, 'test-key');
+      const result = await handler?.({} as any, 'test-key');
 
       expect(database.getSetting).toHaveBeenCalledWith('test-key');
       expect(result).toBe('test-value');
@@ -128,7 +128,7 @@ describe('Settings IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'get-setting')?.[1];
 
-      const result = await handler!({} as any, 'test-key');
+      const result = await handler?.({} as any, 'test-key');
 
       expect(result).toBeNull();
       consoleError.mockRestore();
@@ -145,7 +145,7 @@ describe('Settings IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'save-setting')?.[1];
 
-      const result = await handler!({} as any, 'test-key', 'test-value');
+      const result = await handler?.({} as any, 'test-key', 'test-value');
 
       expect(database.saveSetting).toHaveBeenCalledWith(
         'test-key',
@@ -168,7 +168,7 @@ describe('Settings IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'save-setting')?.[1];
 
-      const result = await handler!({} as any, 'test-key', 'test-value');
+      const result = await handler?.({} as any, 'test-key', 'test-value');
 
       expect(result).toEqual({ success: false, error: 'Save failed' });
       consoleError.mockRestore();
@@ -185,7 +185,7 @@ describe('Settings IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'delete-setting')?.[1];
 
-      const result = await handler!({} as any, 'test-key');
+      const result = await handler?.({} as any, 'test-key');
 
       expect(database.deleteSetting).toHaveBeenCalledWith('test-key');
       expect(result).toEqual({ success: true });
@@ -205,7 +205,7 @@ describe('Settings IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'delete-setting')?.[1];
 
-      const result = await handler!({} as any, 'test-key');
+      const result = await handler?.({} as any, 'test-key');
 
       expect(result).toEqual({ success: false, error: 'Delete failed' });
       consoleError.mockRestore();
@@ -222,7 +222,7 @@ describe('Settings IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'get-webroot-path')?.[1];
 
-      const result = await handler!({} as any);
+      const result = await handler?.({} as any);
 
       expect(database.getWebrootPath).toHaveBeenCalled();
       expect(result).toBe('/home/user/www');
@@ -242,7 +242,7 @@ describe('Settings IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'get-webroot-path')?.[1];
 
-      const result = await handler!({} as any);
+      const result = await handler?.({} as any);
 
       expect(typeof result).toBe('string');
       expect(result).toContain('www');
@@ -262,7 +262,7 @@ describe('Settings IPC Handlers', () => {
           (call) => call[0] === 'get-xdebug-enabled-setting',
         )?.[1];
 
-      const result = await handler!({} as any);
+      const result = await handler?.({} as any);
 
       expect(database.getXdebugEnabledSetting).toHaveBeenCalled();
       expect(result).toBe(true);
@@ -284,7 +284,7 @@ describe('Settings IPC Handlers', () => {
           (call) => call[0] === 'get-xdebug-enabled-setting',
         )?.[1];
 
-      const result = await handler!({} as any);
+      const result = await handler?.({} as any);
 
       expect(result).toBe(false);
       consoleError.mockRestore();
@@ -304,7 +304,7 @@ describe('Settings IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'pick-directory')?.[1];
 
-      const result = await handler!({} as any, '/default/path');
+      const result = await handler?.({} as any, '/default/path');
 
       expect(dialog.showOpenDialog).toHaveBeenCalledWith({
         properties: ['openDirectory'],
@@ -326,7 +326,7 @@ describe('Settings IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'pick-directory')?.[1];
 
-      const result = await handler!({} as any);
+      const result = await handler?.({} as any);
 
       expect(result).toBeNull();
     });
@@ -343,7 +343,7 @@ describe('Settings IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'pick-directory')?.[1];
 
-      const result = await handler!({} as any);
+      const result = await handler?.({} as any);
 
       expect(result).toBeNull();
     });
@@ -362,7 +362,7 @@ describe('Settings IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'pick-directory')?.[1];
 
-      const result = await handler!({} as any);
+      const result = await handler?.({} as any);
 
       expect(result).toBeNull();
       consoleError.mockRestore();
@@ -380,7 +380,7 @@ describe('Settings IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'pick-directory')?.[1];
 
-      await handler!({} as any);
+      await handler?.({} as any);
 
       expect(dialog.showOpenDialog).toHaveBeenCalledWith({
         properties: ['openDirectory'],

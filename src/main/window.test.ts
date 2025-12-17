@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* biome-ignore-all lint/suspicious/noExplicitAny: test mocks rely on any for flexibility */
 import {
   afterEach,
   beforeEach,
@@ -12,10 +12,8 @@ import {
 // Mock modules
 const BrowserWindowMock = vi.fn();
 
-class BrowserWindowConstructor {
-  constructor(...args: any[]) {
-    return BrowserWindowMock(...args);
-  }
+function BrowserWindowConstructor(...args: any[]) {
+  return BrowserWindowMock(...args);
 }
 const shellMock = {
   openExternal: vi.fn(),
@@ -278,7 +276,7 @@ describe('Window Creation', () => {
       )?.[1];
 
       expect(handler).toBeDefined();
-      const result = await handler!({} as any, 'https://example.com');
+      const result = await handler?.({} as any, 'https://example.com');
 
       expect(shellMock.openExternal).toHaveBeenCalledWith(
         'https://example.com',
@@ -297,7 +295,7 @@ describe('Window Creation', () => {
       )?.[1];
 
       expect(handler).toBeDefined();
-      const result = await handler!({} as any, 'www');
+      const result = await handler?.({} as any, 'www');
 
       expect(shellMock.openPath).toHaveBeenCalledWith('/app/www');
       expect(result).toBe(true);
@@ -313,7 +311,7 @@ describe('Window Creation', () => {
         (call) => call[0] === 'open-directory',
       )?.[1];
 
-      await expect(handler!({} as any, 'www')).rejects.toThrow(
+      await expect(handler?.({} as any, 'www')).rejects.toThrow(
         'Failed to open directory',
       );
     });

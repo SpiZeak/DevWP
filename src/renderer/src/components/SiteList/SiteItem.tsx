@@ -2,8 +2,6 @@ import type { Site } from '@renderer/env';
 import Icon from '../ui/Icon';
 import Spinner from '../ui/Spinner';
 
-/* eslint-disable react/prop-types */
-
 interface SiteItemProps {
   site: Site;
   isLast: boolean;
@@ -53,6 +51,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
           <div className="flex items-center gap-2 text-seasalt-400 text-xs">
             <Icon className="text-base" content="󰉋" />
             <button
+              type="button"
               onClick={handleOpenDirectory}
               className="hover:text-pumpkin text-left truncate transition-colors cursor-pointer"
               title="Open folder in file manager"
@@ -63,6 +62,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
         </div>
         <div className="flex items-center gap-1">
           <button
+            type="button"
             onClick={(): void => onOpenUrl(site.url)}
             className="group/btn relative bg-gunmetal-500 hover:bg-pumpkin disabled:bg-gunmetal-300 hover:shadow-lg rounded-lg size-10 hover:scale-105 disabled:hover:scale-100 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
             title="Open Site"
@@ -71,6 +71,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
             <Icon className="text-2xl" content="" />
           </button>
           <button
+            type="button"
             onClick={(): void => onScan(site)}
             className={`group/btn relative size-10 rounded-lg transition-all duration-200 hover:scale-105 hover:shadow-lg ${
               scanningSite === site.name || isProvisioning
@@ -99,6 +100,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
             )}
           </button>
           <button
+            type="button"
             onClick={(): void => onOpenWpCli(site)}
             className="group/btn relative bg-gunmetal-500 hover:bg-emerald disabled:bg-gunmetal-300 hover:shadow-lg rounded-lg size-10 hover:scale-105 disabled:hover:scale-100 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
             title="Run WP-CLI Command"
@@ -110,6 +112,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
             />
           </button>
           <button
+            type="button"
             onClick={(): void => onEditSite(site)}
             className="group/btn relative bg-gunmetal-500 hover:bg-pumpkin-500 disabled:bg-gunmetal-300 hover:shadow-lg rounded-lg size-10 hover:scale-105 disabled:hover:scale-100 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
             title="Edit Site Settings"

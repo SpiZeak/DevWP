@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* biome-ignore-all lint/suspicious/noExplicitAny: test mocks rely on any for flexibility */
 
 import { exec } from 'child_process';
 import {

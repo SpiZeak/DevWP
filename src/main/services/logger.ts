@@ -1,5 +1,5 @@
+import { join } from 'node:path';
 import { app } from 'electron';
-import { join } from 'path';
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import { isVerboseMode } from '../runtimeFlags';

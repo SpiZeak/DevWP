@@ -22,7 +22,7 @@ app.commandLine.appendSwitch('gtk-version', '3');
 // In production/system-electron runs we never want Chromium extensions.
 // This prevents Electron from attempting to load persisted devtools extensions
 // and emitting deprecated session extension API warnings.
-if (!process.env['ELECTRON_RENDERER_URL']) {
+if (!process.env.ELECTRON_RENDERER_URL) {
   app.commandLine.appendSwitch('disable-extensions');
 }
 
@@ -31,7 +31,7 @@ if (!process.env['ELECTRON_RENDERER_URL']) {
 app.whenReady().then(async () => {
   // Only install devtools when running under electron-vite dev.
   // This avoids deprecated extension APIs + noisy warnings in packaged/system-electron runs.
-  if (process.env['ELECTRON_RENDERER_URL']) {
+  if (process.env.ELECTRON_RENDERER_URL) {
     installExtension([REDUX_DEVTOOLS, REACT_DEVELOPER_TOOLS])
       .then(([redux, react]) =>
         console.log(`Added Extensions:  ${redux.name}, ${react.name}`),

@@ -1,9 +1,8 @@
+import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
 import { defineConfig } from 'vitest/config';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const plugins = [react()] as any;
+const plugins = [react()];
 
 export default defineConfig({
   plugins,

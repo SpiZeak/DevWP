@@ -85,6 +85,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         <div className="flex justify-between items-center mb-6">
           <h2 className="font-semibold text-seasalt text-xl">Settings</h2>
           <button
+            type="button"
             onClick={handleClose}
             className="text-seasalt-400 hover:text-seasalt transition-colors"
             title="Close Settings"
@@ -100,11 +101,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         ) : (
           <div className="space-y-6">
             <div>
-              <label className="block mb-2 font-medium text-seasalt text-sm">
+              <label htmlFor="webroot-path" className="block mb-2 font-medium text-seasalt text-sm">
                 Webroot Path
               </label>
               <div className="flex gap-2">
                 <input
+                  id="webroot-path"
                   type="text"
                   className="flex-1 bg-gunmetal-500 p-3 border border-gunmetal-600 focus:border-pumpkin-500 rounded focus:outline-none text-seasalt"
                   value={webrootPath}
@@ -112,6 +114,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   placeholder="/path/to/webroot"
                 />
                 <button
+                  type="button"
                   onClick={handleSelectDirectory}
                   className="bg-gunmetal-500 hover:bg-gunmetal-600 px-3 py-3 border border-gunmetal-600 rounded text-seasalt-400 hover:text-seasalt transition-colors"
                   title="Browse for directory"
@@ -127,12 +130,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
             <div className="flex justify-end gap-2.5 pt-4 border-gunmetal-600 border-t">
               <button
+                type="button"
                 onClick={handleClose}
                 className="bg-gunmetal-500 hover:bg-gunmetal-600 px-4 py-2 border-0 rounded text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleSaveSettings}
                 disabled={!hasChanges || saving}
                 className="flex items-center gap-2 bg-pumpkin hover:bg-pumpkin-600 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt-400 transition-colors cursor-pointer disabled:cursor-not-allowed"

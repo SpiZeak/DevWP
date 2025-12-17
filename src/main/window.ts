@@ -1,5 +1,5 @@
+import { join } from 'node:path';
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
-import { join } from 'path';
 import icon from '../../resources/icon.png?asset';
 import { startContainerMonitoring } from './ipc/container';
 import { registerWpCliHandlers } from './ipc/wpCli';
@@ -71,7 +71,7 @@ export function createWindow(): BrowserWindow {
 
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
-  const rendererUrl = process.env['ELECTRON_RENDERER_URL'];
+  const rendererUrl = process.env.ELECTRON_RENDERER_URL;
   if (rendererUrl) {
     mainWindow.loadURL(rendererUrl);
   } else {

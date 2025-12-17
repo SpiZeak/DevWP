@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import { exec } from 'node:child_process';
 
 export interface SiteConfiguration {
   domain: string;
@@ -164,8 +164,8 @@ async function initializeDefaultSettings(): Promise<void> {
 
     if (!existingWebrootPath) {
       // Set default webroot path to $HOME/www
-      const os = await import('os');
-      const path = await import('path');
+      const os = await import('node:os');
+      const path = await import('node:path');
       const defaultWebrootPath = path.join(os.homedir(), 'www');
 
       await saveSetting('webroot_path', defaultWebrootPath);
@@ -380,7 +380,7 @@ export async function deleteSiteConfiguration(domain: string): Promise<void> {
 
 // Migrate existing sites from filesystem to database
 export async function migrateExistingSites(): Promise<void> {
-  const { promises: fs } = await import('fs');
+  const { promises: fs } = await import('node:fs');
 
   try {
     const webrootBase = await getWebrootPath();
@@ -559,8 +559,8 @@ export async function getWebrootPath(): Promise<string> {
   }
 
   // Default fallback
-  const os = await import('os');
-  const path = await import('path');
+  const os = await import('node:os');
+  const path = await import('node:path');
   return path.join(os.homedir(), 'www');
 }
 

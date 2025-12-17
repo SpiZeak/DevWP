@@ -1,6 +1,6 @@
-import { exec, spawn } from 'child_process';
+import { exec, spawn } from 'node:child_process';
+import { platform } from 'node:os';
 import type { BrowserWindow } from 'electron';
-import { platform } from 'os';
 import { isVerboseMode } from '../runtimeFlags';
 import logger from './logger';
 
@@ -156,7 +156,7 @@ export function startMariaDBContainer(): Promise<void> {
 
     dockerProcess.stderr.on('data', (data) => {
       const text = data.toString().trim();
-      errorOutput += text + '\n';
+      errorOutput += `${text}\n`;
       if (verboseMode && text) {
         logger.debug(`[mariadb stderr] ${text}`);
       }

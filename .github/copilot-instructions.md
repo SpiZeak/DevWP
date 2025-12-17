@@ -129,7 +129,6 @@ bun run dev
 ### Lint Configuration Issues
 
 - **3685+ lint errors**: Primarily in `config/seonaut/web/static/echarts.min.js` (3rd-party minified library)
-- **TypeScript version warning**: Using TS 5.9.2 vs supported <5.9.0 for eslint (non-blocking)
 - **Focus on main codebase**: Lint errors in `src/` directory are more relevant than submodule issues
 
 ## Project Structure and Navigation
@@ -156,7 +155,7 @@ src/
 ```
 package.json              # Scripts and dependencies
 electron.vite.config.ts   # Build configuration
-eslint.config.mjs        # Linting rules
+biome.json                # Biome formatter/linter config
 compose.yml              # Docker services definition
 config/                  # Docker service configurations
 ├── nginx/               # Web server config

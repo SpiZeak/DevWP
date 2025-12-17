@@ -1,4 +1,4 @@
-import { promises as fs } from 'fs';
+import { promises as fs } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('fs');

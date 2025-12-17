@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* biome-ignore-all lint/suspicious/noExplicitAny: test mocks rely on any for flexibility */
 
-import * as child_process from 'child_process';
+import * as child_process from 'node:child_process';
+import { EventEmitter } from 'node:events';
 import { ipcMain } from 'electron';
-import { EventEmitter } from 'events';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerWpCliHandlers } from './wpCli';
 
@@ -63,7 +63,7 @@ describe('WP-CLI IPC Handlers', () => {
       const command = 'plugin list';
 
       // Start the promise
-      const promise = handler!(mockEvent, { site, command });
+      const promise = handler?.(mockEvent, { site, command });
 
       // Simulate process completion
       mockProcess.emit('close', 0);
@@ -95,7 +95,7 @@ describe('WP-CLI IPC Handlers', () => {
       const command = 'plugin list';
 
       // Start the promise
-      const promise = handler!(mockEvent, { site, command });
+      const promise = handler?.(mockEvent, { site, command });
 
       // Simulate stdout data
       mockProcess.stdout.emit('data', Buffer.from('Plugin output'));
@@ -123,7 +123,7 @@ describe('WP-CLI IPC Handlers', () => {
       const command = 'plugin install missing';
 
       // Start the promise
-      const promise = handler!(mockEvent, { site, command });
+      const promise = handler?.(mockEvent, { site, command });
 
       // Simulate stderr data
       mockProcess.stderr.emit('data', Buffer.from('Error: Plugin not found'));
@@ -151,7 +151,7 @@ describe('WP-CLI IPC Handlers', () => {
       const command = 'core version';
 
       // Start the promise
-      const promise = handler!(mockEvent, { site, command });
+      const promise = handler?.(mockEvent, { site, command });
 
       // Simulate stdout data
       mockProcess.stdout.emit('data', Buffer.from('6.4.2'));
@@ -184,7 +184,7 @@ describe('WP-CLI IPC Handlers', () => {
       const command = 'invalid command';
 
       // Start the promise
-      const promise = handler!(mockEvent, { site, command });
+      const promise = handler?.(mockEvent, { site, command });
 
       // Simulate error event
       mockProcess.emit('error', new Error('Command failed'));
@@ -213,7 +213,7 @@ describe('WP-CLI IPC Handlers', () => {
       const command = 'plugin install invalid';
 
       // Start the promise
-      const promise = handler!(mockEvent, { site, command });
+      const promise = handler?.(mockEvent, { site, command });
 
       // Simulate stderr
       mockProcess.stderr.emit('data', Buffer.from('Error: Plugin not found'));
@@ -241,7 +241,7 @@ describe('WP-CLI IPC Handlers', () => {
       const command = 'some command';
 
       // Start the promise
-      const promise = handler!(mockEvent, { site, command });
+      const promise = handler?.(mockEvent, { site, command });
 
       // Simulate process completion with error code but no stderr
       mockProcess.emit('close', 127);
@@ -266,7 +266,7 @@ describe('WP-CLI IPC Handlers', () => {
       const command = 'plugin list';
 
       // Start the promise
-      const promise = handler!(mockEvent, { site, command });
+      const promise = handler?.(mockEvent, { site, command });
 
       // Simulate multiple stdout chunks
       mockProcess.stdout.emit('data', Buffer.from('Chunk 1\n'));
@@ -292,7 +292,7 @@ describe('WP-CLI IPC Handlers', () => {
       const command = 'plugin install akismet --activate';
 
       // Start the promise
-      const promise = handler!(mockEvent, { site, command });
+      const promise = handler?.(mockEvent, { site, command });
 
       // Simulate process completion
       mockProcess.emit('close', 0);
@@ -326,7 +326,7 @@ describe('WP-CLI IPC Handlers', () => {
       const command = 'plugin update all';
 
       // Start the promise
-      const promise = handler!(mockEvent, { site, command });
+      const promise = handler?.(mockEvent, { site, command });
 
       // Simulate both outputs
       mockProcess.stdout.emit('data', Buffer.from('Updating plugins...'));

@@ -25,7 +25,7 @@ describe('Site Service Utilities', () => {
     });
 
     it('should enforce 64 character limit', () => {
-      const longDomain = 'a'.repeat(100) + '.test';
+      const longDomain = `${'a'.repeat(100)}.test`;
       const result = sanitizeDatabaseName(longDomain);
       expect(result.length).toBeLessThanOrEqual(64);
     });
