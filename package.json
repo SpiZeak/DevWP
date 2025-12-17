@@ -48,7 +48,7 @@
     "tailwindcss": "^4.1.18",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0",
-    "zod": "^4.2.0"
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.9",
@@ -61,7 +61,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
-    "@vitest/ui": "^4.0.15",
+    "@vitest/ui": "^4.0.16",
     "electron": "^39.2.7",
     "electron-builder": "^26.3.5",
     "electron-devtools-installer": "^4.0.0",
@@ -71,7 +71,7 @@
     "react-dom": "^19.2.3",
     "typescript": "^5.9.3",
     "vite": "^7.3.0",
-    "vitest": "^4.0.15",
-    "@vitest/coverage-v8": "^4.0.15"
+    "vitest": "^4.0.16",
+    "@vitest/coverage-v8": "^4.0.16"
   }
 }
