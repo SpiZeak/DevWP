@@ -129,13 +129,16 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({
     return /.+\..*$/.test(domain) ? domain : `${domain}.test`;
   };
 
-  const updateSiteField = (field: keyof NewSiteData, value: any) => {
+  const updateSiteField = (
+    field: keyof NewSiteData,
+    value: string | { enabled: boolean; type: 'subdomain' | 'subdirectory' },
+  ) => {
     setNewSite((prev) => ({ ...prev, [field]: value }));
   };
 
   const updateMultisiteField = (
     field: keyof NewSiteData['multisite'],
-    value: any,
+    value: boolean | 'subdomain' | 'subdirectory',
   ) => {
     setNewSite((prev) => ({
       ...prev,

@@ -30,12 +30,17 @@ const FormInput: React.FC<FormInputProps> = ({
   placeholder,
   helpText,
 }) => {
+  const inputId = `input-${label.replace(/\s+/g, '-').toLowerCase()}`;
   return (
     <div className="mb-6">
-      <label className="block mb-2 font-medium text-seasalt text-sm">
+      <label
+        htmlFor={inputId}
+        className="block mb-2 font-medium text-seasalt text-sm"
+      >
         {label}
       </label>
       <input
+        id={inputId}
         type="text"
         className="bg-gunmetal-400 p-3 border border-gunmetal-600 focus:border-pumpkin-500 rounded-lg focus:outline-none w-full text-seasalt transition-colors placeholder-seasalt-400"
         value={value}
@@ -112,6 +117,7 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({
         <div className="flex justify-between items-center mb-5">
           <h3 className="mt-0 mb-0 text-seasalt">Edit Site Settings</h3>
           <button
+            type="button"
             onClick={onClose}
             className="text-seasalt-400 hover:text-seasalt transition-colors"
             title="Close"
@@ -154,6 +160,7 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({
             database snapshot. This action cannot be undone.
           </p>
           <button
+            type="button"
             onClick={handleDelete}
             className="bg-crimson hover:bg-crimson/80 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt disabled:text-seasalt-400 transition-colors cursor-pointer disabled:cursor-not-allowed"
             title="Delete Site"
@@ -165,12 +172,14 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({
 
         <div className="flex justify-end gap-2.5 mt-4">
           <button
+            type="button"
             onClick={onClose}
             className="bg-gunmetal-400 hover:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt-300 hover:text-seasalt transition-colors cursor-pointer"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={handleSubmit}
             className="bg-pumpkin hover:bg-pumpkin-600 px-4 py-2 border-0 rounded text-warm-charcoal transition-colors cursor-pointer"
           >

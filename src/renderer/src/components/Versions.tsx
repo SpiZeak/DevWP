@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react';
+import type { KeyboardEvent, MouseEvent } from 'react';
 import { type JSX, useEffect, useMemo, useState } from 'react';
 import Icon from './ui/Icon';
 
@@ -69,6 +69,12 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
     onClose();
   };
 
+  const handleOverlayKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
+    if (event.key === 'Escape') {
+      onClose();
+    }
+  };
+
   const handleContentClick = (event: MouseEvent<HTMLDivElement>): void => {
     event.stopPropagation();
   };
@@ -80,10 +86,15 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
       aria-modal="true"
       aria-labelledby="versions-modal-title"
       onClick={handleOverlayClick}
+      onKeyDown={handleOverlayKeyDown}
     >
       <div
         className="bg-gunmetal-400 shadow-lg mx-4 p-6 rounded-lg w-full max-w-md"
         onClick={handleContentClick}
+        onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
+          event.stopPropagation();
+        }}
+        role="document"
       >
         <div className="flex justify-between items-center mb-6">
           <h2
@@ -93,6 +104,7 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
             About DevWP
           </h2>
           <button
+            type="button"
             onClick={onClose}
             aria-label="Close About modal"
             className="flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors"

@@ -277,7 +277,7 @@ describe('Xdebug Service', () => {
       (fs.readFile as Mock).mockResolvedValue(mockContent);
       (fs.writeFile as Mock).mockResolvedValue(undefined);
 
-      mockSpawnProcess.stderr!.on.mockImplementation(
+      mockSpawnProcess.stderr?.on.mockImplementation(
         (event: string, callback: (data: Buffer | string) => void) => {
           if (event === 'data') {
             callback('Docker error');

@@ -47,7 +47,7 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
     if (outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
-  }, [wpCliOutput, wpCliError]);
+  });
 
   if (!isOpen || !site) return null;
 
@@ -99,7 +99,6 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
               onChange={(e): void => setWpCliCommand(e.target.value)}
               placeholder="e.g. plugin list"
               disabled={wpCliLoading}
-              autoFocus
             />
             <div className="mt-1 text-seasalt-400 text-xs">
               Only enter the command after <span className="font-bold">wp</span>
@@ -127,12 +126,12 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
         </form>
         {hasOutput && (
           <div className="mb-5">
-            <label className="block mb-1 text-seasalt text-sm">
+            <div className="block mb-1 text-seasalt text-sm">
               Output {wpCliLoading && <span className="text-amber">●</span>}
-            </label>
+            </div>
             <pre
               ref={outputRef}
-              className="bg-warm-charcoal-200 p-2.5 border border-gunmetal-600 rounded max-h-[300px] overflow-auto font-mono text-seasalt text-xs break-words whitespace-pre-wrap"
+              className="bg-warm-charcoal-200 p-2.5 border border-gunmetal-600 rounded max-h-75 overflow-auto font-mono text-seasalt text-xs wrap-break-word whitespace-pre-wrap"
             >
               {wpCliOutput && (
                 <span className="text-emerald">{wpCliOutput}</span>

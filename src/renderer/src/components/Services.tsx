@@ -121,6 +121,7 @@ const Services: React.FC<ServicesProps> = ({
         <h2 className="font-semibold text-seasalt text-lg">Services</h2>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={onOpenVersions}
             className="flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors"
             title="About DevWP"
@@ -128,6 +129,7 @@ const Services: React.FC<ServicesProps> = ({
             <Icon content="ℹ" className="text-lg" />
           </button>
           <button
+            type="button"
             onClick={onOpenSettings}
             className="flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors"
             title="Settings"
@@ -164,6 +166,7 @@ const Services: React.FC<ServicesProps> = ({
                   </div>
                 </div>
                 <button
+                  type="button"
                   className={`flex shrink-0 justify-center items-center bg-gunmetal-500 disabled:opacity-50 rounded-full size-7 text-2xl text-seasalt hover:text-warm-charcoal transition-all duration-200 cursor-pointer disabled:cursor-not-allowed icon ${restarting[container.id] ? '' : 'hover:rotate-30 hover:bg-pumpkin hover:text-warm-charcoal hover:scale-110'}`}
                   onClick={() => restartContainer(container.id, container.name)}
                   disabled={restarting[container.id]}

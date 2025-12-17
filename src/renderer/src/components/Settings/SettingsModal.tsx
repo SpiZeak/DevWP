@@ -14,16 +14,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [saving, setSaving] = useState<boolean>(false);
   const [hasChanges, setHasChanges] = useState<boolean>(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      loadSettings();
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    setHasChanges(webrootPath !== originalWebrootPath);
-  }, [webrootPath, originalWebrootPath]);
-
   const loadSettings = async (): Promise<void> => {
     try {
       setLoading(true);
@@ -36,6 +26,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      loadSettings();
+    }
+  }, [isOpen, loadSettings]);
+
+  useEffect(() => {
+    setHasChanges(webrootPath !== originalWebrootPath);
+  }, [webrootPath, originalWebrootPath]);
 
   const handleSaveSettings = async (): Promise<void> => {
     try {
@@ -101,7 +101,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         ) : (
           <div className="space-y-6">
             <div>
-              <label htmlFor="webroot-path" className="block mb-2 font-medium text-seasalt text-sm">
+              <label
+                htmlFor="webroot-path"
+                className="block mb-2 font-medium text-seasalt text-sm"
+              >
                 Webroot Path
               </label>
               <div className="flex gap-2">
