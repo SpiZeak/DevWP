@@ -2,15 +2,6 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Xdebug Docker",
-      "type": "php",
-      "request": "launch",
-      "port": 9003,
-      "pathMappings": {
-        "/src/www": "${workspaceFolder}/www"
-      }
-    },
-    {
       "name": "Debug Main Process",
       "type": "node",
       "request": "launch",
@@ -19,7 +10,9 @@
       "windows": {
         "runtimeExecutable": "${workspaceRoot}/node_modules/.bin/electron-vite.cmd"
       },
-      "runtimeArgs": ["--sourcemap"],
+      "runtimeArgs": [
+        "--sourcemap"
+      ],
       "env": {
         "REMOTE_DEBUGGING_PORT": "9222"
       }
@@ -39,7 +32,10 @@
   "compounds": [
     {
       "name": "Debug All",
-      "configurations": ["Debug Main Process", "Debug Renderer Process"],
+      "configurations": [
+        "Debug Main Process",
+        "Debug Renderer Process"
+      ],
       "presentation": {
         "order": 1
       }

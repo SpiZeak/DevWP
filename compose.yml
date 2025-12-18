@@ -12,7 +12,7 @@ services:
       - ~/www:/src/www:rw
       - ./config/php/php.ini:/usr/local/etc/php/php.ini:ro
       - ./config/php/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
-      - ./config/php/conf.d/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini
+      - ./config/php/conf.d/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini:ro
     healthcheck:
       test: ['CMD-SHELL', 'pidof php-fpm || exit 1']
       interval: 30s
