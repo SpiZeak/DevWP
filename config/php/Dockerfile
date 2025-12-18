@@ -13,6 +13,11 @@ RUN apk update && \
     libpng-dev \
     libwebp-dev \
     libavif-dev \
+    libheif \
+    libheif-dev \
+    libde265 \
+    aom \
+    dav1d \
     freetype-dev \
     libzip-dev \
     icu-dev \
