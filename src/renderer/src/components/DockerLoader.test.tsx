@@ -7,11 +7,17 @@ describe('DockerLoader', () => {
   let mockRemoveListener: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    const globalAny = globalThis as unknown as { window?: unknown };
+    if (!globalAny.window) {
+      globalAny.window = globalThis;
+    }
+
     mockOnDockerStatus = vi.fn();
     mockRemoveListener = vi.fn();
 
     window.electronAPI = {
       onDockerStatus: mockOnDockerStatus.mockReturnValue(mockRemoveListener),
+      getLogDir: vi.fn().mockResolvedValue('/tmp/devwp-userdata/logs'),
     } as unknown as typeof window.electronAPI;
 
     vi.useFakeTimers();
@@ -84,6 +90,10 @@ describe('DockerLoader', () => {
           'There was an error starting Docker. Check the logs for details.',
         ),
       ).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('/tmp/devwp-userdata/logs')).toBeInTheDocument();
     });
 
     vi.useFakeTimers(); // Restore fake timers

@@ -9,8 +9,15 @@ function DockerLoader(): JSX.Element | null {
   });
 
   const [isVisible, setIsVisible] = useState(true);
+  const [logDir, setLogDir] = useState<string>('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    window.electronAPI
+      .getLogDir()
+      .then((dir) => setLogDir(dir))
+      .catch(() => setLogDir(''));
+
     const removeListener = window.electronAPI.onDockerStatus((status) => {
       setDockerStatus(status);
 
@@ -22,6 +29,12 @@ function DockerLoader(): JSX.Element | null {
 
     return removeListener;
   }, []);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timeout = setTimeout(() => setCopied(false), 1200);
+    return () => clearTimeout(timeout);
+  }, [copied]);
 
   if (!isVisible) return null;
 
@@ -42,7 +55,29 @@ function DockerLoader(): JSX.Element | null {
         </p>
         {dockerStatus.status === 'error' && (
           <div className="mt-4 text-crimson-400">
-            There was an error starting Docker. Check the logs for details.
+            <div>There was an error starting Docker. Check the logs for details.</div>
+            {logDir && (
+              <div className="mt-2 text-seasalt-200">
+                <div className="text-sm">Logs:</div>
+                <div className="flex justify-center items-center gap-2 mt-1">
+                  <code className="bg-warm-charcoal-500 px-2 py-1 rounded text-xs break-all">
+                    {logDir}
+                  </code>
+                  <button
+                    type="button"
+                    className="bg-warm-charcoal-500 hover:bg-warm-charcoal-600 px-3 py-1 rounded text-xs"
+                    onClick={() => {
+                      navigator.clipboard
+                        .writeText(logDir)
+                        .then(() => setCopied(true))
+                        .catch(() => setCopied(false));
+                    }}
+                  >
+                    {copied ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

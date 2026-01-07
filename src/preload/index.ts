@@ -4,6 +4,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 // Add to your preload script
 contextBridge.exposeInMainWorld('electronAPI', {
   getSites: () => ipcRenderer.invoke('get-sites'),
+  getLogDir: () => ipcRenderer.invoke('get-log-dir'),
   onDockerStatus: (callback) => {
     const listener = (_event, data) => callback(data);
     ipcRenderer.on('docker-status', listener);

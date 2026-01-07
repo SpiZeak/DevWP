@@ -37,6 +37,7 @@ declare global {
       ) => () => void;
     };
     electronAPI: {
+      getLogDir: () => Promise<string>;
       getXdebugStatus: () => Promise<boolean>;
       toggleXdebug: () => Promise<boolean>;
       onXdebugStatus: (
