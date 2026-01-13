@@ -24,7 +24,7 @@ RUN mkdir -p /usr/src
 
 # Download and compile LibreSSL 4.2.1 from Swedish FTP mirror
 RUN cd /usr/src && \
-	curl -sSL https://ftp.lysator.liu.se/pub/OpenBSD/LibreSSL/libressl-4.2.1.tar.gz -o libressl-4.2.1.tar.gz && \
+	curl -sSL https://cdn.openbsd.org/pub/OpenBSD/LibreSSL/libressl-4.2.1.tar.gz -o libressl-4.2.1.tar.gz && \
 	tar -zxf libressl-4.2.1.tar.gz && \
 	cd libressl-4.2.1 && \
 	mkdir build && \
