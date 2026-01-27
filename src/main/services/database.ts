@@ -1,4 +1,5 @@
 import { exec } from 'node:child_process';
+import { platform } from 'node:os';
 
 export interface SiteConfiguration {
   domain: string;
@@ -14,6 +15,46 @@ export interface SiteConfiguration {
 
 // Database name for DevWP configuration
 const DEVWP_CONFIG_DB = 'devwp_config';
+
+// Get the docker command based on platform
+function getDockerCommand(): string {
+  return platform() === 'win32' ? 'docker.exe' : 'docker';
+}
+
+// Helper to execute docker commands with proper environment
+function execDocker(
+  command: string,
+): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const dockerCmd = getDockerCommand();
+    const fullCommand = command.replace(/^docker\s/, `${dockerCmd} `);
+
+    exec(
+      fullCommand,
+      {
+        env: {
+          ...process.env,
+          COMPOSE_PROJECT_NAME: 'devwp',
+        },
+      },
+      (error, stdout, stderr) => {
+        if (error) {
+          // Create a proper error object with all details
+          const execError = new Error(
+            stderr || error.message || 'Docker command failed',
+          );
+          (execError as any).stderr = stderr;
+          (execError as any).stdout = stdout;
+          (execError as any).code = error.code;
+          (execError as any).command = fullCommand;
+          reject(execError);
+          return;
+        }
+        resolve({ stdout, stderr });
+      },
+    );
+  });
+}
 
 // Settings interface
 export interface SettingsConfiguration {
@@ -31,29 +72,20 @@ export async function waitForDatabase(
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await new Promise<void>((resolve, reject) => {
-        const testCmd =
-          'docker exec devwp_mariadb mariadb -u root -proot -e "SELECT 1"';
-        exec(testCmd, (error, _stdout, stderr) => {
-          if (error) {
-            reject(new Error(`Database not ready: ${stderr || error.message}`));
-            return;
-          }
-          console.log('MariaDB container is ready!');
-          resolve();
-        });
-      });
+      const testCmd =
+        'docker exec devwp_mariadb mariadb -u root -proot -e "SELECT 1"';
+      await execDocker(testCmd);
+      console.log('MariaDB container is ready!');
       return; // Success, exit the retry loop
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+    } catch (err: any) {
+      const errorMessage = err.message || err.stderr || String(err);
       console.log(
         `Database connection attempt ${attempt}/${maxRetries} failed: ${errorMessage}`,
       );
 
       if (attempt === maxRetries) {
         throw new Error(
-          `Failed to connect to database after ${maxRetries} attempts`,
+          `Failed to connect to database after ${maxRetries} attempts. Last error: ${errorMessage}`,
         );
       }
 
@@ -75,18 +107,14 @@ export async function initializeConfigDatabase(): Promise<void> {
     const createDbCmd = `docker exec devwp_mariadb mariadb -u root -proot -e "CREATE DATABASE IF NOT EXISTS ${DEVWP_CONFIG_DB}"`;
     console.log('Creating DevWP config database...');
 
-    await new Promise<void>((resolve, reject) => {
-      exec(createDbCmd, (error, _stdout, stderr) => {
-        if (error) {
-          reject(
-            new Error(`Failed to create database: ${stderr || error.message}`),
-          );
-          return;
-        }
-        console.log(`Created/verified config database: ${DEVWP_CONFIG_DB}`);
-        resolve();
-      });
-    });
+    try {
+      await execDocker(createDbCmd);
+      console.log(`Created/verified config database: ${DEVWP_CONFIG_DB}`);
+    } catch (err: any) {
+      throw new Error(
+        `Failed to create database: ${err.message || err.stderr || err}`,
+      );
+    }
 
     // Create sites table if it doesn't exist
     const createSitesTableCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
@@ -101,20 +129,14 @@ export async function initializeConfigDatabase(): Promise<void> {
       )"`;
 
     console.log('Creating sites table...');
-    await new Promise<void>((resolve, reject) => {
-      exec(createSitesTableCmd, (error, _stdout, stderr) => {
-        if (error) {
-          reject(
-            new Error(
-              `Failed to create sites table: ${stderr || error.message}`,
-            ),
-          );
-          return;
-        }
-        console.log('Created/verified sites configuration table');
-        resolve();
-      });
-    });
+    try {
+      await execDocker(createSitesTableCmd);
+      console.log('Created/verified sites configuration table');
+    } catch (err: any) {
+      throw new Error(
+        `Failed to create sites table: ${err.message || err.stderr || err}`,
+      );
+    }
 
     // Create settings table if it doesn't exist
     const createSettingsTableCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
@@ -125,20 +147,14 @@ export async function initializeConfigDatabase(): Promise<void> {
       )"`;
 
     console.log('Creating settings table...');
-    await new Promise<void>((resolve, reject) => {
-      exec(createSettingsTableCmd, (error, _stdout, stderr) => {
-        if (error) {
-          reject(
-            new Error(
-              `Failed to create settings table: ${stderr || error.message}`,
-            ),
-          );
-          return;
-        }
-        console.log('Created/verified settings configuration table');
-        resolve();
-      });
-    });
+    try {
+      await execDocker(createSettingsTableCmd);
+      console.log('Created/verified settings configuration table');
+    } catch (err: any) {
+      throw new Error(
+        `Failed to create settings table: ${err.message || err.stderr || err}`,
+      );
+    }
 
     // Initialize default settings
     try {
@@ -188,98 +204,89 @@ async function initializeDefaultSettings(): Promise<void> {
 export async function saveSiteConfiguration(
   site: SiteConfiguration,
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const aliases = site.aliases || '';
-    const webRoot = site.webRoot || '';
-    const multisiteEnabled = site.multisite?.enabled ? 1 : 0;
-    const multisiteType = site.multisite?.type || null;
+  const aliases = site.aliases || '';
+  const webRoot = site.webRoot || '';
+  const multisiteEnabled = site.multisite?.enabled ? 1 : 0;
+  const multisiteType = site.multisite?.type || null;
 
-    const domainEscaped = `'${escapeSqlString(site.domain)}'`;
-    const aliasesEscaped = `'${escapeSqlString(aliases)}'`;
-    const webRootEscaped = `'${escapeSqlString(webRoot)}'`;
-    const multisiteTypeEscaped = multisiteType
-      ? `'${escapeSqlString(multisiteType)}'`
-      : 'NULL';
+  const domainEscaped = `'${escapeSqlString(site.domain)}'`;
+  const aliasesEscaped = `'${escapeSqlString(aliases)}'`;
+  const webRootEscaped = `'${escapeSqlString(webRoot)}'`;
+  const multisiteTypeEscaped = multisiteType
+    ? `'${escapeSqlString(multisiteType)}'`
+    : 'NULL';
 
-    const insertCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
-      INSERT INTO sites (domain, aliases, web_root, multisite_enabled, multisite_type)
-      VALUES (${domainEscaped}, ${aliasesEscaped}, ${webRootEscaped}, ${multisiteEnabled}, ${multisiteTypeEscaped})
-      ON DUPLICATE KEY UPDATE
-        aliases = VALUES(aliases),
-        web_root = VALUES(web_root),
-        multisite_enabled = VALUES(multisite_enabled),
-        multisite_type = VALUES(multisite_type),
-        updated_at = CURRENT_TIMESTAMP"`;
+  const insertCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
+    INSERT INTO sites (domain, aliases, web_root, multisite_enabled, multisite_type)
+    VALUES (${domainEscaped}, ${aliasesEscaped}, ${webRootEscaped}, ${multisiteEnabled}, ${multisiteTypeEscaped})
+    ON DUPLICATE KEY UPDATE
+      aliases = VALUES(aliases),
+      web_root = VALUES(web_root),
+      multisite_enabled = VALUES(multisite_enabled),
+      multisite_type = VALUES(multisite_type),
+      updated_at = CURRENT_TIMESTAMP"`;
 
-    exec(insertCmd, (error, _, stderr) => {
-      if (error) {
-        console.error(`Error saving site configuration: ${stderr}`);
-        reject(error);
-        return;
-      }
-
-      console.log(`Saved site configuration for: ${site.domain}`);
-      resolve();
-    });
-  });
+  try {
+    await execDocker(insertCmd);
+    console.log(`Saved site configuration for: ${site.domain}`);
+  } catch (err: any) {
+    const errorMsg = `Error saving site configuration: ${err.message || err.stderr || err}`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
 }
 
 // Get all site configurations from database
 export async function getAllSiteConfigurations(): Promise<SiteConfiguration[]> {
-  return new Promise((resolve, reject) => {
+  try {
     const selectCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
       SELECT domain, aliases, web_root, multisite_enabled, multisite_type, created_at, updated_at
       FROM sites
       ORDER BY created_at ASC" --batch --raw`;
 
-    exec(selectCmd, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error fetching site configurations: ${stderr}`);
-        reject(error);
-        return;
+    const { stdout } = await execDocker(selectCmd);
+
+    if (!stdout.trim()) {
+      return [];
+    }
+
+    const lines = stdout.trim().split('\n');
+    const sites: SiteConfiguration[] = [];
+
+    // Skip header row, start from index 1
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split('\t');
+      const site: SiteConfiguration = {
+        domain: values[0],
+        aliases: values[1] || undefined,
+        webRoot: values[2] || undefined,
+        multisite: {
+          enabled: values[3] === '1',
+          type:
+            values[4] === 'subdomain' || values[4] === 'subdirectory'
+              ? (values[4] as 'subdomain' | 'subdirectory')
+              : 'subdomain',
+        },
+        createdAt: new Date(values[5]),
+        updatedAt: new Date(values[6]),
+      };
+
+      // Only include multisite config if enabled
+      if (!site.multisite?.enabled) {
+        delete site.multisite;
       }
 
-      if (!stdout.trim()) {
-        resolve([]);
-        return;
-      }
+      sites.push(site);
+    }
 
-      try {
-        const lines = stdout.trim().split('\n');
-        const sites: SiteConfiguration[] = [];
-
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split('\t');
-          const site: SiteConfiguration = {
-            domain: values[0],
-            aliases: values[1] || undefined,
-            webRoot: values[2] || undefined,
-            multisite: {
-              enabled: values[3] === '1',
-              type:
-                values[4] === 'subdomain' || values[4] === 'subdirectory'
-                  ? (values[4] as 'subdomain' | 'subdirectory')
-                  : 'subdomain',
-            },
-            createdAt: new Date(values[5]),
-            updatedAt: new Date(values[6]),
-          };
-
-          // Only include multisite config if enabled
-          if (!site.multisite?.enabled) {
-            delete site.multisite;
-          }
-
-          sites.push(site);
-        }
-
-        resolve(sites);
-      } catch (parseError) {
-        console.error('Error parsing site configurations:', parseError);
-        reject(parseError);
-      }
-    });
-  });
+    return sites;
+  } catch (err: any) {
+    const errorMsg = `Error fetching site configurations: ${err.message || err.stderr || err}`;
+    console.error(errorMsg);
+    console.error('Command:', err.command);
+    console.error('Error details:', err);
+    throw new Error(errorMsg);
+  }
 }
 
 // Get a specific site configuration
@@ -291,91 +298,67 @@ function escapeSqlString(str: string): string {
 export async function getSiteConfiguration(
   domain: string,
 ): Promise<SiteConfiguration | null> {
-  return new Promise((resolve, reject) => {
+  try {
     const safeDomain = escapeSqlString(domain);
     const selectCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
       SELECT domain, aliases, web_root, multisite_enabled, multisite_type, created_at, updated_at
       FROM sites
       WHERE domain = '${safeDomain}'" --batch --raw`;
 
-    exec(selectCmd, (error, stdout, stderr) => {
-      if (error) {
-        console.error(
-          `Error fetching site configuration for ${domain}: ${stderr}`,
-        );
-        reject(error);
-        return;
-      }
+    const { stdout } = await execDocker(selectCmd);
 
-      if (!stdout.trim()) {
-        resolve(null);
-        return;
-      }
+    if (!stdout.trim()) {
+      return null;
+    }
 
-      try {
-        const lines = stdout.trim().split('\n');
-        if (lines.length < 2) {
-          resolve(null);
-          return;
-        }
+    const lines = stdout.trim().split('\n');
+    if (lines.length < 2) {
+      return null;
+    }
 
-        const values = lines[1].split('\t');
-        const site: SiteConfiguration = {
-          domain: values[0],
-          aliases: values[1] || undefined,
-          webRoot: values[2] || undefined,
-          multisite: {
-            enabled: values[3] === '1',
-            type:
-              values[4] && values[4] !== 'NULL'
-                ? (values[4] as 'subdomain' | 'subdirectory')
-                : 'subdomain',
-          },
-          createdAt: new Date(values[5]),
-          updatedAt: new Date(values[6]),
-        };
+    const values = lines[1].split('\t');
+    const site: SiteConfiguration = {
+      domain: values[0],
+      aliases: values[1] || undefined,
+      webRoot: values[2] || undefined,
+      multisite: {
+        enabled: values[3] === '1',
+        type:
+          values[4] && values[4] !== 'NULL'
+            ? (values[4] as 'subdomain' | 'subdirectory')
+            : 'subdomain',
+      },
+      createdAt: new Date(values[5]),
+      updatedAt: new Date(values[6]),
+    };
 
-        // Only include multisite config if enabled
-        if (!site.multisite?.enabled) {
-          delete site.multisite;
-        }
+    // Only include multisite config if enabled
+    if (!site.multisite?.enabled) {
+      delete site.multisite;
+    }
 
-        resolve(site);
-      } catch (parseError) {
-        console.error(
-          `Error parsing site configuration for ${domain}:`,
-          parseError,
-        );
-        reject(parseError);
-      }
-    });
-  });
+    return site;
+  } catch (err: any) {
+    const errorMsg = `Error fetching site configuration for ${domain}: ${err.message || err.stderr || err}`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
 }
 
 // Delete site configuration from database
 export async function deleteSiteConfiguration(domain: string): Promise<void> {
-  // Escape single quotes in domain to prevent SQL injection
-  function escapeSqlString(str: string): string {
-    return str.replace(/'/g, "''");
-  }
-  return new Promise((resolve, reject) => {
+  try {
     const safeDomain = escapeSqlString(domain);
     const deleteCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
       DELETE FROM sites WHERE domain = '${safeDomain}'"`;
 
-    exec(deleteCmd, (error, _, stderr) => {
-      if (error) {
-        console.error(
-          `Error deleting site configuration for ${domain}: ${stderr}`,
-        );
-        reject(error);
-        return;
-      }
-
-      console.log(`Deleted site configuration for: ${domain}`);
-      resolve();
-    });
-  });
+    await execDocker(deleteCmd);
+    console.log(`Deleted site configuration for: ${domain}`);
+  } catch (err: any) {
+    const errorMsg = `Error deleting site configuration for ${domain}: ${err.message || err.stderr || err}`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
 }
 
 // Migrate existing sites from filesystem to database
@@ -426,7 +409,7 @@ export async function migrateExistingSites(): Promise<void> {
 
 // Save a setting to the database
 export async function saveSetting(key: string, value: string): Promise<void> {
-  return new Promise((resolve, reject) => {
+  try {
     const keyEscaped = `'${escapeSqlString(key)}'`;
     const valueEscaped = `'${escapeSqlString(value)}'`;
 
@@ -437,114 +420,89 @@ export async function saveSetting(key: string, value: string): Promise<void> {
         value_text = VALUES(value_text),
         updated_at = CURRENT_TIMESTAMP"`;
 
-    exec(insertCmd, (error, _, stderr) => {
-      if (error) {
-        console.error(`Error saving setting ${key}: ${stderr}`);
-        reject(error);
-        return;
-      }
-
-      console.log(`Saved setting: ${key} = ${value}`);
-      resolve();
-    });
-  });
+    await execDocker(insertCmd);
+    console.log(`Saved setting: ${key} = ${value}`);
+  } catch (err: any) {
+    const errorMsg = `Error saving setting ${key}: ${err.message || err.stderr || err}`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
 }
 
 // Get a setting from the database
 export async function getSetting(key: string): Promise<string | null> {
-  return new Promise((resolve, reject) => {
+  try {
     const safeKey = escapeSqlString(key);
     const selectCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
       SELECT value_text
       FROM settings
       WHERE key_name = '${safeKey}'" --batch --raw`;
 
-    exec(selectCmd, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error fetching setting ${key}: ${stderr}`);
-        reject(error);
-        return;
-      }
+    const { stdout } = await execDocker(selectCmd);
 
-      if (!stdout.trim()) {
-        resolve(null);
-        return;
-      }
+    if (!stdout.trim()) {
+      return null;
+    }
 
-      try {
-        const lines = stdout.trim().split('\n');
-        if (lines.length < 2) {
-          resolve(null);
-          return;
-        }
+    const lines = stdout.trim().split('\n');
+    if (lines.length < 2) {
+      return null;
+    }
 
-        resolve(lines[1]);
-      } catch (parseError) {
-        console.error(`Error parsing setting ${key}:`, parseError);
-        reject(parseError);
-      }
-    });
-  });
+    return lines[1];
+  } catch (err: any) {
+    const errorMsg = `Error fetching setting ${key}: ${err.message || err.stderr || err}`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
 }
 
 // Get all settings from the database
 export async function getAllSettings(): Promise<Record<string, string>> {
-  return new Promise((resolve, reject) => {
+  try {
     const selectCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
       SELECT key_name, value_text
       FROM settings
       ORDER BY key_name ASC" --batch --raw`;
 
-    exec(selectCmd, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error fetching all settings: ${stderr}`);
-        reject(error);
-        return;
+    const { stdout } = await execDocker(selectCmd);
+
+    if (!stdout.trim()) {
+      return {};
+    }
+
+    const lines = stdout.trim().split('\n');
+    const settings: Record<string, string> = {};
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split('\t');
+      if (values.length >= 2) {
+        settings[values[0]] = values[1];
       }
+    }
 
-      if (!stdout.trim()) {
-        resolve({});
-        return;
-      }
-
-      try {
-        const lines = stdout.trim().split('\n');
-        const settings: Record<string, string> = {};
-
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split('\t');
-          if (values.length >= 2) {
-            settings[values[0]] = values[1];
-          }
-        }
-
-        resolve(settings);
-      } catch (parseError) {
-        console.error('Error parsing settings:', parseError);
-        reject(parseError);
-      }
-    });
-  });
+    return settings;
+  } catch (err: any) {
+    const errorMsg = `Error fetching all settings: ${err.message || err.stderr || err}`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
 }
 
 // Delete a setting from the database
 export async function deleteSetting(key: string): Promise<void> {
-  return new Promise((resolve, reject) => {
+  try {
     const safeKey = escapeSqlString(key);
     const deleteCmd = `docker exec devwp_mariadb mariadb -u root -proot -D ${DEVWP_CONFIG_DB} -e "
       DELETE FROM settings WHERE key_name = '${safeKey}'"`;
 
-    exec(deleteCmd, (error, _, stderr) => {
-      if (error) {
-        console.error(`Error deleting setting ${key}: ${stderr}`);
-        reject(error);
-        return;
-      }
-
-      console.log(`Deleted setting: ${key}`);
-      resolve();
-    });
-  });
+    await execDocker(deleteCmd);
+    console.log(`Deleted setting: ${key}`);
+  } catch (err: any) {
+    const errorMsg = `Error deleting setting ${key}: ${err.message || err.stderr || err}`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
+  }
 }
 
 // Get webroot path setting with default fallback

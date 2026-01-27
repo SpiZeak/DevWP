@@ -19,7 +19,18 @@ function stripCrossoriginForFileLoads(): Plugin {
 }
 
 export default defineConfig({
-  main: {},
+  main: {
+    build: {
+      rollupOptions: {
+        external: [
+          'is-stream',
+          'logform',
+          'readable-stream',
+          'winston-transport',
+        ],
+      },
+    },
+  },
   preload: {},
   renderer: {
     resolve: {

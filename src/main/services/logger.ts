@@ -119,10 +119,11 @@ export const logError = (
   error: Error,
   details?: Record<string, unknown>,
 ): void => {
-  logger.error('Error occurred', {
+  logger.error(`Error in ${context}: ${error.message}`, {
     context,
     error: error.message,
     stack: error.stack,
+    errorName: error.name,
     ...details,
   });
 };

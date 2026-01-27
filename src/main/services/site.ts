@@ -528,66 +528,81 @@ function deleteSite(site: { name: string }): Promise<boolean> {
   });
 }
 
-function getSites(): Promise<Site[]> {
-  return new Promise((resolve, reject) => {
-    (async () => {
-      try {
-        // Note: Database should already be initialized during app startup
-        // We don't call initializeConfigDatabase() here to avoid repeated docker calls
+async function getSites(): Promise<Site[]> {
+  try {
+    // Note: Database should already be initialized during app startup
+    // We don't call initializeConfigDatabase() here to avoid repeated docker calls
 
-        // Migrate existing sites to database if needed
-        await migrateExistingSites();
+    // Migrate existing sites to database if needed
+    try {
+      await migrateExistingSites();
+    } catch (migrationError: any) {
+      console.warn(
+        'Site migration failed (container may not be running):',
+        migrationError.message,
+      );
+      // Continue - we'll try filesystem fallback
+    }
 
-        // Get sites from database first
-        const siteConfigs = await getAllSiteConfigurations();
+    // Get sites from database first (if container is available)
+    let siteConfigs: SiteConfiguration[] = [];
+    try {
+      siteConfigs = await getAllSiteConfigurations();
+    } catch (dbError: any) {
+      console.warn(
+        'Failed to get sites from database (container may not be running):',
+        dbError.message,
+      );
+      // Continue with empty siteConfigs - we'll use filesystem fallback
+    }
 
-        // Also check filesystem for any sites not in database (fallback)
-        const webrootBase = await getWebrootPath();
-        const wwwPath = webrootBase;
-        let filesystemSites: string[] = [];
+    // Also check filesystem for any sites not in database (fallback)
+    const webrootBase = await getWebrootPath();
+    const wwwPath = webrootBase;
+    let filesystemSites: string[] = [];
 
-        try {
-          const entries = await fs.readdir(wwwPath, { withFileTypes: true });
-          filesystemSites = entries
-            .filter((entry) => entry.isDirectory())
-            .filter((entry) => !['.', '..', '.git'].includes(entry.name))
-            .map((entry) => entry.name);
-        } catch (fsError) {
-          // If www directory doesn't exist, that's fine - no filesystem sites
-          console.log('No www directory found, using database sites only');
-        }
+    try {
+      const entries = await fs.readdir(wwwPath, { withFileTypes: true });
+      filesystemSites = entries
+        .filter((entry) => entry.isDirectory())
+        .filter((entry) => !['.', '..', '.git'].includes(entry.name))
+        .map((entry) => entry.name);
+    } catch (fsError) {
+      // If www directory doesn't exist, that's fine - no filesystem sites
+      console.log('No www directory found, using database sites only');
+    }
 
-        // Combine database configurations with filesystem presence
-        const dbSiteNames = siteConfigs.map((config) => config.domain);
-        const allSiteNames = [...new Set([...dbSiteNames, ...filesystemSites])];
+    // Combine database configurations with filesystem presence
+    const dbSiteNames = siteConfigs.map((config) => config.domain);
+    const allSiteNames = [...new Set([...dbSiteNames, ...filesystemSites])];
 
-        const sites: Site[] = [];
+    const sites: Site[] = [];
 
-        for (const siteName of allSiteNames) {
-          const config = siteConfigs.find((c) => c.domain === siteName);
+    for (const siteName of allSiteNames) {
+      const config = siteConfigs.find((c) => c.domain === siteName);
 
-          const site: Site = {
-            name: siteName,
-            path: join('www', siteName),
-            url: `https://${siteName}`,
-            // Include configuration data if available
-            aliases: config?.aliases,
-            webRoot: config?.webRoot,
-            multisite: config?.multisite,
-            createdAt: config?.createdAt,
-            updatedAt: config?.updatedAt,
-          };
+      const site: Site = {
+        name: siteName,
+        path: join('www', siteName),
+        url: `https://${siteName}`,
+        // Include configuration data if available
+        aliases: config?.aliases,
+        webRoot: config?.webRoot,
+        multisite: config?.multisite,
+        createdAt: config?.createdAt,
+        updatedAt: config?.updatedAt,
+      };
 
-          sites.push(site);
-        }
+      sites.push(site);
+    }
 
-        resolve(sites);
-      } catch (error: any) {
-        console.error(`Error getting sites:`, error);
-        reject(`Error getting sites: ${error.message}`);
-      }
-    })();
-  });
+    return sites;
+  } catch (error: any) {
+    const errorMsg = error?.message || error?.stderr || String(error);
+    console.error(`Error getting sites:`, errorMsg);
+    console.error('Full error:', error);
+    throw new Error(`Error getting sites: ${errorMsg}`);
+  }
 }
 
 // Convert a site to multisite
