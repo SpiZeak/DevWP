@@ -60,7 +60,7 @@ describe('FrankenPHP Service', () => {
       vi.mocked(fs.writeFile).mockResolvedValue(undefined);
 
       const domain = 'example.test';
-      const configPath = `/config/frankenphp/sites-enabled/${domain}.caddy`;
+      const configPath = `/config/frankenphp/sites/${domain}.caddy`;
 
       await fs.writeFile(configPath, 'config content');
 
@@ -71,7 +71,7 @@ describe('FrankenPHP Service', () => {
       vi.mocked(fs.unlink).mockResolvedValue(undefined);
 
       const domain = 'example.test';
-      const configPath = `/config/frankenphp/sites-enabled/${domain}.caddy`;
+      const configPath = `/config/frankenphp/sites/${domain}.caddy`;
 
       await fs.unlink(configPath);
 

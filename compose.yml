@@ -11,9 +11,9 @@ services:
       - '443:443/tcp'
       - '443:443/udp'
     volumes:
-      - ./config/frankenphp/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./config/frankenphp/Caddyfile:/etc/frankenphp/Caddyfile:ro
       - ./config/frankenphp/global:/etc/caddy/global:ro
-      - ./config/frankenphp/sites-enabled:/etc/caddy/sites-enabled:rw
+      - ./config/frankenphp/sites:/etc/caddy/sites:rw
       - ~/www:/src/www:rw
       - ./config/php/php.ini:/usr/local/etc/php/php.ini:ro
       - ./config/php/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini

@@ -4,4 +4,4 @@
   }
 }
 
-import /etc/caddy/sites-enabled/*.caddy
+import /etc/caddy/sites/*.caddy

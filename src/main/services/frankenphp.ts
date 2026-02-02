@@ -3,8 +3,9 @@ import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 
 const frankenphpConfigPath = join(process.cwd(), 'config', 'frankenphp');
-const sitesEnabledPath = join(frankenphpConfigPath, 'sites-enabled');
+const sitesEnabledPath = join(frankenphpConfigPath, 'sites');
 const templatePath = join(frankenphpConfigPath, 'template-site.caddy');
+const containerCaddyfilePath = '/etc/frankenphp/Caddyfile';
 
 export async function generateFrankenphpConfig(
   domain: string,
@@ -39,16 +40,14 @@ export async function generateFrankenphpConfig(
       .map((hostname) => `https://${hostname}`)
       .join(', ');
 
-    const tlsDirective = shouldUseInternalTls(uniqueHostnames)
-      ? 'tls internal'
-      : '';
-
     const multisiteRules =
       multisite?.enabled && multisite.type === 'subdirectory'
         ? ['@wpadmin path /wp-admin', 'redir @wpadmin /wp-admin/ 301'].join(
             '\n  ',
           )
         : '';
+
+    const tlsDirective = 'tls internal';
 
     const finalConfig = templateContent
       .replace(/{{HTTP_ADDRESSES}}/g, httpAddresses)
@@ -65,20 +64,6 @@ export async function generateFrankenphpConfig(
     console.error(`Failed to generate FrankenPHP config for ${domain}:`, error);
     throw error;
   }
-}
-
-function shouldUseInternalTls(hostnames: string[]): boolean {
-  const normalized = hostnames.map((hostname) =>
-    hostname.replace(/^\*\./, '').toLowerCase(),
-  );
-
-  return normalized.every(
-    (hostname) =>
-      hostname === 'localhost' ||
-      hostname.endsWith('.localhost') ||
-      hostname.endsWith('.local') ||
-      hostname.endsWith('.test'),
-  );
 }
 
 export async function removeFrankenphpConfig(domain: string): Promise<void> {
@@ -103,7 +88,7 @@ export async function removeFrankenphpConfig(domain: string): Promise<void> {
 async function reloadFrankenphp(): Promise<void> {
   return new Promise((resolve, reject) => {
     exec(
-      'docker compose exec frankenphp caddy reload --config /etc/caddy/Caddyfile',
+      `docker compose exec -T frankenphp frankenphp reload --config ${containerCaddyfilePath} --adapter caddyfile`,
       (error, _, stderr) => {
         if (error) {
           console.error(`Error reloading FrankenPHP: ${stderr}`);
@@ -122,11 +107,14 @@ export async function reloadFrankenphpConfig(): Promise<void> {
     const reloadProcess = spawn('docker', [
       'compose',
       'exec',
+      '-T',
       'frankenphp',
-      'caddy',
+      'frankenphp',
       'reload',
       '--config',
-      '/etc/caddy/Caddyfile',
+      containerCaddyfilePath,
+      '--adapter',
+      'caddyfile',
     ]);
 
     reloadProcess.on('close', (code) => {

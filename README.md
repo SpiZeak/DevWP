@@ -58,14 +58,9 @@ bun install
 # Initialize submodules for SEO analysis
 git submodule update --init --recursive
 
-# Trust the SSL certificate (eliminates browser warnings)
-./scripts/trust-certificate.sh
-
 # Start development
 bun run dev
 ```
-
-See [Certificate Trust Setup](docs/certificate-trust-setup.md) for detailed SSL configuration instructions.
 
 ## Usage
 

@@ -16,6 +16,7 @@ export function registerWpCliHandlers(): void {
         '-d',
         'error_reporting="E_ALL & ~E_DEPRECATED & ~E_WARNING"',
         '/usr/local/bin/wp',
+        '--allow-root',
         ...command.split(' '),
       ]);
 

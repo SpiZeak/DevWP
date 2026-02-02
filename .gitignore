@@ -1,7 +1,6 @@
 .env
-config/nginx/sites-enabled/*
+config/frankenphp/sites/*
 www/*
-config/certs/*
 config/mariadb/files/*
 node_modules
 dist

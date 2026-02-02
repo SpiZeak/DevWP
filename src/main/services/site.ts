@@ -78,13 +78,13 @@ async function installWordPress(
     const wpInstallPath = webRoot ? `${baseSiteDir}/${webRoot}` : baseSiteDir;
 
     // Command to download WordPress core
-    const downloadCmd = `docker compose exec frankenphp wp core download --path=${wpInstallPath} --force`;
+    const downloadCmd = `docker compose exec frankenphp wp --allow-root core download --path=${wpInstallPath} --force`;
 
     // Command to create wp-config.php
-    const configCmd = `docker compose exec frankenphp wp config create --path=${wpInstallPath} --dbname=${dbName} --dbuser=root --dbpass=root --dbhost=mariadb --force`;
+    const configCmd = `docker compose exec frankenphp wp --allow-root config create --path=${wpInstallPath} --dbname=${dbName} --dbuser=root --dbpass=root --dbhost=mariadb --force`;
 
     // Command to install WordPress
-    const installCmd = `docker compose exec frankenphp wp core install --path=${wpInstallPath} --url=https://${siteDomain} --title="${siteDomain}" --admin_user=root --admin_password=root --admin_email=admin@${siteDomain}`;
+    const installCmd = `docker compose exec frankenphp wp --allow-root core install --path=${wpInstallPath} --url=https://${siteDomain} --title="${siteDomain}" --admin_user=root --admin_password=root --admin_email=admin@${siteDomain}`;
 
     console.log(`Downloading WordPress to ${wpInstallPath}...`);
     exec(downloadCmd, (downloadError, _, downloadStderr) => {
@@ -192,10 +192,40 @@ async function createSite(site: {
     await fs.mkdir(actualWebRootPath, { recursive: true });
     console.log(`Created directory structure: ${actualWebRootPath}`);
     cleanupTasks.push(async () => {
-      await fs.rm(siteBasePath, { recursive: true, force: true });
-      console.log(
-        `Removed directory structure during cleanup: ${siteBasePath}`,
-      );
+      try {
+        await fs.rm(siteBasePath, { recursive: true, force: true });
+        console.log(
+          `Removed directory structure during cleanup: ${siteBasePath}`,
+        );
+        return;
+      } catch (fsError: any) {
+        if (fsError?.code !== 'EACCES' && fsError?.code !== 'EPERM') {
+          throw fsError;
+        }
+      }
+
+      const containerSitePath = `/src/www/${siteDomain}`;
+      await new Promise<void>((resolve, reject) => {
+        exec(
+          `docker compose exec -T frankenphp rm -rf ${containerSitePath}`,
+          (error, _, stderr) => {
+            if (error) {
+              reject(
+                new Error(
+                  stderr?.trim()
+                    ? `Failed to remove site files in container: ${stderr.trim()}`
+                    : `Failed to remove site files in container: ${error.message}`,
+                ),
+              );
+              return;
+            }
+            console.log(
+              `Removed directory structure during cleanup: ${siteBasePath}`,
+            );
+            resolve();
+          },
+        );
+      });
     });
 
     const addedHosts: string[] = [];
@@ -246,6 +276,7 @@ async function createSite(site: {
     });
 
     await installWordPress(siteDomain, dbName, site.webRoot);
+    await reloadFrankenphpConfig();
 
     if (site.multisite?.enabled) {
       await convertToMultisite(siteDomain, site.multisite, site.webRoot);
@@ -395,7 +426,7 @@ export async function generateIndexHtml(
         <div class="info-box">
             <h3 style="margin-top: 0;">FrankenPHP Configuration</h3>
             <p>A FrankenPHP (Caddy) configuration file has been automatically generated for this site at:</p>
-            <code>config/frankenphp/sites-enabled/${domain}.caddy</code>
+            <code>config/frankenphp/sites/${domain}.caddy</code>
             <p>You can customize this file if you need specific server configurations for this site.</p>
         </div>
 
@@ -483,7 +514,33 @@ function deleteSite(site: { name: string }): Promise<boolean> {
         console.log(`Removed site configuration from database: ${site.name}`);
 
         // Continue with file system cleanup
-        await fs.rm(sitePath, { recursive: true, force: true });
+        try {
+          await fs.rm(sitePath, { recursive: true, force: true });
+        } catch (fsError: any) {
+          if (fsError?.code !== 'EACCES' && fsError?.code !== 'EPERM') {
+            throw fsError;
+          }
+
+          const containerSitePath = `/src/www/${site.name}`;
+          await new Promise<void>((resolve, reject) => {
+            exec(
+              `docker compose exec -T frankenphp rm -rf ${containerSitePath}`,
+              (error, _, stderr) => {
+                if (error) {
+                  reject(
+                    new Error(
+                      stderr?.trim()
+                        ? `Failed to remove site files in container: ${stderr.trim()}`
+                        : `Failed to remove site files in container: ${error.message}`,
+                    ),
+                  );
+                  return;
+                }
+                resolve();
+              },
+            );
+          });
+        }
 
         // Remove primary domain from hosts file
         await modifyHostsFile(site.name, 'remove');
@@ -522,7 +579,11 @@ function deleteSite(site: { name: string }): Promise<boolean> {
 
         resolve(true);
       } catch (cleanupError: any) {
-        reject(`Error cleaning up site: ${cleanupError}`);
+        const message =
+          cleanupError instanceof Error
+            ? cleanupError.message
+            : String(cleanupError);
+        reject(new Error(`Error cleaning up site: ${message}`));
       }
     })();
   });
@@ -621,7 +682,7 @@ async function convertToMultisite(
     const subdomains = multisite.type === 'subdomain' ? '--subdomains' : '';
 
     // Command to enable multisite in wp-config.php
-    const enableMultisiteCmd = `docker compose exec frankenphp wp core multisite-convert ${subdomains} --path=${wpInstallPath} --base=/`;
+    const enableMultisiteCmd = `docker compose exec frankenphp wp --allow-root core multisite-convert ${subdomains} --path=${wpInstallPath} --base=/`;
 
     console.log(
       `Converting ${siteDomain} to multisite (${multisite.type} mode) at ${wpInstallPath}...`,
