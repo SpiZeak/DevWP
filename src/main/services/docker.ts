@@ -15,7 +15,7 @@ export function startDockerCompose(mainWindow?: BrowserWindow): Promise<void> {
   return new Promise((resolve, reject) => {
     const isWin = platform() === 'win32';
     const command = isWin ? 'docker.exe' : 'docker';
-    const args = ['compose', 'up', '-d', '--build', 'nginx'];
+    const args = ['compose', 'up', '-d', '--build', 'frankenphp'];
     if (verboseMode) {
       logger.debug(
         `Launching Docker compose command: ${command} ${args.join(' ')}`,
@@ -253,9 +253,7 @@ export function getDockerContainers(): Promise<Container[]> {
             const [id, name, state] = line.split('|');
             return { id, name, state: state.toLowerCase(), version: undefined };
           })
-          .filter(
-            (container) => container.name !== 'devwp_certs',
-          ) as Container[];
+          .filter(Boolean) as Container[];
 
         // Fetch version information only for running containers
         try {
@@ -314,27 +312,7 @@ function getVersionForContainer(
   resolve: (value: string | undefined) => void,
 ): void {
   switch (containerName) {
-    case 'devwp_nginx':
-      // Nginx outputs version to stderr
-      exec(
-        `docker exec ${containerId} nginx -v`,
-        (nginxError, _stdout, nginxStderr) => {
-          if (nginxError) {
-            console.error(
-              `Error getting Nginx version for container ${containerId}:`,
-              nginxError,
-            );
-            resolve(undefined);
-            return;
-          }
-          const output = nginxStderr;
-          const versionMatch = output.match(/nginx\/(\d+\.\d+\.\d+)/);
-          resolve(versionMatch ? versionMatch[1] : undefined);
-        },
-      );
-      break;
-
-    case 'devwp_php':
+    case 'devwp_frankenphp':
       // PHP outputs version to stdout, extract only the version number
       exec(
         `docker exec ${containerId} php --version`,

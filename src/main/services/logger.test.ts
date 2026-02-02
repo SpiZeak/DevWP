@@ -3,7 +3,7 @@ import {
   logDatabaseOperation,
   logDockerOperation,
   logError,
-  logNginxOperation,
+  logFrankenphpOperation,
   logSiteOperation,
   logWpCliCommand,
 } from './logger';
@@ -61,12 +61,14 @@ describe('Logger Utility Functions', () => {
 
   describe('logDockerOperation', () => {
     it('should log docker operation', () => {
-      expect(() => logDockerOperation('start', 'nginx')).not.toThrow();
+      expect(() => logDockerOperation('start', 'frankenphp')).not.toThrow();
     });
 
     it('should log docker operation with details', () => {
       const details = { status: 'running', health: 'healthy' };
-      expect(() => logDockerOperation('start', 'nginx', details)).not.toThrow();
+      expect(() =>
+        logDockerOperation('start', 'frankenphp', details),
+      ).not.toThrow();
     });
   });
 
@@ -100,14 +102,14 @@ describe('Logger Utility Functions', () => {
     });
   });
 
-  describe('logNginxOperation', () => {
-    it('should log nginx operation', () => {
-      expect(() => logNginxOperation('reload')).not.toThrow();
+  describe('logFrankenphpOperation', () => {
+    it('should log frankenphp operation', () => {
+      expect(() => logFrankenphpOperation('reload')).not.toThrow();
     });
 
-    it('should log nginx operation with details', () => {
-      const details = { configPath: '/etc/nginx/conf.d/test.conf' };
-      expect(() => logNginxOperation('reload', details)).not.toThrow();
+    it('should log frankenphp operation with details', () => {
+      const details = { configPath: '/etc/caddy/Caddyfile' };
+      expect(() => logFrankenphpOperation('reload', details)).not.toThrow();
     });
   });
 

@@ -199,7 +199,7 @@ describe('Xdebug Service', () => {
       expect(fs.writeFile).toHaveBeenCalled();
       expect(spawn).toHaveBeenCalledWith(
         'docker',
-        ['compose', 'restart', 'php'],
+        ['compose', 'restart', 'frankenphp'],
         {
           cwd: '/test/project',
           shell: false,
@@ -297,13 +297,17 @@ describe('Xdebug Service', () => {
 
       const promise = xdebugService.toggleXdebug(mockMainWindow);
 
-      await expect(promise).rejects.toThrow('Failed to restart PHP container');
+      await expect(promise).rejects.toThrow(
+        'Failed to restart FrankenPHP container',
+      );
 
       expect(mockMainWindow.webContents.send).toHaveBeenCalledWith(
         'xdebug-status',
         {
           status: 'error',
-          message: expect.stringContaining('Failed to restart PHP container'),
+          message: expect.stringContaining(
+            'Failed to restart FrankenPHP container',
+          ),
         },
       );
     });

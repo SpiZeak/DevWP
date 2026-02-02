@@ -4,14 +4,14 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/SpiZeak)
 
-A desktop application for simplified local WordPress development using Docker, Nginx, and PHP-FPM.
+A desktop application for simplified local WordPress development using Docker and FrankenPHP.
 
 <img width="1195" height="812" alt="DevWP Screenshot" src="https://github.com/user-attachments/assets/ad1c8b77-ee54-4d7e-b209-d2593af8a14f" />
 
 ## Features
 
 - **Easy Site Management**: Create and manage local WordPress sites with a simple GUI
-- **Docker Integration**: Isolated environments with Nginx, PHP-FPM, MariaDB, and Redis
+- **Docker Integration**: Isolated environments with FrankenPHP, MariaDB, and Redis
 - **WP-CLI Support**: Run WP-CLI commands directly from the interface
 - **Development Tools**: Mailpit for email testing, SonarQube for code quality, Seonaut for SEO analysis
 - **Xdebug Support**: Toggle PHP debugging on/off
@@ -84,12 +84,12 @@ See [Certificate Trust Setup](docs/certificate-trust-setup.md) for detailed SSL 
 
 ### Available Services
 
-| Service   | Port | URL                   | Purpose       |
-| --------- | ---- | --------------------- | ------------- |
-| Nginx     | 80   | https://site.test     | Web server    |
-| Mailpit   | 8025 | http://localhost:8025 | Email testing |
-| SonarQube | 9000 | http://localhost:9000 | Code quality  |
-| Seonaut   | 9001 | http://localhost:9001 | SEO analysis  |
+| Service    | Port | URL                   | Purpose       |
+| ---------- | ---- | --------------------- | ------------- |
+| FrankenPHP | 80   | https://site.test     | Web server    |
+| Mailpit    | 8025 | http://localhost:8025 | Email testing |
+| SonarQube  | 9000 | http://localhost:9000 | Code quality  |
+| Seonaut    | 9001 | http://localhost:9001 | SEO analysis  |
 
 ## Development
 

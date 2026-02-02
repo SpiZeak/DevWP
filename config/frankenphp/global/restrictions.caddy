@@ -1,0 +1,5 @@
+@hidden path_regexp hidden ^/\.
+respond @hidden 403
+
+@uploads path_regexp uploads ^/(?:wp-content/)?(?:uploads|files)/.*\.php$
+respond @uploads 403

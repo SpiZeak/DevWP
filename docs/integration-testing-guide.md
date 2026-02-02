@@ -30,31 +30,31 @@ Integration tests require:
 - **Database Operations**: Real database queries and transactions
 - **Docker Commands**: Actual container management
 - **File System**: Real file creation and permissions
-- **Multi-Service Interactions**: nginx + php + database coordination
+- **Multi-Service Interactions**: frankenphp + database coordination
 
 ## Writing Integration Tests
 
 ```typescript
-import { describe, it, expect } from 'vitest'
-import { initializeConfigDatabase, saveSiteConfiguration } from './database'
+import { describe, it, expect } from "vitest";
+import { initializeConfigDatabase, saveSiteConfiguration } from "./database";
 
-describe('Database Integration', () => {
-  it('should persist site configuration', async () => {
-    await initializeConfigDatabase()
+describe("Database Integration", () => {
+  it("should persist site configuration", async () => {
+    await initializeConfigDatabase();
 
     const site = {
-      domain: 'test.local',
+      domain: "test.local",
       createdAt: new Date(),
-      updatedAt: new Date()
-    }
+      updatedAt: new Date(),
+    };
 
-    await saveSiteConfiguration(site)
-    const retrieved = await getSiteConfiguration('test.local')
+    await saveSiteConfiguration(site);
+    const retrieved = await getSiteConfiguration("test.local");
 
-    expect(retrieved).toBeDefined()
-    expect(retrieved?.domain).toBe('test.local')
-  })
-})
+    expect(retrieved).toBeDefined();
+    expect(retrieved?.domain).toBe("test.local");
+  });
+});
 ```
 
 ## Test Isolation
@@ -86,9 +86,9 @@ docker compose logs mariadb
 Integration tests have longer timeouts (30s). If tests still timeout:
 
 ```typescript
-it('slow test', async () => {
+it("slow test", async () => {
   // test code
-}, 60000) // 60 second timeout
+}, 60000); // 60 second timeout
 ```
 
 ## CI/CD Integration
@@ -162,37 +162,37 @@ integration-tests:
 ### Testing Database Operations
 
 ```typescript
-it('should save configuration', async () => {
-  await saveSiteConfiguration(config)
-  const result = await getSiteConfiguration(config.domain)
-  expect(result).toEqual(expect.objectContaining(config))
-})
+it("should save configuration", async () => {
+  await saveSiteConfiguration(config);
+  const result = await getSiteConfiguration(config.domain);
+  expect(result).toEqual(expect.objectContaining(config));
+});
 ```
 
 ### Testing Docker Commands
 
 ```typescript
-it('should start container', async () => {
-  const result = await startContainer('devwp_nginx')
-  expect(result.success).toBe(true)
+it("should start container", async () => {
+  const result = await startContainer("devwp_frankenphp");
+  expect(result.success).toBe(true);
 
-  const status = await getContainerStatus('devwp_nginx')
-  expect(status).toBe('running')
-})
+  const status = await getContainerStatus("devwp_frankenphp");
+  expect(status).toBe("running");
+});
 ```
 
 ### Testing File Operations
 
 ```typescript
-it('should create nginx config', async () => {
-  await createNginxConfig('example.test', config)
+it("should create frankenphp config", async () => {
+  await generateFrankenphpConfig("example.test", config);
 
-  const exists = await fs.access(configPath)
-  expect(exists).toBe(true)
+  const exists = await fs.access(configPath);
+  expect(exists).toBe(true);
 
-  const content = await fs.readFile(configPath, 'utf-8')
-  expect(content).toContain('server_name example.test')
-})
+  const content = await fs.readFile(configPath, "utf-8");
+  expect(content).toContain("server_name example.test");
+});
 ```
 
 ## Performance Considerations

@@ -54,8 +54,8 @@ describe('Container IPC Handlers', () => {
   describe('get-container-status handler', () => {
     it('should call getDockerContainers and return result', async () => {
       const mockContainers = [
-        { id: 'abc123', name: 'devwp_nginx', status: 'running' },
-        { id: 'def456', name: 'devwp_php', status: 'running' },
+        { id: 'abc123', name: 'devwp_frankenphp', status: 'running' },
+        { id: 'def456', name: 'devwp_mariadb', status: 'running' },
       ];
       vi.mocked(docker.getDockerContainers).mockResolvedValue(
         mockContainers as any,
@@ -149,7 +149,7 @@ describe('Container IPC Handlers', () => {
         .mocked(ipcMain.handle)
         .mock.calls.find((call) => call[0] === 'restart-container')?.[1];
 
-      const result = await handler?.({} as any, 'nginx_container');
+      const result = await handler?.({} as any, 'frankenphp_container');
 
       expect(result).toEqual(mockResult);
     });
@@ -167,7 +167,9 @@ describe('Container IPC Handlers', () => {
     });
 
     it('should perform initial container check', async () => {
-      const mockContainers = [{ id: '123', name: 'nginx', status: 'running' }];
+      const mockContainers = [
+        { id: '123', name: 'frankenphp', status: 'running' },
+      ];
       vi.mocked(docker.getDockerContainers).mockResolvedValue(
         mockContainers as any,
       );
@@ -180,7 +182,9 @@ describe('Container IPC Handlers', () => {
     });
 
     it('should send initial container status to renderer', async () => {
-      const mockContainers = [{ id: '123', name: 'nginx', status: 'running' }];
+      const mockContainers = [
+        { id: '123', name: 'frankenphp', status: 'running' },
+      ];
       vi.mocked(docker.getDockerContainers).mockResolvedValue(
         mockContainers as any,
       );
@@ -216,7 +220,9 @@ describe('Container IPC Handlers', () => {
     });
 
     it('should set up periodic container checks', async () => {
-      const mockContainers = [{ id: '123', name: 'nginx', status: 'running' }];
+      const mockContainers = [
+        { id: '123', name: 'frankenphp', status: 'running' },
+      ];
       vi.mocked(docker.getDockerContainers).mockResolvedValue(
         mockContainers as any,
       );
@@ -235,7 +241,9 @@ describe('Container IPC Handlers', () => {
     });
 
     it('should check containers every 5 seconds', async () => {
-      const mockContainers = [{ id: '123', name: 'nginx', status: 'running' }];
+      const mockContainers = [
+        { id: '123', name: 'frankenphp', status: 'running' },
+      ];
       vi.mocked(docker.getDockerContainers).mockResolvedValue(
         mockContainers as any,
       );
@@ -253,7 +261,9 @@ describe('Container IPC Handlers', () => {
     });
 
     it('should send container status on each interval', async () => {
-      const mockContainers = [{ id: '123', name: 'nginx', status: 'running' }];
+      const mockContainers = [
+        { id: '123', name: 'frankenphp', status: 'running' },
+      ];
       vi.mocked(docker.getDockerContainers).mockResolvedValue(
         mockContainers as any,
       );
@@ -274,7 +284,9 @@ describe('Container IPC Handlers', () => {
     });
 
     it('should clear existing interval before starting new one', async () => {
-      const mockContainers = [{ id: '123', name: 'nginx', status: 'running' }];
+      const mockContainers = [
+        { id: '123', name: 'frankenphp', status: 'running' },
+      ];
       vi.mocked(docker.getDockerContainers).mockResolvedValue(
         mockContainers as any,
       );

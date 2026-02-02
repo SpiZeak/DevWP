@@ -1,5 +1,7 @@
 # Docker Health Check and Compose Command Fix
 
+> Note: This document describes the legacy Nginx + PHP-FPM setup. DevWP now uses FrankenPHP.
+
 ## Issues
 
 ### 1. Container Version Detection on Non-Running Containers
@@ -76,13 +78,13 @@ Modified `src/main/services/docker.ts` to check container state before attemptin
 try {
   for (const container of containers) {
     // Only get version if container is running
-    if (container.state === 'running') {
-      const version = await getContainerVersion(container.id, container.name)
-      container.version = version
+    if (container.state === "running") {
+      const version = await getContainerVersion(container.id, container.name);
+      container.version = version;
     }
   }
 } catch (versionError) {
-  console.error('Error fetching container versions:', versionError)
+  console.error("Error fetching container versions:", versionError);
 }
 ```
 
@@ -91,8 +93,8 @@ try {
 ```typescript
 function getContainerVersion(
   containerId: string,
-  containerName?: string
-): Promise<string | undefined>
+  containerName?: string,
+): Promise<string | undefined>;
 ```
 
 **Created `getVersionForContainer()`** - Separate helper function to handle version detection logic:
@@ -101,8 +103,8 @@ function getContainerVersion(
 function getVersionForContainer(
   containerId: string,
   containerName: string,
-  resolve: (value: string | undefined) => void
-): void
+  resolve: (value: string | undefined) => void,
+): void;
 ```
 
 ### Fix 2: Modern Docker Compose Command
@@ -112,16 +114,16 @@ Updated all Docker Compose commands to use the modern `docker compose` syntax:
 **Before:**
 
 ```typescript
-const command = isWin ? 'docker-compose.exe' : 'docker-compose'
-const dockerProcess = spawn(command, ['up', '-d', '--build', 'nginx'])
+const command = isWin ? "docker-compose.exe" : "docker-compose";
+const dockerProcess = spawn(command, ["up", "-d", "--build", "nginx"]);
 ```
 
 **After:**
 
 ```typescript
-const command = isWin ? 'docker.exe' : 'docker'
-const args = ['compose', 'up', '-d', '--build', 'nginx']
-const dockerProcess = spawn(command, args)
+const command = isWin ? "docker.exe" : "docker";
+const args = ["compose", "up", "-d", "--build", "nginx"];
+const dockerProcess = spawn(command, args);
 ```
 
 **Changes Applied To:**

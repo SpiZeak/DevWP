@@ -1,9 +1,8 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import frankenphpIcon from '../assets/icons/frankenphp.svg';
 import mailpitIcon from '../assets/icons/mailpit.svg';
 import mariaDBIcon from '../assets/icons/mariadb.svg';
-import nginxIcon from '../assets/icons/nginx.svg';
-import phpIcon from '../assets/icons/php.svg';
 import redisIcon from '../assets/icons/redis.svg';
 import sonarCubeIcon from '../assets/icons/sonarqube.svg';
 import Icon from './ui/Icon';
@@ -24,21 +23,16 @@ interface Container {
 
 // Container name mapping for user-friendly display
 const containerNameMapping: Record<string, string> = {
-  devwp_nginx: 'Nginx',
-  devwp_php: 'PHP',
+  devwp_frankenphp: 'FrankenPHP',
   devwp_mariadb: 'MariaDB',
   devwp_redis: 'Redis',
   devwp_mailpit: 'Mailpit',
-  devwp_certs: 'Certificates',
   devwp_sonarqube: 'SonarQube',
 };
 
 const containerIconMapping: Record<string, React.ReactNode> = {
-  devwp_nginx: (
-    <img className="w-10 h-8 object-contain" src={nginxIcon} alt="Nginx" />
-  ),
-  devwp_php: (
-    <img className="w-10 h-8 object-contain" src={phpIcon} alt="PHP" />
+  devwp_frankenphp: (
+    <img className="w-10 h-8 object-contain" src={frankenphpIcon} alt="FrankenPHP" />
   ),
   devwp_mariadb: (
     <img className="w-10 h-8 object-contain" src={mariaDBIcon} alt="MariaDB" />
@@ -49,7 +43,6 @@ const containerIconMapping: Record<string, React.ReactNode> = {
   devwp_mailpit: (
     <img className="w-10 h-8 object-contain" src={mailpitIcon} alt="Mailpit" />
   ),
-  devwp_certs: '🔒',
   devwp_sonarqube: (
     <img
       className="w-10 h-8 object-contain"

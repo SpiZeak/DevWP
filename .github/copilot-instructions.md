@@ -1,6 +1,6 @@
 # DevWP - WordPress Development Environment
 
-DevWP is an Electron-based desktop application for managing local WordPress development sites. It uses React, TypeScript, Docker services (Nginx, PHP-FPM, MariaDB, Redis, Mailpit, SonarQube, Seonaut), and provides a graphical interface for creating and managing WordPress installations.
+DevWP is an Electron-based desktop application for managing local WordPress development sites. It uses React, TypeScript, Docker services (FrankenPHP, MariaDB, Redis, Mailpit, SonarQube, Seonaut), and provides a graphical interface for creating and managing WordPress installations.
 
 **Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.**
 
@@ -158,8 +158,8 @@ electron.vite.config.ts   # Build configuration
 biome.json                # Biome formatter/linter config
 compose.yml              # Docker services definition
 config/                  # Docker service configurations
-├── nginx/               # Web server config
-├── php/                 # PHP-FPM config
+├── frankenphp/          # FrankenPHP (Caddy) config
+├── php/                 # PHP config for FrankenPHP
 └── seonaut/             # SEO analysis tool (submodule)
 ```
 
@@ -210,15 +210,14 @@ bun run lint       # Check for code issues (ignore seonaut submodule errors)
 
 ### Docker Services (when network allows)
 
-| Service   | Port    | Purpose             | Status                                |
-| --------- | ------- | ------------------- | ------------------------------------- |
-| Nginx     | 80, 443 | Web server with SSL | ✅ Builds when network allows         |
-| PHP-FPM   | 9000    | PHP processing      | ✅ Builds when network allows         |
-| MariaDB   | 3306    | Database            | ✅ Standard image, reliable           |
-| Redis     | 6379    | Object caching      | ✅ Standard image, reliable           |
-| Mailpit   | 8025    | Email testing       | ✅ Standard image, reliable           |
-| SonarQube | 9000    | Code quality        | ✅ Standard image, reliable           |
-| Seonaut   | 9001    | SEO analysis        | ❌ Build fails in restricted networks |
+| Service    | Port    | Purpose          | Status                                |
+| ---------- | ------- | ---------------- | ------------------------------------- |
+| FrankenPHP | 80, 443 | Web server + PHP | ✅ Builds when network allows         |
+| MariaDB    | 3306    | Database         | ✅ Standard image, reliable           |
+| Redis      | 6379    | Object caching   | ✅ Standard image, reliable           |
+| Mailpit    | 8025    | Email testing    | ✅ Standard image, reliable           |
+| SonarQube  | 9000    | Code quality     | ✅ Standard image, reliable           |
+| Seonaut    | 9001    | SEO analysis     | ❌ Build fails in restricted networks |
 
 ### When Docker services are unavailable:
 

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 describe('Docker Service Utilities', () => {
   describe('Container ID Validation', () => {
     it('should validate container ID format', () => {
-      const validIds = ['abc123', 'devwp_nginx', 'container-name-123'];
+      const validIds = ['abc123', 'devwp_frankenphp', 'container-name-123'];
       const invalidIds = ['', 'invalid id!', 'drop table;', 'test space'];
 
       validIds.forEach((id) => {
@@ -26,23 +26,23 @@ describe('Docker Service Utilities', () => {
 
   describe('Docker Output Parsing', () => {
     it('should parse docker ps output correctly', () => {
-      const mockOutput = `devwp_nginx\trunning\thealthy
-devwp_php\trunning\thealthy
-devwp_mariadb\trunning\thealthy`;
+      const mockOutput = `devwp_frankenphp\trunning\thealthy
+    devwp_mariadb\trunning\thealthy
+    devwp_redis\trunning\thealthy`;
 
       // Test pattern for parsing container status
       const lines = mockOutput.split('\n');
       expect(lines).toHaveLength(3);
-      expect(lines[0]).toContain('devwp_nginx');
+      expect(lines[0]).toContain('devwp_frankenphp');
       expect(lines[0]).toContain('running');
       expect(lines[0]).toContain('healthy');
     });
 
     it('should parse container fields from tab-separated output', () => {
-      const line = 'devwp_nginx\trunning\thealthy';
+      const line = 'devwp_frankenphp\trunning\thealthy';
       const parts = line.split('\t');
 
-      expect(parts[0]).toBe('devwp_nginx');
+      expect(parts[0]).toBe('devwp_frankenphp');
       expect(parts[1]).toBe('running');
       expect(parts[2]).toBe('healthy');
     });
@@ -72,8 +72,7 @@ devwp_mariadb\trunning\thealthy`;
   describe('Container Name Validation', () => {
     it('should validate devwp container names', () => {
       const validNames = [
-        'devwp_nginx',
-        'devwp_php',
+        'devwp_frankenphp',
         'devwp_mariadb',
         'devwp_redis',
         'devwp_mailpit',
@@ -85,9 +84,9 @@ devwp_mariadb\trunning\thealthy`;
     });
 
     it('should identify service type from container name', () => {
-      expect(getServiceType('devwp_nginx')).toBe('nginx');
-      expect(getServiceType('devwp_php')).toBe('php');
+      expect(getServiceType('devwp_frankenphp')).toBe('frankenphp');
       expect(getServiceType('devwp_mariadb')).toBe('mariadb');
+      expect(getServiceType('devwp_redis')).toBe('redis');
     });
   });
 });

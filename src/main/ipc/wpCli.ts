@@ -11,7 +11,7 @@ export function registerWpCliHandlers(): void {
         'exec',
         '-w',
         `/src/www/${site.name}`,
-        'devwp_php',
+        'devwp_frankenphp',
         'php',
         '-d',
         'error_reporting="E_ALL & ~E_DEPRECATED & ~E_WARNING"',

@@ -38,7 +38,7 @@ src/
 │   │   └── site-handlers.test.ts    # IPC handler tests
 │   ├── services/
 │   │   ├── docker.test.ts           # Docker service tests
-│   │   ├── nginx.test.ts            # Nginx config tests
+│   │   ├── frankenphp.test.ts       # FrankenPHP config tests
 │   │   ├── site.test.ts             # Site management tests
 │   │   └── hosts.test.ts            # Hosts file tests
 │   └── validation/
@@ -67,14 +67,14 @@ Unit tests verify individual functions and components in isolation using mocks.
 **Example**:
 
 ```typescript
-import { describe, it, expect } from 'vitest'
-import { sanitizeDatabaseName } from './database'
+import { describe, it, expect } from "vitest";
+import { sanitizeDatabaseName } from "./database";
 
-describe('sanitizeDatabaseName', () => {
-  it('should replace dots with underscores', () => {
-    expect(sanitizeDatabaseName('example.test')).toBe('example_test')
-  })
-})
+describe("sanitizeDatabaseName", () => {
+  it("should replace dots with underscores", () => {
+    expect(sanitizeDatabaseName("example.test")).toBe("example_test");
+  });
+});
 ```
 
 ### Integration Tests
@@ -89,18 +89,18 @@ Integration tests verify interactions between services and Docker containers.
 **Example**:
 
 ```typescript
-import { describe, it, expect } from 'vitest'
-import { saveSiteConfiguration, getSiteConfiguration } from './database'
+import { describe, it, expect } from "vitest";
+import { saveSiteConfiguration, getSiteConfiguration } from "./database";
 
-describe('Database Integration', () => {
-  it('should persist site configuration', async () => {
-    const site = { domain: 'test.local', createdAt: new Date() }
-    await saveSiteConfiguration(site)
+describe("Database Integration", () => {
+  it("should persist site configuration", async () => {
+    const site = { domain: "test.local", createdAt: new Date() };
+    await saveSiteConfiguration(site);
 
-    const retrieved = await getSiteConfiguration('test.local')
-    expect(retrieved?.domain).toBe('test.local')
-  })
-})
+    const retrieved = await getSiteConfiguration("test.local");
+    expect(retrieved?.domain).toBe("test.local");
+  });
+});
 ```
 
 ## Test Utilities
@@ -123,9 +123,9 @@ it('should render component', () => {
 ```typescript
 const mockIpc = createMockIpcRenderer({
   invoke: vi.fn((channel) => {
-    if (channel === 'get-sites') return Promise.resolve([])
-  })
-})
+    if (channel === "get-sites") return Promise.resolve([]);
+  }),
+});
 ```
 
 ## Testing Patterns
@@ -133,47 +133,47 @@ const mockIpc = createMockIpcRenderer({
 ### Mocking Child Process
 
 ```typescript
-import { vi } from 'vitest'
-import { exec } from 'child_process'
+import { vi } from "vitest";
+import { exec } from "child_process";
 
-vi.mock('child_process')
+vi.mock("child_process");
 
 vi.mocked(exec).mockImplementation((cmd, callback) => {
-  if (typeof callback === 'function') {
-    callback(null, 'output', '')
+  if (typeof callback === "function") {
+    callback(null, "output", "");
   }
-  return {} as unknown as ReturnType<typeof exec>
-})
+  return {} as unknown as ReturnType<typeof exec>;
+});
 ```
 
 ### Mocking File System
 
 ```typescript
-import { promises as fs } from 'fs'
+import { promises as fs } from "fs";
 
-vi.mock('fs')
+vi.mock("fs");
 
-vi.mocked(fs.writeFile).mockResolvedValue(undefined)
-vi.mocked(fs.readFile).mockResolvedValue('file content')
+vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+vi.mocked(fs.readFile).mockResolvedValue("file content");
 ```
 
 ### Testing Async Operations
 
 ```typescript
-it('should handle async operations', async () => {
-  const result = await asyncFunction()
-  expect(result).toBe('expected value')
-})
+it("should handle async operations", async () => {
+  const result = await asyncFunction();
+  expect(result).toBe("expected value");
+});
 ```
 
 ### Testing Error Handling
 
 ```typescript
-it('should handle errors gracefully', async () => {
-  vi.mocked(someFunction).mockRejectedValue(new Error('Failed'))
+it("should handle errors gracefully", async () => {
+  vi.mocked(someFunction).mockRejectedValue(new Error("Failed"));
 
-  await expect(myFunction()).rejects.toThrow('Failed')
-})
+  await expect(myFunction()).rejects.toThrow("Failed");
+});
 ```
 
 ## Coverage Goals
@@ -225,26 +225,26 @@ touch src/main/services/my-service.integration.test.ts
 ### 3. Write Test Structure
 
 ```typescript
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-describe('MyService', () => {
+describe("MyService", () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-  })
+    vi.clearAllMocks();
+  });
 
-  describe('Feature Name', () => {
-    it('should do something specific', () => {
+  describe("Feature Name", () => {
+    it("should do something specific", () => {
       // Arrange
-      const input = 'test'
+      const input = "test";
 
       // Act
-      const result = myFunction(input)
+      const result = myFunction(input);
 
       // Assert
-      expect(result).toBe('expected')
-    })
-  })
-})
+      expect(result).toBe("expected");
+    });
+  });
+});
 ```
 
 ### 4. Run and Validate
@@ -324,9 +324,9 @@ docker compose down
 Increase timeout for slow operations:
 
 ```typescript
-it('slow operation', async () => {
+it("slow operation", async () => {
   // test code
-}, 60000) // 60 second timeout
+}, 60000); // 60 second timeout
 ```
 
 ### Mock Not Working
@@ -334,9 +334,9 @@ it('slow operation', async () => {
 Ensure mocks are defined before imports:
 
 ```typescript
-vi.mock('child_process') // Must be at top level
+vi.mock("child_process"); // Must be at top level
 
-import { exec } from 'child_process'
+import { exec } from "child_process";
 ```
 
 ## Best Practices

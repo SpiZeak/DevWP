@@ -1,0 +1,15 @@
+{{HTTP_ADDRESSES}} {
+  redir https://{host}{uri} permanent
+}
+
+{{HTTPS_ADDRESSES}} {
+  {{TLS_DIRECTIVE}}
+  root * {{ROOT}}
+  encode zstd gzip
+  import /etc/caddy/global/restrictions.caddy
+  {{MULTISITE_RULES}}
+  @static path_regexp static \.(?:js|css|png|jpg|jpeg|gif|ico)$
+  header @static Cache-Control "public, max-age=31536000, immutable"
+  try_files {path} {path}/ /index.php?{query}
+  php_server
+}

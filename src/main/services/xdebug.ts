@@ -192,7 +192,7 @@ export async function toggleXdebug(
       throw writeError; // Re-throw write errors
     }
 
-    // Restart the PHP container to apply changes
+    // Restart the FrankenPHP container to apply changes
     return new Promise<boolean>((resolve, reject) => {
       if (mainWindow) {
         mainWindow.webContents.send('xdebug-status', {
@@ -202,10 +202,14 @@ export async function toggleXdebug(
       }
 
       const projectRoot = process.cwd();
-      const restartProcess = spawn('docker', ['compose', 'restart', 'php'], {
-        cwd: projectRoot,
-        shell: false,
-      });
+      const restartProcess = spawn(
+        'docker',
+        ['compose', 'restart', 'frankenphp'],
+        {
+          cwd: projectRoot,
+          shell: false,
+        },
+      );
 
       let restartErrorOutput = '';
 
@@ -248,7 +252,7 @@ export async function toggleXdebug(
             if (mainWindow) {
               mainWindow.webContents.send('xdebug-status', {
                 status: 'error',
-                message: `PHP container restarted, but failed to verify final Xdebug status.`,
+                message: `FrankenPHP container restarted, but failed to verify final Xdebug status.`,
               });
             }
             reject(
@@ -258,16 +262,18 @@ export async function toggleXdebug(
             );
           }
         } else {
-          console.error(`Failed to restart PHP container. Exit code: ${code}`);
+          console.error(
+            `Failed to restart FrankenPHP container. Exit code: ${code}`,
+          );
           if (mainWindow) {
             mainWindow.webContents.send('xdebug-status', {
               status: 'error',
-              message: `Failed to restart PHP container. Stderr: ${restartErrorOutput || 'None'}`,
+              message: `Failed to restart FrankenPHP container. Stderr: ${restartErrorOutput || 'None'}`,
             });
           }
           reject(
             new Error(
-              `Failed to restart PHP container (code ${code}). Stderr: ${restartErrorOutput || 'None'}`,
+              `Failed to restart FrankenPHP container (code ${code}). Stderr: ${restartErrorOutput || 'None'}`,
             ),
           );
         }

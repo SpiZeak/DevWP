@@ -109,11 +109,11 @@ describe('Site Service Utilities', () => {
 
   describe('Site Cleanup Operations', () => {
     it('should identify cleanup operations', () => {
-      const cleanupSteps = ['database', 'files', 'nginx-config', 'hosts'];
+      const cleanupSteps = ['database', 'files', 'frankenphp-config', 'hosts'];
 
       expect(cleanupSteps).toContain('database');
       expect(cleanupSteps).toContain('files');
-      expect(cleanupSteps).toContain('nginx-config');
+      expect(cleanupSteps).toContain('frankenphp-config');
       expect(cleanupSteps).toContain('hosts');
     });
 

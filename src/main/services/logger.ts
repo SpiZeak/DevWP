@@ -138,11 +138,11 @@ export const logDatabaseOperation = (
   });
 };
 
-export const logNginxOperation = (
+export const logFrankenphpOperation = (
   operation: string,
   details?: Record<string, unknown>,
 ): void => {
-  logger.info('Nginx operation', {
+  logger.info('FrankenPHP operation', {
     operation,
     ...details,
   });

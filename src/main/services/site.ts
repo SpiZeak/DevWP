@@ -11,12 +11,12 @@ import {
   type SiteConfiguration,
   saveSiteConfiguration,
 } from './database';
-import { modifyHostsFile } from './hosts';
 import {
-  generateNginxConfig,
-  reloadNginxConfig,
-  removeNginxConfig,
-} from './nginx';
+  generateFrankenphpConfig,
+  reloadFrankenphpConfig,
+  removeFrankenphpConfig,
+} from './frankenphp';
+import { modifyHostsFile } from './hosts';
 
 export interface Site {
   name: string;
@@ -78,13 +78,13 @@ async function installWordPress(
     const wpInstallPath = webRoot ? `${baseSiteDir}/${webRoot}` : baseSiteDir;
 
     // Command to download WordPress core
-    const downloadCmd = `docker compose exec php wp core download --path=${wpInstallPath} --force`;
+    const downloadCmd = `docker compose exec frankenphp wp core download --path=${wpInstallPath} --force`;
 
     // Command to create wp-config.php
-    const configCmd = `docker compose exec php wp config create --path=${wpInstallPath} --dbname=${dbName} --dbuser=root --dbpass=root --dbhost=mariadb --force`;
+    const configCmd = `docker compose exec frankenphp wp config create --path=${wpInstallPath} --dbname=${dbName} --dbuser=root --dbpass=root --dbhost=mariadb --force`;
 
     // Command to install WordPress
-    const installCmd = `docker compose exec php wp core install --path=${wpInstallPath} --url=https://${siteDomain} --title="${siteDomain}" --admin_user=root --admin_password=root --admin_email=admin@${siteDomain}`;
+    const installCmd = `docker compose exec frankenphp wp core install --path=${wpInstallPath} --url=https://${siteDomain} --title="${siteDomain}" --admin_user=root --admin_password=root --admin_email=admin@${siteDomain}`;
 
     console.log(`Downloading WordPress to ${wpInstallPath}...`);
     exec(downloadCmd, (downloadError, _, downloadStderr) => {
@@ -143,7 +143,7 @@ async function createSite(site: {
   const actualWebRootPath = site.webRoot
     ? join(siteBasePath, site.webRoot)
     : siteBasePath;
-  const nginxRootDirective = `/src/www/${siteDomain}${site.webRoot ? '/' + site.webRoot : ''}`;
+  const webRootDirective = `/src/www/${siteDomain}${site.webRoot ? '/' + site.webRoot : ''}`;
 
   let dbName: string;
   try {
@@ -216,19 +216,19 @@ async function createSite(site: {
       }
     });
 
-    await generateNginxConfig(
+    await generateFrankenphpConfig(
       siteDomain,
-      nginxRootDirective,
+      webRootDirective,
       site.aliases,
       site.multisite,
     );
     cleanupTasks.push(async () => {
       try {
-        await removeNginxConfig(siteDomain);
-      } catch (nginxError) {
+        await removeFrankenphpConfig(siteDomain);
+      } catch (frankenphpError) {
         console.error(
-          `Failed to rollback Nginx config for ${siteDomain}:`,
-          nginxError,
+          `Failed to rollback FrankenPHP config for ${siteDomain}:`,
+          frankenphpError,
         );
       }
     });
@@ -308,7 +308,7 @@ export async function generateIndexHtml(
     const actualWebRootOnHost = webRoot
       ? join(siteFilesystemBasePath, webRoot)
       : siteFilesystemBasePath;
-    const nginxWebRootPath = `/src/www/${domain}${webRoot ? '/' + webRoot : ''}`;
+    const webRootPath = `/src/www/${domain}${webRoot ? '/' + webRoot : ''}`;
 
     // Ensure the target directory for index.html exists
     await fs.mkdir(actualWebRootOnHost, { recursive: true });
@@ -386,16 +386,16 @@ export async function generateIndexHtml(
         <h2>Site Information</h2>
         <ul>
             <li><strong>Site URL:</strong> https://${domain}</li>
-            <li><strong>Site Root (Nginx):</strong> ${nginxWebRootPath}</li>
+            <li><strong>Site Root (FrankenPHP):</strong> ${webRootPath}</li>
             <li><strong>Filesystem Path:</strong> ${actualWebRootOnHost}</li>
         </ul>
 
         ${dbInfoHtml}
 
         <div class="info-box">
-            <h3 style="margin-top: 0;">Nginx Configuration</h3>
-            <p>An Nginx configuration file has been automatically generated for this site at:</p>
-            <code>config/nginx/sites-enabled/${domain}.conf</code>
+            <h3 style="margin-top: 0;">FrankenPHP Configuration</h3>
+            <p>A FrankenPHP (Caddy) configuration file has been automatically generated for this site at:</p>
+            <code>config/frankenphp/sites-enabled/${domain}.caddy</code>
             <p>You can customize this file if you need specific server configurations for this site.</p>
         </div>
 
@@ -497,7 +497,7 @@ function deleteSite(site: { name: string }): Promise<boolean> {
           console.log(`Removed aliases from hosts file: ${aliases.join(', ')}`);
         }
 
-        await removeNginxConfig(site.name);
+        await removeFrankenphpConfig(site.name);
         await dropDatabase(dbName);
         await clearRedisCache(site.name);
 
@@ -621,7 +621,7 @@ async function convertToMultisite(
     const subdomains = multisite.type === 'subdomain' ? '--subdomains' : '';
 
     // Command to enable multisite in wp-config.php
-    const enableMultisiteCmd = `docker compose exec php wp core multisite-convert ${subdomains} --path=${wpInstallPath} --base=/`;
+    const enableMultisiteCmd = `docker compose exec frankenphp wp core multisite-convert ${subdomains} --path=${wpInstallPath} --base=/`;
 
     console.log(
       `Converting ${siteDomain} to multisite (${multisite.type} mode) at ${wpInstallPath}...`,
@@ -652,9 +652,9 @@ async function createSonarQubeProject(
   // This uses the default admin token pattern for local development
   const sonarToken = process.env.SONAR_TOKEN || 'sqa_admin_token_placeholder';
 
-  // Ensure curl is installed in the php container:
+  // Ensure curl is installed in the frankenphp container:
   // Add 'RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*' to config/php/Dockerfile if needed
-  const createProjectCmd = `docker compose exec php curl -H 'Authorization: Bearer ${sonarToken}' -X POST 'http://sonarqube:9000/api/projects/create' -d 'name=${encodeURIComponent(projectName)}&project=${encodeURIComponent(projectKey)}'`;
+  const createProjectCmd = `docker compose exec frankenphp curl -H 'Authorization: Bearer ${sonarToken}' -X POST 'http://sonarqube:9000/api/projects/create' -d 'name=${encodeURIComponent(projectName)}&project=${encodeURIComponent(projectKey)}'`;
 
   return new Promise((resolve, reject) => {
     console.log(
@@ -739,8 +739,8 @@ async function deleteSonarQubeProject(projectKey: string): Promise<void> {
   // Use token-based authentication instead of deprecated login/password
   const sonarToken = process.env.SONAR_TOKEN || 'sqa_admin_token_placeholder';
 
-  // Ensure curl is installed in the php container
-  const deleteProjectCmd = `docker compose exec php curl -H 'Authorization: Bearer ${sonarToken}' -X POST 'http://sonarqube:9000/api/projects/delete' -d 'project=${encodeURIComponent(projectKey)}'`;
+  // Ensure curl is installed in the frankenphp container
+  const deleteProjectCmd = `docker compose exec frankenphp curl -H 'Authorization: Bearer ${sonarToken}' -X POST 'http://sonarqube:9000/api/projects/delete' -d 'project=${encodeURIComponent(projectKey)}'`;
 
   return new Promise((resolve, reject) => {
     console.log(
@@ -963,25 +963,25 @@ async function updateSite(
     await saveSiteConfiguration(updatedConfig);
     console.log('Configuration saved successfully');
 
-    // Regenerate nginx configuration with updated settings
-    const nginxRootDirective = `/src/www/${site.name}${
+    // Regenerate FrankenPHP configuration with updated settings
+    const webRootDirective = `/src/www/${site.name}${
       updatedConfig.webRoot ? '/' + updatedConfig.webRoot : ''
     }`;
 
-    console.log('Nginx root directive:', nginxRootDirective);
+    console.log('FrankenPHP root directive:', webRootDirective);
 
-    // Regenerate nginx config
-    await generateNginxConfig(
+    // Regenerate FrankenPHP config
+    await generateFrankenphpConfig(
       site.name,
-      nginxRootDirective,
+      webRootDirective,
       updatedConfig.aliases,
       updatedConfig.multisite,
     );
-    console.log('Nginx config generated successfully');
+    console.log('FrankenPHP config generated successfully');
 
-    // Reload nginx to apply the new configuration
-    await reloadNginxConfig();
-    console.log('Nginx reloaded successfully');
+    // Reload FrankenPHP to apply the new configuration
+    await reloadFrankenphpConfig();
+    console.log('FrankenPHP reloaded successfully');
 
     console.log(`Successfully updated site configuration for: ${site.name}`);
   } catch (error) {

@@ -53,7 +53,7 @@ This document describes the enhancements implemented to improve DevWP's reliabil
   - `logSiteOperation()` - Site creation, deletion, updates
   - `logDockerOperation()` - Container management
   - `logDatabaseOperation()` - Database operations
-  - `logNginxOperation()` - Nginx configuration changes
+  - `logFrankenphpOperation()` - FrankenPHP configuration changes
   - `logWpCliCommand()` - WP-CLI command execution
   - `logError()` - Error logging with stack traces
 
@@ -80,25 +80,24 @@ This document describes the enhancements implemented to improve DevWP's reliabil
 
 **Health Checks Added:**
 
-| Service   | Check Command                                  | Interval | Timeout | Retries | Start Period |
-| --------- | ---------------------------------------------- | -------- | ------- | ------- | ------------ |
-| PHP-FPM   | `php-fpm-healthcheck`                          | 30s      | 10s     | 3       | 40s          |
-| MariaDB   | `mariadb-admin ping`                           | 10s      | 5s      | 5       | 30s          |
-| Redis     | `redis-cli ping`                               | 10s      | 5s      | 3       | 10s          |
-| Nginx     | `nginx -t`                                     | 30s      | 10s     | 3       | 40s          |
-| Mailpit   | `wget http://localhost:8025/api/v1/info`       | 10s      | 5s      | 3       | 10s          |
-| SonarQube | `wget http://localhost:9000/api/system/status` | 30s      | 10s     | 5       | 60s          |
-| Seonaut   | `wget http://localhost:9001`                   | 30s      | 10s     | 3       | 60s          |
+| Service    | Check Command                                  | Interval | Timeout           | Retries | Start Period |
+| ---------- | ---------------------------------------------- | -------- | ----------------- | ------- | ------------ | --- | --- |
+| FrankenPHP | `pidof caddy                                   |          | pidof frankenphp` | 30s     | 10s          | 3   | 40s |
+| MariaDB    | `mariadb-admin ping`                           | 10s      | 5s                | 5       | 30s          |
+| Redis      | `redis-cli ping`                               | 10s      | 5s                | 3       | 10s          |
+| Mailpit    | `wget http://localhost:8025/api/v1/info`       | 10s      | 5s                | 3       | 10s          |
+| SonarQube  | `wget http://localhost:9000/api/system/status` | 30s      | 10s               | 5       | 60s          |
+| Seonaut    | `wget http://localhost:9001`                   | 30s      | 10s               | 3       | 60s          |
 
 **Dependency Updates:**
 
-- Nginx now depends on all services being healthy before starting
+- FrankenPHP now depends on all services being healthy before starting
 - Uses Docker Compose `condition: service_healthy` for proper startup ordering
 - Certs container uses `condition: service_completed_successfully`
 
 **Benefits:**
 
-- Prevents Nginx from starting before dependencies are ready
+- Prevents FrankenPHP from starting before dependencies are ready
 - Automatic container restart if health checks fail
 - Better visibility into service status
 - Reduces race conditions during startup
@@ -144,7 +143,7 @@ This document describes the enhancements implemented to improve DevWP's reliabil
 
 2. **Test Docker** (test-docker)
    - Docker Compose configuration validation
-   - Nginx and PHP Docker image builds
+   - FrankenPHP Docker image builds
 
 3. **Security Check** (security-check)
    - Bun security audit
@@ -203,10 +202,10 @@ None. All changes are backward compatible.
 
    ```typescript
    // Use logger instead of console
-   import { logger, logSiteOperation } from './services/logger'
+   import { logger, logSiteOperation } from "./services/logger";
 
    // Use validation schemas
-   import { SiteConfigSchema } from './validation/schemas'
+   import { SiteConfigSchema } from "./validation/schemas";
    ```
 
 ### For Users

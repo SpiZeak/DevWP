@@ -123,7 +123,7 @@ describe('ContainerSchema', () => {
   it('should validate a valid container configuration', () => {
     const validContainer = {
       id: 'abc123',
-      name: 'nginx',
+      name: 'frankenphp',
       state: 'running',
       version: '1.21',
       health: 'healthy' as const,
@@ -135,7 +135,7 @@ describe('ContainerSchema', () => {
   it('should accept container without version', () => {
     const validContainer = {
       id: 'abc123',
-      name: 'nginx',
+      name: 'frankenphp',
       state: 'running',
     };
 

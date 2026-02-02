@@ -5,30 +5,30 @@
 ### Validating Site Configuration
 
 ```typescript
-import { SiteConfigSchema } from '../validation/schemas'
+import { SiteConfigSchema } from "../validation/schemas";
 
 // Validate user input
 try {
-  const validatedData = SiteConfigSchema.parse(userInput)
+  const validatedData = SiteConfigSchema.parse(userInput);
   // Use validatedData safely
 } catch (error) {
   // Handle validation error with user-friendly message
-  console.error('Invalid input:', error.errors)
+  console.error("Invalid input:", error.errors);
 }
 ```
 
 ### Creating Custom Schemas
 
 ```typescript
-import { z } from 'zod'
+import { z } from "zod";
 
 const MySchema = z.object({
   name: z.string().min(3),
   email: z.string().email(),
-  age: z.number().min(0).max(120)
-})
+  age: z.number().min(0).max(120),
+});
 
-type MyType = z.infer<typeof MySchema>
+type MyType = z.infer<typeof MySchema>;
 ```
 
 ## Structured Logging
@@ -36,47 +36,52 @@ type MyType = z.infer<typeof MySchema>
 ### Basic Logging
 
 ```typescript
-import { logger } from '../services/logger'
+import { logger } from "../services/logger";
 
-logger.info('Operation completed')
-logger.warn('Potential issue detected')
-logger.error('Operation failed', { context: 'additional data' })
-logger.debug('Debug information')
+logger.info("Operation completed");
+logger.warn("Potential issue detected");
+logger.error("Operation failed", { context: "additional data" });
+logger.debug("Debug information");
 ```
 
 ### Context-Specific Logging
 
 ```typescript
-import { logSiteOperation, logDockerOperation, logError, logWpCliCommand } from '../services/logger'
+import {
+  logSiteOperation,
+  logDockerOperation,
+  logError,
+  logWpCliCommand,
+} from "../services/logger";
 
 // Site operations
-logSiteOperation('create_start', 'example.test', {
-  webRoot: 'public',
-  multisite: true
-})
+logSiteOperation("create_start", "example.test", {
+  webRoot: "public",
+  multisite: true,
+});
 
 // Docker operations
-logDockerOperation('container_start', 'devwp_nginx', {
-  image: 'custom-nginx',
-  ports: [80, 443]
-})
+logDockerOperation("container_start", "devwp_frankenphp", {
+  image: "custom-frankenphp",
+  ports: [80, 443],
+});
 
 // Error logging with context
 try {
-  await riskyOperation()
+  await riskyOperation();
 } catch (error) {
-  logError('operation_context', error as Error, {
+  logError("operation_context", error as Error, {
     userId: 123,
-    action: 'specific_action'
-  })
-  throw error
+    action: "specific_action",
+  });
+  throw error;
 }
 
 // WP-CLI commands
-logWpCliCommand('example.test', 'plugin list', {
-  user: 'admin',
-  duration: 1234
-})
+logWpCliCommand("example.test", "plugin list", {
+  user: "admin",
+  duration: 1234,
+});
 ```
 
 ### Log Levels
@@ -98,10 +103,10 @@ Use appropriate log levels:
 docker compose ps
 
 # View detailed health check logs
-docker inspect devwp_nginx --format='{{.State.Health.Status}}'
+docker inspect devwp_frankenphp --format='{{.State.Health.Status}}'
 
 # View last 5 health check results
-docker inspect devwp_nginx --format='{{json .State.Health}}' | jq
+docker inspect devwp_frankenphp --format='{{json .State.Health}}' | jq
 ```
 
 ### Waiting for Healthy Services
@@ -119,7 +124,7 @@ services:
 
 ```yaml
 healthcheck:
-  test: ['CMD', 'curl', '-f', 'http://localhost/health']
+  test: ["CMD", "curl", "-f", "http://localhost/health"]
   interval: 30s
   timeout: 10s
   retries: 3
@@ -147,15 +152,15 @@ NODE_ENV=development     # Enable dev features
 
 ```typescript
 // In TypeScript/JavaScript
-const logLevel = process.env.LOG_LEVEL || 'info'
-const sonarToken = process.env.SONAR_TOKEN
+const logLevel = process.env.LOG_LEVEL || "info";
+const sonarToken = process.env.SONAR_TOKEN;
 
 // Type-safe approach (create env service)
 export const env = {
-  logLevel: process.env.LOG_LEVEL || 'info',
-  sonarToken: process.env.SONAR_TOKEN || '',
-  nodeEnv: process.env.NODE_ENV || 'production'
-}
+  logLevel: process.env.LOG_LEVEL || "info",
+  sonarToken: process.env.SONAR_TOKEN || "",
+  nodeEnv: process.env.NODE_ENV || "production",
+};
 ```
 
 ## GitHub Actions & PR Workflow
@@ -177,8 +182,7 @@ bun run build
 
 # Docker validation
 docker compose config
-docker compose build nginx
-docker compose build php
+docker compose build frankenphp
 ```
 
 ### Bypassing Checks (Emergency Only)
@@ -203,28 +207,28 @@ git commit --no-verify
 ### Service Function with Validation and Logging
 
 ```typescript
-import { z } from 'zod'
-import { logger, logError } from '../services/logger'
+import { z } from "zod";
+import { logger, logError } from "../services/logger";
 
 const InputSchema = z.object({
   domain: z.string(),
-  port: z.number().min(1).max(65535)
-})
+  port: z.number().min(1).max(65535),
+});
 
 export async function myService(input: unknown): Promise<void> {
   try {
     // Validate input
-    const validated = InputSchema.parse(input)
+    const validated = InputSchema.parse(input);
 
-    logger.info('Service started', { domain: validated.domain })
+    logger.info("Service started", { domain: validated.domain });
 
     // Perform operation
-    await performOperation(validated)
+    await performOperation(validated);
 
-    logger.info('Service completed', { domain: validated.domain })
+    logger.info("Service completed", { domain: validated.domain });
   } catch (error) {
-    logError('my-service', error as Error, { input })
-    throw error
+    logError("my-service", error as Error, { input });
+    throw error;
   }
 }
 ```
@@ -232,24 +236,24 @@ export async function myService(input: unknown): Promise<void> {
 ### IPC Handler with Full Error Handling
 
 ```typescript
-import { ipcMain } from 'electron'
-import { MySchema } from '../validation/schemas'
-import { logError } from '../services/logger'
+import { ipcMain } from "electron";
+import { MySchema } from "../validation/schemas";
+import { logError } from "../services/logger";
 
-ipcMain.handle('my-action', async (_, data) => {
+ipcMain.handle("my-action", async (_, data) => {
   try {
     // Validate
-    const validated = MySchema.parse(data)
+    const validated = MySchema.parse(data);
 
     // Process
-    const result = await processData(validated)
+    const result = await processData(validated);
 
-    return { success: true, data: result }
+    return { success: true, data: result };
   } catch (error) {
-    logError('my-action', error as Error, { data })
-    return { success: false, error: (error as Error).message }
+    logError("my-action", error as Error, { data });
+    return { success: false, error: (error as Error).message };
   }
-})
+});
 ```
 
 ## Troubleshooting
@@ -259,10 +263,10 @@ ipcMain.handle('my-action', async (_, data) => {
 ```typescript
 // Zod error contains detailed information
 try {
-  MySchema.parse(data)
+  MySchema.parse(data);
 } catch (error) {
   if (error instanceof z.ZodError) {
-    console.log('Validation errors:', error.errors)
+    console.log("Validation errors:", error.errors);
     // error.errors is an array of specific issues
   }
 }
