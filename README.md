@@ -6,7 +6,8 @@
 
 A desktop application for simplified local WordPress development using Docker, Nginx, and PHP-FPM.
 
-<img width="1195" height="812" alt="DevWP Screenshot" src="https://github.com/user-attachments/assets/ad1c8b77-ee54-4d7e-b209-d2593af8a14f" />
+<img width="2770" height="1856" alt="image" src="https://github.com/user-attachments/assets/10c22380-77e9-4702-b6a2-8b23dab4b064" />
+
 
 ## Features
 
