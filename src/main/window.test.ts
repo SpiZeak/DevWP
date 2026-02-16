@@ -1,4 +1,6 @@
 /* biome-ignore-all lint/suspicious/noExplicitAny: test mocks rely on any for flexibility */
+
+import { join } from 'node:path';
 import {
   afterEach,
   beforeEach,
@@ -254,7 +256,7 @@ describe('Window Creation', () => {
       createWindow();
 
       expect(mockWindow.loadFile).toHaveBeenCalledWith(
-        expect.stringContaining('renderer/index.html'),
+        expect.stringMatching(/renderer[\\/]index\.html$/),
       );
     });
 
@@ -297,7 +299,7 @@ describe('Window Creation', () => {
       expect(handler).toBeDefined();
       const result = await handler?.({} as any, 'www');
 
-      expect(shellMock.openPath).toHaveBeenCalledWith('/app/www');
+      expect(shellMock.openPath).toHaveBeenCalledWith(join('/app', 'www'));
       expect(result).toBe(true);
     });
 
