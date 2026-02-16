@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import { siDocker } from 'simple-icons';
 import mailpitIcon from '../assets/icons/mailpit.svg';
 import mariaDBIcon from '../assets/icons/mariadb.svg';
 import nginxIcon from '../assets/icons/nginx.svg';
@@ -8,6 +9,7 @@ import redisIcon from '../assets/icons/redis.svg';
 import sonarCubeIcon from '../assets/icons/sonarqube.svg';
 import Icon from './ui/Icon';
 import Spinner from './ui/Spinner';
+import { BrandLogo } from './Versions';
 import XdebugSwitch from './XdebugSwitch';
 
 interface ServicesProps {
@@ -117,8 +119,14 @@ const Services: React.FC<ServicesProps> = ({
 
   return (
     <div className="mr-6 mb-5 rounded-lg">
+      <XdebugSwitch />
       <div className="flex justify-between items-center mb-4">
-        <h2 className="font-semibold text-seasalt text-lg">Services</h2>
+        <div className="flex items-center gap-2">
+          <BrandLogo icon={siDocker} />
+          <h2 className="font-semibold text-seasalt text-lg">
+            Docker Services
+          </h2>
+        </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -138,7 +146,6 @@ const Services: React.FC<ServicesProps> = ({
           </button>
         </div>
       </div>
-      <XdebugSwitch />
       {loading ? (
         <div className="flex flex-col items-center">
           <Spinner className="p-4" />

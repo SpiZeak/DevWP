@@ -19,12 +19,12 @@ interface BrandLogoProps {
   icon: SimpleIcon;
 }
 
-function BrandLogo({ icon }: BrandLogoProps): JSX.Element {
+export function BrandLogo({ icon }: BrandLogoProps): JSX.Element {
   return (
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className="size-4 text-seasalt-400"
+      className="size-5 text-seasalt-400"
       fill="currentColor"
     >
       <path d={icon.path} />

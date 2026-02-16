@@ -48,9 +48,12 @@ function XdebugSwitch(): JSX.Element {
     <div className="flex justify-between items-start mb-6 rounded-md">
       <div className="flex flex-col flex-1 mr-4">
         <div className="flex justify-between items-center mb-2">
-          <h3 className="m-0 mb-2 font-medium">
-            {xdebugEnabled ? 'Debug' : 'Performance'} mode
-          </h3>
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{xdebugEnabled ? '🐛' : '⚡'}</span>
+            <h3 className="m-0 font-medium">
+              {xdebugEnabled ? 'Debug' : 'Performance'} mode
+            </h3>
+          </div>
           <Toggle
             checked={xdebugEnabled}
             onChange={handleToggle}
