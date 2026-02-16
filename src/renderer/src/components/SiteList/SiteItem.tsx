@@ -36,7 +36,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
             <div className="flex items-center gap-2">
               <div className="bg-emerald shadow-sm rounded-full size-3"></div>
               <h4 className="font-semibold text-md text-seasalt truncate leading-tight">
-                {site.name}
+                Example Site
               </h4>
             </div>
             {site.status === 'provisioning' && (
@@ -56,7 +56,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
               className="hover:text-pumpkin text-left truncate transition-colors cursor-pointer"
               title="Open folder in file manager"
             >
-              {site.path}
+              www/example.test
             </button>
           </div>
         </div>

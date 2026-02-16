@@ -1,12 +1,13 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
-import { siDocker } from 'simple-icons';
-import mailpitIcon from '../assets/icons/mailpit.svg';
-import mariaDBIcon from '../assets/icons/mariadb.svg';
-import nginxIcon from '../assets/icons/nginx.svg';
-import phpIcon from '../assets/icons/php.svg';
-import redisIcon from '../assets/icons/redis.svg';
-import sonarCubeIcon from '../assets/icons/sonarqube.svg';
+import {
+  siDocker,
+  siMariadb,
+  siNginx,
+  siPhp,
+  siRedis,
+  siSonarqubeserver,
+} from 'simple-icons';
 import Icon from './ui/Icon';
 import Spinner from './ui/Spinner';
 import { BrandLogo } from './Versions';
@@ -36,29 +37,13 @@ const containerNameMapping: Record<string, string> = {
 };
 
 const containerIconMapping: Record<string, React.ReactNode> = {
-  devwp_nginx: (
-    <img className="w-10 h-8 object-contain" src={nginxIcon} alt="Nginx" />
-  ),
-  devwp_php: (
-    <img className="w-10 h-8 object-contain" src={phpIcon} alt="PHP" />
-  ),
-  devwp_mariadb: (
-    <img className="w-10 h-8 object-contain" src={mariaDBIcon} alt="MariaDB" />
-  ),
-  devwp_redis: (
-    <img className="w-10 h-8 object-contain" src={redisIcon} alt="Redis" />
-  ),
-  devwp_mailpit: (
-    <img className="w-10 h-8 object-contain" src={mailpitIcon} alt="Mailpit" />
-  ),
-  devwp_certs: '🔒',
-  devwp_sonarqube: (
-    <img
-      className="w-10 h-8 object-contain"
-      src={sonarCubeIcon}
-      alt="SonarQube"
-    />
-  ),
+  devwp_nginx: <BrandLogo icon={siNginx} />,
+  devwp_php: <BrandLogo icon={siPhp} />,
+  devwp_mariadb: <BrandLogo icon={siMariadb} />,
+  devwp_redis: <BrandLogo icon={siRedis} />,
+  devwp_mailpit: <BrandLogo icon={siDocker} />,
+  devwp_certs: <BrandLogo icon={siDocker} />,
+  devwp_sonarqube: <BrandLogo icon={siSonarqubeserver} />,
 };
 
 const Services: React.FC<ServicesProps> = ({
