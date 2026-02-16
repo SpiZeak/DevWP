@@ -29,7 +29,7 @@ function App(): JSX.Element {
 
   return (
     <>
-      <div className="flex gap-4 gap-6 grid grid-cols-[40%_60%] p-6 w-full">
+      <div className="grid grid-cols-[40%_60%] p-6 w-full">
         <Services
           onOpenSettings={handleOpenSettings}
           onOpenVersions={handleOpenVersions}
