@@ -1,6 +1,6 @@
 import type { Site } from '@renderer/env';
-import userEvent from '@testing-library/user-event';
 import { act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders, screen, waitFor } from '../../test/test-utils';
 import SiteList from './index';
@@ -139,7 +139,9 @@ describe('SiteList', () => {
   });
 
   it('handles fetch sites errors gracefully', async () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
     mockGetSites.mockRejectedValueOnce(new Error('Fetch failed'));
 
     renderWithProviders(<SiteList />);
@@ -159,7 +161,9 @@ describe('SiteList', () => {
 
     expect(await screen.findByText('No sites yet')).toBeInTheDocument();
     expect(
-      screen.getByText('Create your first WordPress development site to get started'),
+      screen.getByText(
+        'Create your first WordPress development site to get started',
+      ),
     ).toBeInTheDocument();
   });
 
@@ -283,7 +287,10 @@ describe('SiteList', () => {
     await screen.findByText('alpha.test');
     await user.click(screen.getByRole('button', { name: 'Open alpha.test' }));
 
-    expect(mockInvoke).toHaveBeenCalledWith('open-external', 'https://alpha.test');
+    expect(mockInvoke).toHaveBeenCalledWith(
+      'open-external',
+      'https://alpha.test',
+    );
   });
 
   it('opens and closes WP-CLI modal', async () => {
@@ -314,7 +321,9 @@ describe('SiteList', () => {
 
     expect(await screen.findByText('Edit Site Settings')).toBeInTheDocument();
 
-    const aliasesInput = screen.getByLabelText('Aliases (optional, space-separated)');
+    const aliasesInput = screen.getByLabelText(
+      'Aliases (optional, space-separated)',
+    );
     const webRootInput = screen.getByLabelText(
       'Web Root (optional, relative to site directory e.g. "public", "dist")',
     );
@@ -328,7 +337,10 @@ describe('SiteList', () => {
     await waitFor(() => {
       expect(mockUpdateSite).toHaveBeenCalledWith(
         expect.objectContaining({ name: 'alpha.test' }),
-        expect.objectContaining({ aliases: 'www.alpha.test', webRoot: 'public' }),
+        expect.objectContaining({
+          aliases: 'www.alpha.test',
+          webRoot: 'public',
+        }),
       );
     });
 
@@ -344,7 +356,9 @@ describe('SiteList', () => {
     await screen.findByText('alpha.test');
     await user.click(screen.getByRole('button', { name: 'Edit alpha.test' }));
 
-    await user.click(await screen.findByRole('button', { name: 'Delete Site' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Delete Site' }),
+    );
 
     await waitFor(() => {
       expect(confirm).toHaveBeenCalledWith(
@@ -368,7 +382,9 @@ describe('SiteList', () => {
     await screen.findByText('alpha.test');
     await user.click(screen.getByRole('button', { name: 'Edit alpha.test' }));
 
-    await user.click(await screen.findByRole('button', { name: 'Delete Site' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Delete Site' }),
+    );
 
     expect(mockDeleteSite).not.toHaveBeenCalled();
   });
@@ -388,7 +404,10 @@ describe('SiteList', () => {
     await user.click(screen.getByRole('button', { name: 'Scan beta.test' }));
 
     expect(mockInvoke).toHaveBeenCalledTimes(1);
-    expect(mockInvoke).toHaveBeenCalledWith('scan-site-sonarqube', 'alpha.test');
+    expect(mockInvoke).toHaveBeenCalledWith(
+      'scan-site-sonarqube',
+      'alpha.test',
+    );
 
     await act(async () => {
       resolveScan?.({ success: true });

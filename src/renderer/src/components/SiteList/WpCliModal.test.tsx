@@ -1,6 +1,6 @@
 import type { Site } from '@renderer/env';
-import userEvent from '@testing-library/user-event';
 import { act } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders, screen, waitFor } from '../../test/test-utils';
 import WpCliModal from './WpCliModal';
@@ -72,7 +72,9 @@ describe('WpCliModal', () => {
   it('submits command and invokes run-wp-cli', async () => {
     const user = userEvent.setup();
 
-    renderWithProviders(<WpCliModal isOpen site={site} onClose={mockOnClose} />);
+    renderWithProviders(
+      <WpCliModal isOpen site={site} onClose={mockOnClose} />,
+    );
 
     const input = screen.getByPlaceholderText('e.g. plugin list');
     await user.type(input, 'plugin list');
@@ -92,17 +94,28 @@ describe('WpCliModal', () => {
   it('handles stdout, stderr, complete stream events for matching site', async () => {
     const user = userEvent.setup();
 
-    renderWithProviders(<WpCliModal isOpen site={site} onClose={mockOnClose} />);
+    renderWithProviders(
+      <WpCliModal isOpen site={site} onClose={mockOnClose} />,
+    );
 
-    await user.type(screen.getByPlaceholderText('e.g. plugin list'), 'plugin list');
+    await user.type(
+      screen.getByPlaceholderText('e.g. plugin list'),
+      'plugin list',
+    );
     await user.click(screen.getByRole('button', { name: 'Run' }));
 
     await act(async () => {
       streamCallback?.({ type: 'stdout', data: 'ok\n', siteId: 'alpha.test' });
-      streamCallback?.({ type: 'stderr', data: 'warn\n', siteId: 'alpha.test' });
+      streamCallback?.({
+        type: 'stderr',
+        data: 'warn\n',
+        siteId: 'alpha.test',
+      });
     });
 
-    expect(await screen.findByText('Output', { exact: false })).toBeInTheDocument();
+    expect(
+      await screen.findByText('Output', { exact: false }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/ok/)).toBeInTheDocument();
     expect(screen.getByText(/warn/)).toBeInTheDocument();
 
@@ -110,16 +123,23 @@ describe('WpCliModal', () => {
       streamCallback?.({ type: 'complete', siteId: 'alpha.test' });
     });
 
-    expect(await screen.findByRole('button', { name: 'Run' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Run' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
   });
 
   it('ignores stream events from other sites', async () => {
     const user = userEvent.setup();
 
-    renderWithProviders(<WpCliModal isOpen site={site} onClose={mockOnClose} />);
+    renderWithProviders(
+      <WpCliModal isOpen site={site} onClose={mockOnClose} />,
+    );
 
-    await user.type(screen.getByPlaceholderText('e.g. plugin list'), 'plugin list');
+    await user.type(
+      screen.getByPlaceholderText('e.g. plugin list'),
+      'plugin list',
+    );
     await user.click(screen.getByRole('button', { name: 'Run' }));
 
     await act(async () => {
@@ -130,16 +150,23 @@ describe('WpCliModal', () => {
       });
     });
 
-    expect(screen.queryByText('Output', { exact: false })).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Output', { exact: false }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('should-not-render')).not.toBeInTheDocument();
   });
 
   it('handles stream error events and stops loading', async () => {
     const user = userEvent.setup();
 
-    renderWithProviders(<WpCliModal isOpen site={site} onClose={mockOnClose} />);
+    renderWithProviders(
+      <WpCliModal isOpen site={site} onClose={mockOnClose} />,
+    );
 
-    await user.type(screen.getByPlaceholderText('e.g. plugin list'), 'plugin list');
+    await user.type(
+      screen.getByPlaceholderText('e.g. plugin list'),
+      'plugin list',
+    );
     await user.click(screen.getByRole('button', { name: 'Run' }));
 
     await act(async () => {
@@ -159,9 +186,14 @@ describe('WpCliModal', () => {
     const user = userEvent.setup();
     mockInvoke.mockRejectedValueOnce(new Error('invoke failed'));
 
-    renderWithProviders(<WpCliModal isOpen site={site} onClose={mockOnClose} />);
+    renderWithProviders(
+      <WpCliModal isOpen site={site} onClose={mockOnClose} />,
+    );
 
-    await user.type(screen.getByPlaceholderText('e.g. plugin list'), 'plugin list');
+    await user.type(
+      screen.getByPlaceholderText('e.g. plugin list'),
+      'plugin list',
+    );
     await user.click(screen.getByRole('button', { name: 'Run' }));
 
     expect(await screen.findByText('Error: invoke failed')).toBeInTheDocument();
@@ -171,14 +203,20 @@ describe('WpCliModal', () => {
   it('clears local state and calls onClose when cancel is clicked', async () => {
     const user = userEvent.setup();
 
-    renderWithProviders(<WpCliModal isOpen site={site} onClose={mockOnClose} />);
+    renderWithProviders(
+      <WpCliModal isOpen site={site} onClose={mockOnClose} />,
+    );
 
     const input = screen.getByPlaceholderText('e.g. plugin list');
     await user.type(input, 'plugin list');
     await user.click(screen.getByRole('button', { name: 'Run' }));
 
     await act(async () => {
-      streamCallback?.({ type: 'stdout', data: 'some output', siteId: 'alpha.test' });
+      streamCallback?.({
+        type: 'stdout',
+        data: 'some output',
+        siteId: 'alpha.test',
+      });
       streamCallback?.({ type: 'complete', siteId: 'alpha.test' });
     });
 
