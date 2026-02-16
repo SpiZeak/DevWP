@@ -1,5 +1,6 @@
 import { type JSX, lazy, Suspense, useState } from 'react';
 import DockerLoader from './DockerLoader';
+import Notifications from './Notifications';
 import Services from './Services';
 import SiteList from './SiteList';
 import Versions from './Versions';
@@ -38,6 +39,7 @@ function App(): JSX.Element {
       </div>
       <Versions isOpen={isVersionsOpen} onClose={handleCloseVersions} />
       <DockerLoader />
+      <Notifications />
 
       <Suspense fallback={<div>Loading...</div>}>
         <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />

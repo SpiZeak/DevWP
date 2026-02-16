@@ -14,6 +14,8 @@ const mockAppVersion = '1.4.0';
 let originalElectron: typeof window.electron | undefined;
 let originalElectronAPI: typeof window.electronAPI | undefined;
 let mockGetAppVersion: ReturnType<typeof vi.fn>;
+let mockGetUpdateReady: ReturnType<typeof vi.fn>;
+let mockInstallUpdateNow: ReturnType<typeof vi.fn>;
 
 describe('Versions Component', () => {
   beforeEach(() => {
@@ -21,6 +23,10 @@ describe('Versions Component', () => {
     originalElectronAPI = window.electronAPI;
 
     mockGetAppVersion = vi.fn().mockResolvedValue(mockAppVersion);
+    mockGetUpdateReady = vi.fn().mockResolvedValue(false);
+    mockInstallUpdateNow = vi
+      .fn()
+      .mockResolvedValue({ success: true, message: 'Installing update...' });
     (window as any).electron = {
       process: {
         versions: mockVersions,
@@ -28,6 +34,8 @@ describe('Versions Component', () => {
     };
     (window as any).electronAPI = {
       getAppVersion: mockGetAppVersion,
+      getUpdateReady: mockGetUpdateReady,
+      installUpdateNow: mockInstallUpdateNow,
     };
   });
 
@@ -77,6 +85,32 @@ describe('Versions Component', () => {
     await screen.findByText(`v${mockAppVersion}`);
 
     expect(mockGetAppVersion).toHaveBeenCalled();
+    expect(mockGetUpdateReady).toHaveBeenCalled();
+  });
+
+  it('shows install update button when update is ready', async () => {
+    mockGetUpdateReady.mockResolvedValue(true);
+
+    renderWithProviders(<Versions isOpen onClose={() => {}} />);
+
+    expect(
+      await screen.findByRole('button', { name: 'Install update now' }),
+    ).toBeInTheDocument();
+  });
+
+  it('calls installUpdateNow when install update button is clicked', async () => {
+    const user = userEvent.setup();
+    mockGetUpdateReady.mockResolvedValue(true);
+
+    renderWithProviders(<Versions isOpen onClose={() => {}} />);
+
+    const installButton = await screen.findByRole('button', {
+      name: 'Install update now',
+    });
+    await user.click(installButton);
+
+    expect(mockInstallUpdateNow).toHaveBeenCalled();
+    expect(await screen.findByText('Installing update...')).toBeInTheDocument();
   });
 
   it('calls onClose when the close button is clicked', async () => {

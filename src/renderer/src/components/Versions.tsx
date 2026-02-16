@@ -24,6 +24,11 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
   );
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [versionError, setVersionError] = useState<boolean>(false);
+  const [updateReady, setUpdateReady] = useState<boolean>(false);
+  const [isInstallingUpdate, setIsInstallingUpdate] = useState<boolean>(false);
+  const [updateActionMessage, setUpdateActionMessage] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -31,14 +36,17 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
     const fetchVersion = async (): Promise<void> => {
       try {
         const version = await window.electronAPI.getAppVersion();
+        const isUpdateReady = await window.electronAPI.getUpdateReady();
         if (isMounted) {
           setAppVersion(version);
+          setUpdateReady(isUpdateReady);
           setVersionError(false);
         }
       } catch (error) {
         console.error('Failed to load DevWP version:', error);
         if (isMounted) {
           setVersionError(true);
+          setUpdateReady(false);
         }
       }
     };
@@ -85,6 +93,24 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
 
   const handleContentClick = (event: MouseEvent<HTMLDivElement>): void => {
     event.stopPropagation();
+  };
+
+  const handleInstallUpdate = async (): Promise<void> => {
+    setIsInstallingUpdate(true);
+    setUpdateActionMessage(null);
+
+    try {
+      const result = await window.electronAPI.installUpdateNow();
+      setUpdateActionMessage(result.message);
+      if (result.success) {
+        setUpdateReady(false);
+      }
+    } catch (error) {
+      console.error('Failed to install update:', error);
+      setUpdateActionMessage('Failed to start update installation.');
+    } finally {
+      setIsInstallingUpdate(false);
+    }
   };
 
   return (
@@ -183,6 +209,25 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
             </a>
           </li>
         </ul>
+
+        {updateReady && (
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={() => {
+                handleInstallUpdate().catch(() => {});
+              }}
+              disabled={isInstallingUpdate}
+              className="bg-pumpkin hover:bg-pumpkin/90 disabled:opacity-60 px-4 py-2 rounded-md font-semibold text-gunmetal-500 text-sm transition-colors"
+            >
+              {isInstallingUpdate ? 'Installing update…' : 'Install update now'}
+            </button>
+          </div>
+        )}
+
+        {updateActionMessage && (
+          <p className="mt-3 text-seasalt-400 text-xs">{updateActionMessage}</p>
+        )}
       </div>
     </div>
   );

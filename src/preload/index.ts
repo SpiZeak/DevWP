@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scanSiteWithSonarQube: (siteDomain: string) =>
     ipcRenderer.invoke('scan-site-sonarqube', siteDomain),
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  getUpdateReady: () => ipcRenderer.invoke('get-update-ready'),
+  installUpdateNow: () => ipcRenderer.invoke('install-update-now'),
   // Add WP-CLI streaming support
   onWpCliStream: (callback) => {
     const listener = (_event, data) => callback(data);
@@ -64,6 +66,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('get-xdebug-enabled-setting'),
   pickDirectory: (defaultPath?: string) =>
     ipcRenderer.invoke('pick-directory', defaultPath),
+  onNotification: (callback) => {
+    const listener = (_event, data) => callback(data);
+    ipcRenderer.on('notification', listener);
+
+    return (): void => {
+      ipcRenderer.removeListener('notification', listener);
+    };
+  },
 });
 
 // Custom APIs for renderer

@@ -5,6 +5,7 @@ import { startContainerMonitoring } from './ipc/container';
 import { registerWpCliHandlers } from './ipc/wpCli';
 import { registerXdebugHandlers } from './ipc/xdebug';
 import { startDockerCompose } from './services/docker';
+import { initializeAutoUpdates } from './services/updates';
 
 export function createWindow(): BrowserWindow {
   const mainWindow = new BrowserWindow({
@@ -54,6 +55,8 @@ export function createWindow(): BrowserWindow {
 
   // Start container monitoring when window is loaded
   mainWindow.webContents.on('did-finish-load', () => {
+    initializeAutoUpdates(mainWindow);
+
     // Start docker compose
     startDockerCompose(mainWindow).catch((err) => {
       console.error('Docker compose failed:', err);

@@ -101,6 +101,8 @@ declare global {
       getXdebugEnabledSetting: () => Promise<boolean>;
       pickDirectory: (defaultPath?: string) => Promise<string | null>;
       getAppVersion: () => Promise<string>;
+      getUpdateReady: () => Promise<boolean>;
+      installUpdateNow: () => Promise<{ success: boolean; message: string }>;
     };
   }
 }
