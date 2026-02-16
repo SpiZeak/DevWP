@@ -4,7 +4,6 @@ directories:
   buildResources: build
 files:
   - 'out/**/*'
-  - 'node_modules/**/*'
   - 'package.json'
   - '!config/**/*'
   - '!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}'

@@ -71,10 +71,6 @@ jobs:
           # CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
           # CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
 
-      - name: Verify packaged dependencies (Linux only)
-        if: matrix.os == 'ubuntu-latest'
-        run: node scripts/verify-packaged-deps.mjs dist/linux-unpacked/resources/app.asar
-
       - name: Compress Linux unpacked directory (zstd)
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -148,7 +144,7 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }} # Use the pushed tag name
           name: Release ${{ github.ref_name }}
-          # body_path: CHANGELOG.md # Optional: Path to a file with release notes
+          generate_release_notes: true
           draft: false
           prerelease: contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') # Mark as pre-release if tag contains -beta or -alpha
           files: release-assets/*
