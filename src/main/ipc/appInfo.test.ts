@@ -3,11 +3,15 @@ import { app, type IpcMainInvokeEvent, ipcMain } from 'electron';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerAppInfoHandlers } from './appInfo';
 
-const mockIsUpdateReadyToInstall = vi.fn().mockReturnValue(false);
-const mockInstallDownloadedUpdate = vi.fn().mockReturnValue({
-  success: false,
-  message: 'No downloaded update is ready to install.',
-});
+const { mockIsUpdateReadyToInstall, mockInstallDownloadedUpdate } = vi.hoisted(
+  () => ({
+    mockIsUpdateReadyToInstall: vi.fn().mockReturnValue(false),
+    mockInstallDownloadedUpdate: vi.fn().mockReturnValue({
+      success: false,
+      message: 'No downloaded update is ready to install.',
+    }),
+  }),
+);
 
 vi.mock('electron', () => ({
   ipcMain: {
