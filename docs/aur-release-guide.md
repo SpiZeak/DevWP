@@ -38,7 +38,7 @@ Edit `PKGBUILD` and replace the maintainer line:
 
 ```bash
 # Download the latest release AppImage
-VERSION=0.0.43
+VERSION=0.1.0
 wget "https://github.com/SpiZeak/DevWP/releases/download/v${VERSION}/devwp-${VERSION}.AppImage"
 
 # Calculate checksum
@@ -69,7 +69,7 @@ makepkg --printsrcinfo > .SRCINFO
 
 # Commit and push
 git add PKGBUILD .SRCINFO
-git commit -m "Initial commit: devwp 0.0.43"
+git commit -m "Initial commit: devwp 0.1.0"
 git push origin master
 ```
 
@@ -83,8 +83,8 @@ First, create the GitHub release as usual:
 
 ```bash
 # Tag and push the release
-git tag v0.0.43
-git push origin v0.0.43
+git tag v0.1.0
+git push origin v0.1.0
 
 # Wait for GitHub Actions to build and publish the release
 # Verify the AppImage is available in the GitHub release
@@ -98,7 +98,7 @@ Use the provided script:
 
 ```bash
 cd aur/
-./update-checksum.sh 0.0.43
+./update-checksum.sh 0.1.0
 ```
 
 This script will:
@@ -112,14 +112,14 @@ This script will:
 
 ```bash
 # 1. Download the new AppImage
-VERSION=0.0.43
+VERSION=0.1.0
 wget "https://github.com/SpiZeak/DevWP/releases/download/v${VERSION}/devwp-${VERSION}.AppImage"
 
 # 2. Calculate checksum
 sha256sum "devwp-${VERSION}.AppImage"
 
 # 3. Edit PKGBUILD
-# Update: pkgver=0.0.43
+# Update: pkgver=0.1.0
 # Update: pkgrel=1
 # Update: sha256sums=('new_checksum')
 
@@ -152,7 +152,7 @@ cp ../DevWP/aur/.SRCINFO .
 
 # Commit and push
 git add PKGBUILD .SRCINFO
-git commit -m "Update to version 0.0.43"
+git commit -m "Update to version 0.1.0"
 git push origin master
 ```
 
