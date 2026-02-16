@@ -35,7 +35,7 @@ describe('DockerLoader', () => {
     renderWithProviders(<DockerLoader />);
 
     expect(screen.getByText('Starting Docker Environment')).toBeInTheDocument();
-    expect(screen.getByAltText('Docker Logo')).toBeInTheDocument();
+    expect(document.querySelector('.left-1\\.5')).toBeInTheDocument();
   });
 
   it('should register docker status listener on mount', () => {

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import * as z from 'zod';
 
 // Site configuration schema
 export const SiteConfigSchema = z.object({
