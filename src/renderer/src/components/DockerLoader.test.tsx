@@ -1,3 +1,4 @@
+import { act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders, screen, waitFor } from '../test/test-utils';
 import DockerLoader from './DockerLoader';
@@ -5,6 +6,7 @@ import DockerLoader from './DockerLoader';
 describe('DockerLoader', () => {
   let mockOnDockerStatus: ReturnType<typeof vi.fn>;
   let mockRemoveListener: ReturnType<typeof vi.fn>;
+  let mockGetLogDir: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     const globalAny = globalThis as unknown as { window?: unknown };
@@ -14,10 +16,11 @@ describe('DockerLoader', () => {
 
     mockOnDockerStatus = vi.fn();
     mockRemoveListener = vi.fn();
+    mockGetLogDir = vi.fn(() => new Promise<string>(() => {}));
 
     window.electronAPI = {
       onDockerStatus: mockOnDockerStatus.mockReturnValue(mockRemoveListener),
-      getLogDir: vi.fn().mockResolvedValue('/tmp/devwp-userdata/logs'),
+      getLogDir: mockGetLogDir,
     } as unknown as typeof window.electronAPI;
 
     vi.useFakeTimers();
@@ -46,7 +49,9 @@ describe('DockerLoader', () => {
     renderWithProviders(<DockerLoader />);
 
     const callback = mockOnDockerStatus.mock.calls[0][0];
-    callback({ status: 'loading', message: 'Starting containers...' });
+    await act(async () => {
+      callback({ status: 'loading', message: 'Starting containers...' });
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Starting containers...')).toBeInTheDocument();
@@ -67,7 +72,9 @@ describe('DockerLoader', () => {
     renderWithProviders(<DockerLoader />);
 
     const callback = mockOnDockerStatus.mock.calls[0][0];
-    callback({ status: 'error', message: 'Docker failed' });
+    await act(async () => {
+      callback({ status: 'error', message: 'Docker failed' });
+    });
 
     await waitFor(() => {
       const spinner = document.querySelector('.animate-spin');
@@ -79,10 +86,13 @@ describe('DockerLoader', () => {
 
   it('should display error message when status is error', async () => {
     vi.useRealTimers(); // Use real timers to avoid waitFor conflicts
+    mockGetLogDir.mockResolvedValue('/tmp/devwp-userdata/logs');
     renderWithProviders(<DockerLoader />);
 
     const callback = mockOnDockerStatus.mock.calls[0][0];
-    callback({ status: 'error', message: 'Connection failed' });
+    await act(async () => {
+      callback({ status: 'error', message: 'Connection failed' });
+    });
 
     await waitFor(() => {
       expect(
@@ -107,7 +117,9 @@ describe('DockerLoader', () => {
     expect(container.firstChild).toBeInTheDocument();
 
     const callback = mockOnDockerStatus.mock.calls[0][0];
-    callback({ status: 'complete', message: 'Docker ready' });
+    await act(async () => {
+      callback({ status: 'complete', message: 'Docker ready' });
+    });
 
     // Should still be visible immediately after complete
     expect(container.firstChild).toBeInTheDocument();
@@ -127,9 +139,13 @@ describe('DockerLoader', () => {
     const { container } = renderWithProviders(<DockerLoader />);
 
     const callback = mockOnDockerStatus.mock.calls[0][0];
-    callback({ status: 'loading', message: 'Starting...' });
+    act(() => {
+      callback({ status: 'loading', message: 'Starting...' });
+    });
 
-    vi.advanceTimersByTime(2000);
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
 
     expect(container.firstChild).toBeInTheDocument();
   });
@@ -138,9 +154,13 @@ describe('DockerLoader', () => {
     const { container } = renderWithProviders(<DockerLoader />);
 
     const callback = mockOnDockerStatus.mock.calls[0][0];
-    callback({ status: 'error', message: 'Failed' });
+    act(() => {
+      callback({ status: 'error', message: 'Failed' });
+    });
 
-    vi.advanceTimersByTime(2000);
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
 
     expect(container.firstChild).toBeInTheDocument();
   });
@@ -159,13 +179,19 @@ describe('DockerLoader', () => {
 
     const callback = mockOnDockerStatus.mock.calls[0][0];
 
-    callback({ status: 'loading', message: 'Step 1' });
+    await act(async () => {
+      callback({ status: 'loading', message: 'Step 1' });
+    });
     await waitFor(() => expect(screen.getByText('Step 1')).toBeInTheDocument());
 
-    callback({ status: 'loading', message: 'Step 2' });
+    await act(async () => {
+      callback({ status: 'loading', message: 'Step 2' });
+    });
     await waitFor(() => expect(screen.getByText('Step 2')).toBeInTheDocument());
 
-    callback({ status: 'loading', message: 'Step 3' });
+    await act(async () => {
+      callback({ status: 'loading', message: 'Step 3' });
+    });
     await waitFor(() => expect(screen.getByText('Step 3')).toBeInTheDocument());
 
     vi.useFakeTimers(); // Restore fake timers
@@ -176,7 +202,9 @@ describe('DockerLoader', () => {
     renderWithProviders(<DockerLoader />);
 
     const callback = mockOnDockerStatus.mock.calls[0][0];
-    callback({ status: 'loading', message: '' });
+    await act(async () => {
+      callback({ status: 'loading', message: '' });
+    });
 
     await waitFor(() => {
       const messageElement = document.querySelector('.overflow-y-auto');
@@ -192,7 +220,9 @@ describe('DockerLoader', () => {
     const { container } = renderWithProviders(<DockerLoader />);
 
     const callback = mockOnDockerStatus.mock.calls[0][0];
-    callback({ status: 'complete', message: 'Done' });
+    await act(async () => {
+      callback({ status: 'complete', message: 'Done' });
+    });
 
     await waitFor(
       () => {

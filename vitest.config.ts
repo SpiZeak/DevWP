@@ -9,6 +9,7 @@ export default defineConfig({
   test: {
     // Global test configuration
     globals: true,
+    include: [],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

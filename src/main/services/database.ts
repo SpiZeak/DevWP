@@ -1,5 +1,4 @@
 import { exec } from 'node:child_process';
-import { platform } from 'node:os';
 
 export interface SiteConfiguration {
   domain: string;
@@ -18,7 +17,7 @@ const DEVWP_CONFIG_DB = 'devwp_config';
 
 // Get the docker command based on platform
 function getDockerCommand(): string {
-  return platform() === 'win32' ? 'docker.exe' : 'docker';
+  return process.platform === 'win32' ? 'docker.exe' : 'docker';
 }
 
 // Helper to execute docker commands with proper environment
@@ -29,30 +28,21 @@ function execDocker(
     const dockerCmd = getDockerCommand();
     const fullCommand = command.replace(/^docker\s/, `${dockerCmd} `);
 
-    exec(
-      fullCommand,
-      {
-        env: {
-          ...process.env,
-          COMPOSE_PROJECT_NAME: 'devwp',
-        },
-      },
-      (error, stdout, stderr) => {
-        if (error) {
-          // Create a proper error object with all details
-          const execError = new Error(
-            stderr || error.message || 'Docker command failed',
-          );
-          (execError as any).stderr = stderr;
-          (execError as any).stdout = stdout;
-          (execError as any).code = error.code;
-          (execError as any).command = fullCommand;
-          reject(execError);
-          return;
-        }
-        resolve({ stdout, stderr });
-      },
-    );
+    exec(fullCommand, (error, stdout, stderr) => {
+      if (error) {
+        // Create a proper error object with all details
+        const execError = new Error(
+          stderr || error.message || 'Docker command failed',
+        );
+        (execError as any).stderr = stderr;
+        (execError as any).stdout = stdout;
+        (execError as any).code = error.code;
+        (execError as any).command = fullCommand;
+        reject(execError);
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
   });
 }
 

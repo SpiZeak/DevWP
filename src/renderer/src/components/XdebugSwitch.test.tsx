@@ -1,3 +1,4 @@
+import { act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders, screen, waitFor } from '../test/test-utils';
@@ -106,7 +107,9 @@ describe('XdebugSwitch', () => {
 
     const callback = mockOnXdebugStatus.mock.calls[0][0];
 
-    callback({ status: 'restarting' });
+    act(() => {
+      callback({ status: 'restarting' });
+    });
 
     await waitFor(() => {
       const toggle = screen.getByRole('checkbox');
@@ -121,13 +124,17 @@ describe('XdebugSwitch', () => {
 
     const callback = mockOnXdebugStatus.mock.calls[0][0];
 
-    callback({ status: 'restarting' });
+    act(() => {
+      callback({ status: 'restarting' });
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('checkbox')).toBeDisabled();
     });
 
-    callback({ status: 'complete', enabled: true });
+    act(() => {
+      callback({ status: 'complete', enabled: true });
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('checkbox')).not.toBeDisabled();
@@ -144,7 +151,9 @@ describe('XdebugSwitch', () => {
     });
 
     const callback = mockOnXdebugStatus.mock.calls[0][0];
-    callback({ status: 'complete', enabled: true });
+    act(() => {
+      callback({ status: 'complete', enabled: true });
+    });
 
     await waitFor(() => {
       expect(screen.getByText('Debug mode')).toBeInTheDocument();
@@ -191,7 +200,9 @@ describe('XdebugSwitch', () => {
     renderWithProviders(<XdebugSwitch />);
 
     const callback = mockOnXdebugStatus.mock.calls[0][0];
-    callback({ status: 'error', message: 'Docker restart failed' });
+    act(() => {
+      callback({ status: 'error', message: 'Docker restart failed' });
+    });
 
     await waitFor(() => {
       expect(consoleError).toHaveBeenCalledWith(
@@ -210,13 +221,17 @@ describe('XdebugSwitch', () => {
 
     const callback = mockOnXdebugStatus.mock.calls[0][0];
 
-    callback({ status: 'restarting' });
+    act(() => {
+      callback({ status: 'restarting' });
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('checkbox')).toBeDisabled();
     });
 
-    callback({ status: 'error', message: 'Failed' });
+    act(() => {
+      callback({ status: 'error', message: 'Failed' });
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('checkbox')).not.toBeDisabled();
@@ -257,7 +272,9 @@ describe('XdebugSwitch', () => {
     renderWithProviders(<XdebugSwitch />);
 
     const callback = mockOnXdebugStatus.mock.calls[0][0];
-    callback({ status: 'restarting' });
+    act(() => {
+      callback({ status: 'restarting' });
+    });
 
     await waitFor(() => {
       expect(screen.getByRole('checkbox')).toBeDisabled();

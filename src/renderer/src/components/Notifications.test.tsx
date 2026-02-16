@@ -161,9 +161,13 @@ describe('Notifications', () => {
     const { container } = renderWithProviders(<Notifications />);
 
     const callback = mockOnNotification.mock.calls[0][0];
-    callback({ type: 'success', message: 'Notification 1' });
+    await act(async () => {
+      callback({ type: 'success', message: 'Notification 1' });
+    });
     await new Promise((resolve) => setTimeout(resolve, 10)); // Ensure different timestamps
-    callback({ type: 'success', message: 'Notification 2' });
+    await act(async () => {
+      callback({ type: 'success', message: 'Notification 2' });
+    });
 
     await waitFor(() => {
       const notifications = container.querySelectorAll('.notification');

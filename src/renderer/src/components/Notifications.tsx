@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface Notification {
   id: number;
@@ -8,11 +8,13 @@ interface Notification {
 
 const Notifications: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const notificationIdRef = useRef(0);
 
   useEffect(() => {
     const removeListener = window.electronAPI.onNotification((data) => {
+      notificationIdRef.current += 1;
       const newNotification = {
-        id: Date.now(),
+        id: notificationIdRef.current,
         ...data,
       };
       setNotifications((prev) => [...prev, newNotification]);
