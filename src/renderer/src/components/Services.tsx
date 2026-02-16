@@ -116,7 +116,7 @@ const Services: React.FC<ServicesProps> = ({
           <button
             type="button"
             onClick={onOpenVersions}
-            className="flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors"
+            className="flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer"
             title="About DevWP"
           >
             <Icon content="ℹ" className="text-lg" />
@@ -124,7 +124,7 @@ const Services: React.FC<ServicesProps> = ({
           <button
             type="button"
             onClick={onOpenSettings}
-            className="flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors"
+            className="flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer"
             title="Settings"
           >
             <Icon content="⚙" className="text-lg" />
