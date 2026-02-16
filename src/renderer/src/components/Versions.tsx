@@ -1,10 +1,35 @@
 import type { KeyboardEvent, MouseEvent } from 'react';
 import { type JSX, useEffect, useMemo, useState } from 'react';
+import {
+  type SimpleIcon,
+  siAboutdotme,
+  siElectron,
+  siGooglechrome,
+  siNodedotjs,
+  siWordpress,
+} from 'simple-icons';
 import Icon from './ui/Icon';
 
 interface VersionsProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface BrandLogoProps {
+  icon: SimpleIcon;
+}
+
+function BrandLogo({ icon }: BrandLogoProps): JSX.Element {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="size-4 text-seasalt-400"
+      fill="currentColor"
+    >
+      <path d={icon.path} />
+    </svg>
+  );
 }
 
 function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
@@ -115,41 +140,56 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
         </div>
         <ul className="space-y-4">
           <li className="flex justify-between items-center">
-            <span className="text-seasalt-400 text-xs uppercase tracking-wide">
-              DevWP
-            </span>
+            <div className="flex items-center gap-2">
+              <BrandLogo icon={siWordpress} />
+              <span className="text-seasalt-400 text-xs uppercase tracking-wide">
+                DevWP
+              </span>
+            </div>
             <span className="font-semibold text-seasalt text-sm">
               {devwpVersionLabel}
             </span>
           </li>
           <li className="flex justify-between items-center">
-            <span className="text-seasalt-400 text-xs uppercase tracking-wide">
-              Electron
-            </span>
+            <div className="flex items-center gap-2">
+              <BrandLogo icon={siElectron} />
+              <span className="text-seasalt-400 text-xs uppercase tracking-wide">
+                Electron
+              </span>
+            </div>
             <span className="font-semibold text-seasalt text-sm">
               {electronVersionLabel}
             </span>
           </li>
           <li className="flex justify-between items-center">
-            <span className="text-seasalt-400 text-xs uppercase tracking-wide">
-              Chromium
-            </span>
+            <div className="flex items-center gap-2">
+              <BrandLogo icon={siGooglechrome} />
+              <span className="text-seasalt-400 text-xs uppercase tracking-wide">
+                Chromium
+              </span>
+            </div>
             <span className="font-semibold text-seasalt text-sm">
               {chromiumVersionLabel}
             </span>
           </li>
           <li className="flex justify-between items-center">
-            <span className="text-seasalt-400 text-xs uppercase tracking-wide">
-              Node
-            </span>
+            <div className="flex items-center gap-2">
+              <BrandLogo icon={siNodedotjs} />
+              <span className="text-seasalt-400 text-xs uppercase tracking-wide">
+                Node
+              </span>
+            </div>
             <span className="font-semibold text-seasalt text-sm">
               {nodeVersionLabel}
             </span>
           </li>
           <li className="flex justify-between items-center">
-            <span className="text-seasalt-400 text-xs uppercase tracking-wide">
-              Developer
-            </span>
+            <div className="flex items-center gap-2">
+              <BrandLogo icon={siAboutdotme} />
+              <span className="text-seasalt-400 text-xs uppercase tracking-wide">
+                Developer
+              </span>
+            </div>
             <a
               href="https://trewhitt.au"
               target="_blank"
