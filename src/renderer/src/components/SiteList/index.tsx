@@ -80,6 +80,7 @@ const SiteList: React.FC = () => {
     try {
       await window.electronAPI.createSite(newSiteData);
       await fetchSites();
+      openSiteUrl(`https://${newSiteData.domain}`);
       setIsModalOpen(false);
     } catch (error) {
       console.error('Failed to create new site:', error);

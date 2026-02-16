@@ -209,6 +209,11 @@ describe('SiteList', () => {
     await waitFor(() => {
       expect(mockGetSites).toHaveBeenCalledTimes(2);
     });
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      'open-external',
+      'https://newsite.test',
+    );
   });
 
   it('alerts when create site fails', async () => {
