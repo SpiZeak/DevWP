@@ -1,35 +1,18 @@
 import type { KeyboardEvent, MouseEvent } from 'react';
 import { type JSX, useEffect, useMemo, useState } from 'react';
 import {
-  type SimpleIcon,
   siAboutdotme,
   siElectron,
   siGooglechrome,
   siNodedotjs,
   siWordpress,
 } from 'simple-icons';
+import { BrandLogo } from './BrandLogo';
 import Icon from './ui/Icon';
 
 interface VersionsProps {
   isOpen: boolean;
   onClose: () => void;
-}
-
-interface BrandLogoProps {
-  icon: SimpleIcon;
-}
-
-export function BrandLogo({ icon }: BrandLogoProps): JSX.Element {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      className="size-5 text-seasalt-400"
-      fill="currentColor"
-    >
-      <path d={icon.path} />
-    </svg>
-  );
 }
 
 function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
@@ -114,7 +97,7 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
       onKeyDown={handleOverlayKeyDown}
     >
       <div
-        className="bg-gunmetal-400 shadow-lg mx-4 p-6 rounded-lg w-full max-w-md"
+        className="bg-gunmetal-400 shadow-2xl mx-4 p-6 rounded-lg w-full max-w-md"
         onClick={handleContentClick}
         onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
           event.stopPropagation();

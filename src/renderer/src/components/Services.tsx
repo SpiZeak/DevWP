@@ -8,9 +8,9 @@ import {
   siRedis,
   siSonarqubeserver,
 } from 'simple-icons';
+import { BrandLogo } from './BrandLogo';
 import Icon from './ui/Icon';
 import Spinner from './ui/Spinner';
-import { BrandLogo } from './Versions';
 import XdebugSwitch from './XdebugSwitch';
 
 interface ServicesProps {

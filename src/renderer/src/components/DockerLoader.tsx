@@ -1,5 +1,6 @@
 import { type JSX, useEffect, useState } from 'react';
-import dockerLogo from '../assets/docker.svg';
+import { siDocker } from 'simple-icons';
+import { BrandLogo } from './BrandLogo';
 import Spinner from './ui/Spinner';
 
 function DockerLoader(): JSX.Element | null {
@@ -41,9 +42,8 @@ function DockerLoader(): JSX.Element | null {
   return (
     <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/90">
       <div className="bg-warm-charcoal-400 shadow-xl p-8 rounded-lg w-[90%] max-w-lg text-seasalt-200 text-center">
-        <img
-          src={dockerLogo}
-          alt="Docker Logo"
+        <BrandLogo
+          icon={siDocker}
           className="left-1.5 relative mx-auto my-10 w-20 h-20"
         />
         {dockerStatus.status !== 'error' && (
@@ -55,7 +55,9 @@ function DockerLoader(): JSX.Element | null {
         </p>
         {dockerStatus.status === 'error' && (
           <div className="mt-4 text-crimson-400">
-            <div>There was an error starting Docker. Check the logs for details.</div>
+            <div>
+              There was an error starting Docker. Check the logs for details.
+            </div>
             {logDir && (
               <div className="mt-2 text-seasalt-200">
                 <div className="text-sm">Logs:</div>
