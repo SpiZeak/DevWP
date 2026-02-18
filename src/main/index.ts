@@ -14,6 +14,7 @@ import { registerSettingsHandlers } from './ipc/settings';
 import { registerSiteHandlers } from './ipc/site';
 import { initializeConfigDatabase } from './services/database';
 import { startMariaDBContainer, stopDockerCompose } from './services/docker';
+import { regenerateMissingNginxConfigs } from './services/nginx';
 import { initializeXdebugStatus } from './services/xdebug';
 import { createWindow } from './window';
 
@@ -79,6 +80,16 @@ app.whenReady().then(async () => {
   } catch (error) {
     console.error('Failed to initialize database:', error);
     // Continue anyway - the app should still work without database persistence
+  }
+
+  // Regenerate missing nginx configs on startup
+  try {
+    const regenerated = await regenerateMissingNginxConfigs();
+    if (regenerated.length > 0) {
+      console.log(`Regenerated ${regenerated.length} nginx configs on startup`);
+    }
+  } catch (error) {
+    console.warn('Failed to regenerate missing nginx configs:', error);
   }
 
   // Register all IPC handlers AFTER database is ready
