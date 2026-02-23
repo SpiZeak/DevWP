@@ -68,7 +68,10 @@ const SiteItem: React.FC<SiteItemProps> = ({
             title="Open Site"
             disabled={isProvisioning}
           >
-            <Icon className="text-2xl" content="" />
+            <Icon
+              className="text-seasalt group-hover/btn:text-warm-charcoal text-2xl"
+              content=""
+            />
           </button>
           <button
             type="button"
