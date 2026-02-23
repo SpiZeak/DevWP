@@ -40,11 +40,31 @@ describe('initializeTauriBridge', () => {
     });
   });
 
+  it('maps scan channel args to snake_case command params', async () => {
+    initializeTauriBridge();
+
+    await window.electron.ipcRenderer.invoke('scan-site-sonarqube', 'alpha.test');
+
+    expect(mockInvoke).toHaveBeenCalledWith('scan_site_sonarqube', {
+      site_name: 'alpha.test',
+    });
+  });
+
   it('exposes app version through Tauri API', async () => {
     initializeTauriBridge();
 
     await expect(window.electronAPI.getAppVersion()).resolves.toBe('0.1.1');
     expect(mockGetVersion).toHaveBeenCalled();
+  });
+
+  it('maps restartContainer API args to snake_case command params', async () => {
+    initializeTauriBridge();
+
+    await window.electronAPI.restartContainer('container-id');
+
+    expect(mockInvoke).toHaveBeenCalledWith('restart_container', {
+      container_id: 'container-id',
+    });
   });
 
 });

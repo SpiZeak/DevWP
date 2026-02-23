@@ -58,7 +58,7 @@ function invokeChannel<T = unknown>(
     case 'open_external':
       return invoke<T>(command, { url: args[0] });
     case 'scan_site_sonarqube':
-      return invoke<T>(command, { siteName: args[0] });
+      return invoke<T>(command, { site_name: args[0] });
     case 'open_directory':
       return invoke<T>(command, { path: args[0] });
     case 'run_wp_cli':
@@ -82,7 +82,7 @@ export function initializeTauriBridge(): void {
     onContainerStatus: (callback: (containers: unknown[]) => void) =>
       createListener('container-status', callback),
     restartContainer: (containerId: string) =>
-      invoke('restart_container', { containerId }),
+      invoke('restart_container', { container_id: containerId }),
     getXdebugStatus: () => invoke<boolean>('get_xdebug_status'),
     toggleXdebug: () => invoke<boolean>('toggle_xdebug'),
     onXdebugStatus: (
@@ -112,7 +112,7 @@ export function initializeTauriBridge(): void {
     getWebrootPath: () => invoke<string>('get_webroot_path'),
     getXdebugEnabledSetting: () => invoke<boolean>('get_xdebug_enabled_setting'),
     pickDirectory: (defaultPath?: string) =>
-      invoke<string | null>('pick_directory', { defaultPath }),
+      invoke<string | null>('pick_directory', { default_path: defaultPath }),
     getAppVersion: () => getVersion(),
     getUpdateReady: () => invoke<boolean>('get_update_ready'),
     installUpdateNow: () =>
@@ -128,9 +128,12 @@ export function initializeTauriBridge(): void {
       },
     },
     dockerControl: {
-      startService: (serviceName: string) => invoke('start_service', { serviceName }),
-      stopService: (serviceName: string) => invoke('stop_service', { serviceName }),
-      getStatus: (serviceName?: string) => invoke('get_status', { serviceName }),
+      startService: (serviceName: string) =>
+        invoke('start_service', { service_name: serviceName }),
+      stopService: (serviceName: string) =>
+        invoke('stop_service', { service_name: serviceName }),
+      getStatus: (serviceName?: string) =>
+        invoke('get_status', { service_name: serviceName }),
       getSites: () => invoke('get_sites'),
       onDockerStatus: (callback: (data: { status: DockerStatus; message: string }) => void) =>
         createListener('docker-status', callback),
