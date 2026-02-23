@@ -118,7 +118,10 @@ const SiteList: React.FC = () => {
     if (scanningSite) return;
     setScanningSite(site.name);
     try {
-      const result = await window.electron.ipcRenderer.invoke(
+      const result = await window.electron.ipcRenderer.invoke<{
+        success: boolean;
+        error?: string;
+      }>(
         'scan-site-sonarqube',
         site.name,
       );

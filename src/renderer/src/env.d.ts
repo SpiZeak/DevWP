@@ -1,7 +1,5 @@
 /// <reference types="vite/client" />
 
-import type { ElectronAPI } from '@electron-toolkit/preload';
-
 export interface Site {
   name: string;
   path: string;
@@ -19,13 +17,24 @@ export interface Site {
 
 type DockerStatus = 'starting' | 'progress' | 'complete' | 'error';
 
+type RemoveListener = () => void;
+
+type ElectronIpcRendererLike = {
+  invoke: <T = unknown>(channel: string, ...args: unknown[]) => Promise<T>;
+};
+
 declare global {
   interface Window {
-    electron: ElectronAPI;
+    electron: {
+      ipcRenderer: ElectronIpcRendererLike;
+      process?: {
+        versions?: NodeJS.ProcessVersions;
+      };
+    };
     api: {
       onDockerStatusUpdate: (
         callback: (data: { status: DockerStatus; message: string }) => void,
-      ) => () => void;
+      ) => RemoveListener;
     };
     dockerControl: {
       startService: (serviceName: string) => void;
@@ -34,7 +43,7 @@ declare global {
       getSites: () => Promise<Site[]>;
       onDockerStatus: (
         callback: (data: { status: DockerStatus; message: string }) => void,
-      ) => () => void;
+      ) => RemoveListener;
     };
     electronAPI: {
       getLogDir: () => Promise<string>;
@@ -46,7 +55,7 @@ declare global {
           enabled?: boolean;
           message?: string;
         }) => void,
-      ) => () => void;
+      ) => RemoveListener;
       deleteSite: (siteName: Site) => Promise<void>;
       updateSite: (
         site: Site,
@@ -66,11 +75,11 @@ declare global {
           status: 'starting' | 'progress' | 'complete' | 'error';
           message: string;
         }) => void,
-      ) => () => void;
+      ) => RemoveListener;
       getContainerStatus: () => Promise<void>;
       onContainerStatus: (
         callback: (containers: Container[]) => void,
-      ) => () => void;
+      ) => RemoveListener;
       restartContainer: (containerId: string) => Promise<void>;
       getSites: () => Promise<Site[]>;
       onWpCliStream: (
@@ -80,14 +89,13 @@ declare global {
           error?: string;
           siteId?: string;
         }) => void,
-      ) => () => void;
+      ) => RemoveListener;
       onNotification: (
         callback: (data: {
           type: 'success' | 'error';
           message: string;
         }) => void,
-      ) => () => void;
-      // Settings API
+      ) => RemoveListener;
       getSettings: () => Promise<Record<string, string>>;
       getSetting: (key: string) => Promise<string | null>;
       saveSetting: (
@@ -104,5 +112,12 @@ declare global {
       getUpdateReady: () => Promise<boolean>;
       installUpdateNow: () => Promise<{ success: boolean; message: string }>;
     };
+  }
+
+  interface Container {
+    id: string;
+    name: string;
+    state: string;
+    version?: string;
   }
 }
