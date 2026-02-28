@@ -1,6 +1,6 @@
 {
   "name": "devwp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "A Tauri application with React and TypeScript for managing WordPress development environments.",
   "author": "Trewhitt",
   "homepage": "https://trewhitt.au",
