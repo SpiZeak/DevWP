@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/SpiZeak)
 
-A desktop application for simplified local WordPress development using Docker, Nginx, and PHP-FPM.
+A Tauri desktop application for simplified local WordPress development using Docker, Nginx, and PHP-FPM.
 
 <img width="2770" height="1856" alt="image" src="https://github.com/user-attachments/assets/10c22380-77e9-4702-b6a2-8b23dab4b064" />
 
@@ -105,7 +105,8 @@ bun run dev -- --verbose
 bun run lint      # Check code quality
 bun run format    # Format code
 bun run typecheck # Type checking
-bun run build     # Build for production
+bun run build     # Build frontend assets for production
+bun run build:tauri # Build desktop app bundles with Tauri
 
 # Verbose logging (any command)
 DEVWP_VERBOSE=true bun run dev
@@ -114,10 +115,8 @@ DEVWP_VERBOSE=true bun run dev
 ## Building
 
 ```bash
-# Build for specific platforms
-bun run build:win    # Windows
-bun run build:mac    # macOS
-bun run build:linux  # Linux
+# Build desktop app bundles with Tauri
+bun run build:tauri
 ```
 
 Download pre-built releases from [GitHub Releases](https://github.com/SpiZeak/DevWP/releases).

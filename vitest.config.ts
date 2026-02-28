@@ -7,9 +7,10 @@ const plugins = [react()];
 export default defineConfig({
   plugins,
   test: {
-    // Global test configuration
     globals: true,
-    include: [],
+    include: ['src/renderer/**/*.{test,spec}.{ts,tsx}'],
+    environment: 'jsdom',
+    setupFiles: ['./src/renderer/src/test/setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -20,39 +21,13 @@ export default defineConfig({
         '**/*.config.{ts,js}',
         '**/types.ts',
         '**/*.d.ts',
-        'src/renderer/src/main.tsx',
-        'src/preload/index.ts',
-      ],
-    },
-    // Use projects to separate environments
-    projects: [
-      {
-        test: {
-          name: 'main',
-          include: [
-            'src/main/**/*.{test,spec}.ts',
-            'src/preload/**/*.{test,spec}.ts',
-          ],
-          environment: 'node',
-          globals: true,
-        },
-      },
-      {
-        test: {
-          name: 'renderer',
-          include: ['src/renderer/**/*.{test,spec}.{ts,tsx}'],
-          environment: 'jsdom',
-          globals: true,
-          setupFiles: ['./src/renderer/src/test/setup.ts'],
-        },
-      },
-    ],
+        'src/renderer/src/main.tsx'
+      ]
+    }
   },
   resolve: {
     alias: {
-      '@renderer': resolve(__dirname, 'src/renderer/src'),
-      '@main': resolve(__dirname, 'src/main'),
-      '@preload': resolve(__dirname, 'src/preload'),
-    },
-  },
+      '@renderer': resolve(__dirname, 'src/renderer/src')
+    }
+  }
 });

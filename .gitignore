@@ -18,3 +18,9 @@ coverage
 
 # AUR publishing directory
 aur-publish/
+
+tsconfig.node.tsbuildinfo
+tsconfig.web.tsbuildinfo
+
+.devwp-tauri
+src-tauri/target
