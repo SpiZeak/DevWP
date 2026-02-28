@@ -26,27 +26,24 @@ function DockerLoader(): JSX.Element | null {
         console.error('Error fetching initial container status:', err),
       );
 
-    // listen<Container[]>('get_container_status', (event) => {
-    //   const containers = event.payload;
+    const unlisten = listen<{ status: string; message: string }>(
+      'docker-status',
+      (event) => {
+        setDockerStatus(event.payload);
 
-    //   console.info('Received container list:', containers);
-    // });
+        if (event.payload.status === 'complete') {
+          setTimeout(() => setIsVisible(false), 1000);
+        }
+      },
+    );
 
-    window.electronAPI
-      .getLogDir()
+    invoke<string>('get_log_dir')
       .then((dir) => setLogDir(dir))
       .catch(() => setLogDir(''));
 
-    // const removeListener = window.electronAPI.onDockerStatus((status) => {
-    //   setDockerStatus(status);
-
-    // if (status.status === 'complete') {
-    //   // Hide loader after a brief delay to show completion
-    //   setTimeout(() => setIsVisible(false), 1000);
-    // }
-    // });
-
-    // return removeListener;
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, []);
 
   useEffect(() => {

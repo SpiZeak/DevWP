@@ -38,14 +38,14 @@ pub fn parse_compose_ps(stdout: &str) -> Vec<Container> {
 }
 
 #[tauri::command]
-pub fn get_container_status(app: tauri::AppHandle) -> Result<Vec<Container>, String> {
+pub async fn get_container_status(app: tauri::AppHandle) -> Result<Vec<Container>, String> {
     let output = run_command(
         "docker",
         &[
             "compose",
             "ps",
             "--format",
-            "{{.ID}}|{{.Names}}|{{.State}}",
+            "{{.ID}}|{{.Name}}|{{.State}}",
             "-a",
         ],
     )?;
@@ -123,12 +123,12 @@ pub fn stop_service(app: tauri::AppHandle, service_name: String) -> Result<(), S
 }
 
 #[tauri::command]
-pub fn get_status(service_name: Option<String>) -> Result<Vec<Container>, String> {
+pub async fn get_status(service_name: Option<String>) -> Result<Vec<Container>, String> {
     let mut args = vec![
         "compose".to_string(),
         "ps".to_string(),
         "--format".to_string(),
-        "{{.ID}}|{{.Names}}|{{.State}}".to_string(),
+        "{{.ID}}|{{.Name}}|{{.State}}".to_string(),
         "-a".to_string(),
     ];
 

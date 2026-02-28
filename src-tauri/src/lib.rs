@@ -46,15 +46,32 @@ pub fn run() {
             sonarqube::scan_site_sonarqube,
             wp_cli::run_wp_cli,
         ])
-        .setup(|_app| {
+        .setup(|app| {
+            let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                info!("Starting Docker services...");
+                use tauri::Emitter;
+                tauri_plugin_log::log::info!("Starting Docker services...");
+                let _ = app_handle.emit("docker-status", crate::docker::DockerStatusPayload {
+                    status: "starting".to_string(),
+                    message: "Starting core services...".to_string(),
+                });
 
                 let result = run_command("docker", &["compose", "up", "-d", "nginx"]);
-
                 match result {
-                    Ok(_) => info!("Docker services started successfully."),
-                    Err(e) => error!("Failed to start Docker services: {}", e),
+                    Ok(_) => {
+                        tauri_plugin_log::log::info!("Docker services started successfully.");
+                        let _ = app_handle.emit("docker-status", crate::docker::DockerStatusPayload {
+                            status: "complete".to_string(),
+                            message: "Core services started".to_string(),
+                        });
+                    },
+                    Err(e) => {
+                        tauri_plugin_log::log::error!("Failed to start Docker services: {}", e);
+                        let _ = app_handle.emit("docker-status", crate::docker::DockerStatusPayload {
+                            status: "error".to_string(),
+                            message: format!("Failed to start Docker services: {}", e),
+                        });
+                    },
                 }
             });
 
