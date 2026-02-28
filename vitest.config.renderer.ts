@@ -12,11 +12,11 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/out/**', '**/dist/**'],
     globals: true,
     environment: 'jsdom',
-    setupFiles: ['./src/renderer/src/test/setup.ts']
+    setupFiles: ['./src/renderer/src/test/setup.ts'],
   },
   resolve: {
     alias: {
-      '@renderer': resolve(__dirname, './src/renderer/src')
-    }
-  }
+      '@renderer': resolve(__dirname, './src/renderer/src'),
+    },
+  },
 });

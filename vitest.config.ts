@@ -21,13 +21,13 @@ export default defineConfig({
         '**/*.config.{ts,js}',
         '**/types.ts',
         '**/*.d.ts',
-        'src/renderer/src/main.tsx'
-      ]
-    }
+        'src/renderer/src/main.tsx',
+      ],
+    },
   },
   resolve: {
     alias: {
-      '@renderer': resolve(__dirname, 'src/renderer/src')
-    }
-  }
+      '@renderer': resolve(__dirname, 'src/renderer/src'),
+    },
+  },
 });

@@ -18,14 +18,6 @@ function DockerLoader(): JSX.Element | null {
   useEffect(() => {
     console.info('DockerLoader mounted, setting up listeners');
 
-    invoke('get_container_status')
-      .then((containers) =>
-        console.log('Initial container status:', containers),
-      )
-      .catch((err) =>
-        console.error('Error fetching initial container status:', err),
-      );
-
     const unlisten = listen<{ status: string; message: string }>(
       'docker-status',
       (event) => {
@@ -36,6 +28,21 @@ function DockerLoader(): JSX.Element | null {
         }
       },
     );
+
+    // Initial check in case it's already running (like on page reload)
+    invoke<any[]>('get_container_status')
+      .then((containers) => {
+        const isNginxRunning = containers.some(
+          (c) =>
+            c.name.includes('nginx') && c.state.toLowerCase() === 'running',
+        );
+        if (isNginxRunning) {
+          setIsVisible(false);
+        }
+      })
+      .catch((err) =>
+        console.error('Failed to get initial container status', err),
+      );
 
     invoke<string>('get_log_dir')
       .then((dir) => setLogDir(dir))

@@ -121,10 +121,7 @@ const SiteList: React.FC = () => {
       const result = await window.electron.ipcRenderer.invoke<{
         success: boolean;
         error?: string;
-      }>(
-        'scan-site-sonarqube',
-        site.name,
-      );
+      }>('scan-site-sonarqube', site.name);
       if (result.success) {
         alert(
           `SonarQube scan initiated successfully for ${site.name}. Check SonarQube UI for progress.`,
