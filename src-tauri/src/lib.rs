@@ -7,20 +7,22 @@ pub mod utils;
 pub mod wp_cli;
 pub mod xdebug;
 
-use tauri_plugin_log::{
-    log::{error, info},
-    Target, TargetKind,
-};
+use tauri_plugin_log::log::{error, info};
 use utils::run_command;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .target(Target::new(TargetKind::Stdout))
-                .build(),
-        )
+    #[cfg(debug_assertions)] // only enable instrumentation in development builds
+    let devtools = tauri_plugin_devtools::init();
+
+    let mut builder = tauri::Builder::default();
+
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.plugin(devtools);
+    }
+
+    builder
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             site::get_sites,
@@ -50,22 +52,18 @@ pub fn run() {
             wp_cli::run_wp_cli,
         ])
         .setup(|_app| {
-            info!("App setup starting...");
-
-            // Spawn a background task so we don't block the window creation
             tauri::async_runtime::spawn(async move {
-                info!("Service is starting up in background...");
+                info!("Starting Docker services...");
 
-                // This runs asynchronously without freezing the UI
                 let result = run_command("docker", &["compose", "up", "-d", "nginx"]);
 
                 match result {
-                    Ok(_) => info!("Docker service started successfully."),
-                    Err(e) => error!("Failed to start Docker service: {}", e),
+                    Ok(_) => info!("Docker services started successfully."),
+                    Err(e) => error!("Failed to start Docker services: {}", e),
                 }
             });
 
-            Ok(()) // This returns immediately!
+            Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
