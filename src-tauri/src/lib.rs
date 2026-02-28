@@ -4,7 +4,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tauri::Emitter;
-use tauri_plugin_log::{log::info, Target, TargetKind};
+use tauri_plugin_log::{
+    log::{error, info},
+    Target, TargetKind,
+};
 
 const WP_CLI_ERROR_REPORTING: &str = "error_reporting=\"E_ALL & ~E_DEPRECATED & ~E_WARNING\"";
 const XDEBUG_CONFIG_PATH: &str = "config/php/conf.d/xdebug.ini";
@@ -866,9 +869,22 @@ pub fn run() {
             get_status
         ])
         .setup(|_app| {
-            info!("Service is starting up...");
-            let _ = run_command("docker", &["compose", "up", "-d", "nginx"]);
-            Ok(())
+            info!("App setup starting...");
+
+            // Spawn a background task so we don't block the window creation
+            tauri::async_runtime::spawn(async move {
+                info!("Service is starting up in background...");
+
+                // This runs asynchronously without freezing the UI
+                let result = run_command("docker", &["compose", "up", "-d", "nginx"]);
+
+                match result {
+                    Ok(_) => info!("Docker service started successfully."),
+                    Err(e) => error!("Failed to start Docker service: {}", e),
+                }
+            });
+
+            Ok(()) // This returns immediately!
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
