@@ -6,7 +6,7 @@
 
 A Tauri desktop application for simplified local WordPress development using Docker, Nginx, and PHP-FPM.
 
-## Now rewritten in Rust! <img src="https://skillicons.dev/icons?i=rust" alt="Rust" width="30" height="30">
+## <img src="https://skillicons.dev/icons?i=rust" alt="Rust" width="26" height="26"> Now rewritten in Rust!
 
 DevWP has been completely rewritten in Rust using the Tauri framework, replacing the previous Electron-based implementation. This transition has resulted in significant improvements in performance, stability, and resource efficiency.
 
