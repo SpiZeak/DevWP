@@ -71,9 +71,6 @@ function invokeChannel<T = unknown>(
 export function initializeTauriBridge(): void {
   const electronAPI = {
     getSites: () => invoke('get_sites'),
-    getLogDir: () => invoke<string>('get_log_dir'),
-    onDockerStatus: (callback: (data: { status: DockerStatus; message: string }) => void) =>
-      createListener('docker-status', callback),
     createSite: (site: unknown) => invoke('create_site', { site }),
     deleteSite: (site: unknown) => invoke('delete_site', { site }),
     updateSite: (site: unknown, updateData: unknown) =>
@@ -106,11 +103,15 @@ export function initializeTauriBridge(): void {
     getSettings: () => invoke<Record<string, string>>('get_settings'),
     getSetting: (key: string) => invoke<string | null>('get_setting', { key }),
     saveSetting: (key: string, value: string) =>
-      invoke<{ success: boolean; error?: string }>('save_setting', { key, value }),
+      invoke<{ success: boolean; error?: string }>('save_setting', {
+        key,
+        value,
+      }),
     deleteSetting: (key: string) =>
       invoke<{ success: boolean; error?: string }>('delete_setting', { key }),
     getWebrootPath: () => invoke<string>('get_webroot_path'),
-    getXdebugEnabledSetting: () => invoke<boolean>('get_xdebug_enabled_setting'),
+    getXdebugEnabledSetting: () =>
+      invoke<boolean>('get_xdebug_enabled_setting'),
     pickDirectory: (defaultPath?: string) =>
       invoke<string | null>('pick_directory', { default_path: defaultPath }),
     getAppVersion: () => getVersion(),
@@ -135,8 +136,6 @@ export function initializeTauriBridge(): void {
       getStatus: (serviceName?: string) =>
         invoke('get_status', { service_name: serviceName }),
       getSites: () => invoke('get_sites'),
-      onDockerStatus: (callback: (data: { status: DockerStatus; message: string }) => void) =>
-        createListener('docker-status', callback),
     },
   });
 }

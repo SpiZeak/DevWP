@@ -31,19 +31,11 @@ declare global {
         versions?: NodeJS.ProcessVersions;
       };
     };
-    api: {
-      onDockerStatusUpdate: (
-        callback: (data: { status: DockerStatus; message: string }) => void,
-      ) => RemoveListener;
-    };
     dockerControl: {
       startService: (serviceName: string) => void;
       stopService: (serviceName: string) => void;
       getStatus: (serviceName?: string) => void;
       getSites: () => Promise<Site[]>;
-      onDockerStatus: (
-        callback: (data: { status: DockerStatus; message: string }) => void,
-      ) => RemoveListener;
     };
     electronAPI: {
       getLogDir: () => Promise<string>;
@@ -70,12 +62,6 @@ declare global {
           type: 'subdomain' | 'subdirectory';
         };
       }) => Promise<void>;
-      onDockerStatus: (
-        callback: (data: {
-          status: 'starting' | 'progress' | 'complete' | 'error';
-          message: string;
-        }) => void,
-      ) => RemoveListener;
       getContainerStatus: () => Promise<void>;
       onContainerStatus: (
         callback: (containers: Container[]) => void,
