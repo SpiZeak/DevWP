@@ -1,4 +1,11 @@
-import { debug, error, info, trace, warn } from '@tauri-apps/plugin-log';
+import {
+  attachConsole,
+  debug,
+  error,
+  info,
+  trace,
+  warn,
+} from '@tauri-apps/plugin-log';
 
 function forwardConsole(
   fnName: 'log' | 'debug' | 'info' | 'warn' | 'error',
@@ -16,3 +23,5 @@ forwardConsole('debug', debug);
 forwardConsole('info', info);
 forwardConsole('warn', warn);
 forwardConsole('error', error);
+
+attachConsole();

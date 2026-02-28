@@ -4,13 +4,13 @@ async function run(): Promise<void> {
   const created = await regenerateMissingNginxConfigs();
 
   if (created.length === 0) {
-    console.log('No missing nginx configs found.');
+    console.info('No missing nginx configs found.');
     return;
   }
 
-  console.log(`Regenerated ${created.length} nginx configs:`);
+  console.info(`Regenerated ${created.length} nginx configs:`);
   for (const domain of created) {
-    console.log(`- ${domain}`);
+    console.info(`- ${domain}`);
   }
 }
 

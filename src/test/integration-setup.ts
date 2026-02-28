@@ -6,7 +6,7 @@ const execAsync = promisify(exec);
 
 // Setup before all integration tests
 beforeAll(async () => {
-  console.log('Starting Docker services for integration tests...');
+  console.info('Starting Docker services for integration tests...');
 
   try {
     // Check if Docker is available
@@ -36,7 +36,7 @@ beforeAll(async () => {
       throw new Error('MariaDB failed to start within timeout');
     }
 
-    console.log('Docker services ready');
+    console.info('Docker services ready');
   } catch (error) {
     console.warn('Docker not available, skipping integration tests:', error);
     process.exit(0); // Skip tests if Docker unavailable
@@ -45,7 +45,7 @@ beforeAll(async () => {
 
 // Cleanup after all tests
 afterAll(async () => {
-  console.log('Cleaning up integration test environment...');
+  console.info('Cleaning up integration test environment...');
 
   try {
     // Clean up test data

@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { type JSX, useEffect, useState } from 'react';
 import { siDocker } from 'simple-icons';
 import { BrandLogo } from './BrandLogo';
@@ -15,6 +15,18 @@ function DockerLoader(): JSX.Element | null {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    console.info('DockerLoader mounted, setting up listeners');
+
+    listen(
+      'state-changed',
+      (event) => {
+        console.info('got state changed event', event);
+      },
+      {
+        target: { kind: 'Any' },
+      },
+    );
+
     window.electronAPI
       .getLogDir()
       .then((dir) => setLogDir(dir))
