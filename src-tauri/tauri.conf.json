@@ -4,9 +4,9 @@
   "version": "0.2.0",
   "identifier": "com.devwp.app",
   "build": {
-    "beforeDevCommand": "bun run dev:web",
+    "beforeDevCommand": "bun run --bun dev:web",
     "devUrl": "http://localhost:5173",
-    "beforeBuildCommand": "bun run build:web",
+    "beforeBuildCommand": "bun run --bun build:web",
     "frontendDist": "../dist"
   },
   "app": {

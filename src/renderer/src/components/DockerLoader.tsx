@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { type JSX, useEffect, useState } from 'react';
 import { siDocker } from 'simple-icons';
@@ -17,31 +18,35 @@ function DockerLoader(): JSX.Element | null {
   useEffect(() => {
     console.info('DockerLoader mounted, setting up listeners');
 
-    listen(
-      'state-changed',
-      (event) => {
-        console.info('got state changed event', event);
-      },
-      {
-        target: { kind: 'Any' },
-      },
-    );
+    invoke('get_container_status')
+      .then((containers) =>
+        console.log('Initial container status:', containers),
+      )
+      .catch((err) =>
+        console.error('Error fetching initial container status:', err),
+      );
+
+    // listen<Container[]>('get_container_status', (event) => {
+    //   const containers = event.payload;
+
+    //   console.info('Received container list:', containers);
+    // });
 
     window.electronAPI
       .getLogDir()
       .then((dir) => setLogDir(dir))
       .catch(() => setLogDir(''));
 
-    const removeListener = window.electronAPI.onDockerStatus((status) => {
-      setDockerStatus(status);
+    // const removeListener = window.electronAPI.onDockerStatus((status) => {
+    //   setDockerStatus(status);
 
-      if (status.status === 'complete') {
-        // Hide loader after a brief delay to show completion
-        setTimeout(() => setIsVisible(false), 1000);
-      }
-    });
+    // if (status.status === 'complete') {
+    //   // Hide loader after a brief delay to show completion
+    //   setTimeout(() => setIsVisible(false), 1000);
+    // }
+    // });
 
-    return removeListener;
+    // return removeListener;
   }, []);
 
   useEffect(() => {
