@@ -4,6 +4,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tauri::Emitter;
+use tauri_plugin_log::{log::info, Target, TargetKind};
 
 const WP_CLI_ERROR_REPORTING: &str = "error_reporting=\"E_ALL & ~E_DEPRECATED & ~E_WARNING\"";
 const XDEBUG_CONFIG_PATH: &str = "config/php/conf.d/xdebug.ini";
@@ -831,6 +832,11 @@ fn get_status(service_name: Option<String>) -> Result<Vec<Container>, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .target(Target::new(TargetKind::Stdout))
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             get_sites,
@@ -859,6 +865,11 @@ pub fn run() {
             stop_service,
             get_status
         ])
+        .setup(|_app| {
+            info!("Service is starting up...");
+            let _ = run_command("docker", &["compose", "up", "-d", "nginx"]);
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
