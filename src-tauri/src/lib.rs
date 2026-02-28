@@ -24,12 +24,14 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             site::get_sites,
-            system::get_log_dir,
             site::create_site,
             site::delete_site,
             site::update_site,
             docker::get_container_status,
             docker::restart_container,
+            docker::start_service,
+            docker::stop_service,
+            docker::get_status,
             xdebug::get_xdebug_status,
             xdebug::toggle_xdebug,
             settings::get_settings,
@@ -39,15 +41,13 @@ pub fn run() {
             settings::get_webroot_path,
             settings::get_xdebug_enabled_setting,
             settings::pick_directory,
+            system::get_log_dir,
             system::get_update_ready,
             system::install_update_now,
             system::open_external,
             system::open_directory,
             sonarqube::scan_site_sonarqube,
             wp_cli::run_wp_cli,
-            docker::start_service,
-            docker::stop_service,
-            docker::get_status
         ])
         .setup(|_app| {
             info!("App setup starting...");
