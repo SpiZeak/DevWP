@@ -39,7 +39,7 @@
     "simple-icons": "^16.9.0",
     "stack-trace": "^0.0.10",
     "sudo-prompt": "^9.2.1",
-    "tailwindcss": "^4.2.0",
+    "tailwindcss": "^4.2.1",
     "triple-beam": "^1.4.1",
     "util-deprecate": "^1.0.2",
     "winston": "^3.19.0",
@@ -49,7 +49,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.4",
-    "@tailwindcss/vite": "^4.2.0",
+    "@tailwindcss/vite": "^4.2.1",
     "@tauri-apps/cli": "^2.10.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -64,7 +64,7 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1",
+    "vite": "^8.0.0-beta.16",
     "vitest": "^4.0.18"
   }
 }
