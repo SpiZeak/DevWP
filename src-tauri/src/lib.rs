@@ -7,7 +7,7 @@ pub mod utils;
 pub mod wp_cli;
 pub mod xdebug;
 
-use tauri_plugin_log::log::{error, info, LevelFilter};
+use tauri_plugin_log::log::LevelFilter;
 use utils::run_command;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -51,27 +51,36 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 use tauri::Emitter;
                 tauri_plugin_log::log::info!("Starting Docker services...");
-                let _ = app_handle.emit("docker-status", crate::docker::DockerStatusPayload {
-                    status: "starting".to_string(),
-                    message: "Starting core services...".to_string(),
-                });
+                let _ = app_handle.emit(
+                    "docker-status",
+                    crate::docker::DockerStatusPayload {
+                        status: "starting".to_string(),
+                        message: "Starting core services...".to_string(),
+                    },
+                );
 
                 let result = run_command("docker", &["compose", "up", "-d", "nginx"]);
                 match result {
                     Ok(_) => {
                         tauri_plugin_log::log::info!("Docker services started successfully.");
-                        let _ = app_handle.emit("docker-status", crate::docker::DockerStatusPayload {
-                            status: "complete".to_string(),
-                            message: "Core services started".to_string(),
-                        });
-                    },
+                        let _ = app_handle.emit(
+                            "docker-status",
+                            crate::docker::DockerStatusPayload {
+                                status: "complete".to_string(),
+                                message: "Core services started".to_string(),
+                            },
+                        );
+                    }
                     Err(e) => {
                         tauri_plugin_log::log::error!("Failed to start Docker services: {}", e);
-                        let _ = app_handle.emit("docker-status", crate::docker::DockerStatusPayload {
-                            status: "error".to_string(),
-                            message: format!("Failed to start Docker services: {}", e),
-                        });
-                    },
+                        let _ = app_handle.emit(
+                            "docker-status",
+                            crate::docker::DockerStatusPayload {
+                                status: "error".to_string(),
+                                message: format!("Failed to start Docker services: {}", e),
+                            },
+                        );
+                    }
                 }
             });
 

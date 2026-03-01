@@ -11,7 +11,6 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "jsx": "react-jsx",
-    "baseUrl": ".",
     "skipLibCheck": true,
     "types": [
       "vitest/globals",
@@ -21,7 +20,7 @@
     ],
     "paths": {
       "@renderer/*": [
-        "src/renderer/src/*"
+        "./src/renderer/src/*"
       ]
     }
   },

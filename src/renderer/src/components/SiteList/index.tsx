@@ -310,6 +310,7 @@ const SiteList: React.FC = () => {
           onClick={handleCreateSite}
           className="group flex justify-center items-center gap-2 bg-pumpkin hover:bg-pumpkin-600 hover:shadow-lg rounded-lg size-10 font-semibold text-warm-charcoal hover:scale-105 transition-all duration-200 cursor-pointer"
           title="Create a new site"
+          type="button"
         >
           <Icon className="text-xl" content="" />
         </button>
@@ -335,6 +336,7 @@ const SiteList: React.FC = () => {
                 onClick={() => setSearchQuery('')}
                 className="top-1/2 right-3 absolute text-seasalt-400 hover:text-seasalt transition-colors -translate-y-1/2 transform"
                 title="Clear search"
+                type="button"
               >
                 <Icon className="text-lg" content="󰅖" />
               </button>
@@ -379,6 +381,7 @@ const SiteList: React.FC = () => {
                   <button
                     onClick={() => setSearchQuery('')}
                     className="mt-3 text-pumpkin hover:text-pumpkin-600 text-sm underline transition-colors"
+                    type="button"
                   >
                     Clear search
                   </button>

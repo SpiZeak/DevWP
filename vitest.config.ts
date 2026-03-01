@@ -5,7 +5,8 @@ import { defineConfig } from 'vitest/config';
 const plugins = [react()];
 
 export default defineConfig({
-  plugins,
+  // biome-ignore lint: Vite's plugin type is not compatible with Vitest's expected type, but it works correctly at runtime.
+  plugins: plugins as any,
   test: {
     globals: true,
     include: ['src/renderer/**/*.{test,spec}.{ts,tsx}'],

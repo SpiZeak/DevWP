@@ -30,7 +30,7 @@ function DockerLoader(): JSX.Element | null {
     );
 
     // Initial check in case it's already running (like on page reload)
-    invoke<any[]>('get_container_status')
+    invoke<Container[]>('get_container_status')
       .then((containers) => {
         const isNginxRunning = containers.some(
           (c) =>
