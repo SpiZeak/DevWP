@@ -40,10 +40,7 @@ function App(): JSX.Element {
       <Versions isOpen={isVersionsOpen} onClose={handleCloseVersions} />
       <DockerLoader />
       <Notifications />
-
-      <Suspense fallback={<div>Loading...</div>}>
-        <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
-      </Suspense>
+      <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
     </>
   );
 }

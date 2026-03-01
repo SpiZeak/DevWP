@@ -53,15 +53,6 @@ declare global {
         site: Site,
         data: { aliases?: string; webRoot?: string },
       ) => Promise<void>;
-      createSite: (site: {
-        domain: string;
-        webRoot?: string;
-        aliases?: string;
-        multisite: {
-          enabled: boolean;
-          type: 'subdomain' | 'subdirectory';
-        };
-      }) => Promise<void>;
       getContainerStatus: () => Promise<void>;
       restartContainer: (containerId: string) => Promise<void>;
       getSites: () => Promise<Site[]>;
@@ -92,6 +83,7 @@ declare global {
       getXdebugEnabledSetting: () => Promise<boolean>;
       pickDirectory: (defaultPath?: string) => Promise<string | null>;
       getAppVersion: () => Promise<string>;
+      getTauriVersion: () => Promise<string>;
       getUpdateReady: () => Promise<boolean>;
       installUpdateNow: () => Promise<{ success: boolean; message: string }>;
     };

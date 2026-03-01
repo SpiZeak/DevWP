@@ -1,4 +1,4 @@
-import { getVersion } from '@tauri-apps/api/app';
+import { getTauriVersion, getVersion } from '@tauri-apps/api/app';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
@@ -71,7 +71,6 @@ function invokeChannel<T = unknown>(
 export function initializeTauriBridge(): void {
   const electronAPI = {
     getSites: () => invoke('get_sites'),
-    createSite: (site: unknown) => invoke('create_site', { site }),
     deleteSite: (site: unknown) => invoke('delete_site', { site }),
     updateSite: (site: unknown, updateData: unknown) =>
       invoke('update_site', { site, data: updateData }),
@@ -113,6 +112,7 @@ export function initializeTauriBridge(): void {
     pickDirectory: (defaultPath?: string) =>
       invoke<string | null>('pick_directory', { default_path: defaultPath }),
     getAppVersion: () => getVersion(),
+    getTauriVersion: () => getTauriVersion(),
     getUpdateReady: () => invoke<boolean>('get_update_ready'),
     installUpdateNow: () =>
       invoke<{ success: boolean; message: string }>('install_update_now'),

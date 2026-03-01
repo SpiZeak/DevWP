@@ -1,5 +1,6 @@
 import type { Site } from '@renderer/env';
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { lazy, useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../ui/Icon';
 import Spinner from '../ui/Spinner';
 import type { NewSiteData } from './CreateSiteModal';
@@ -78,7 +79,7 @@ const SiteList: React.FC = () => {
     ]);
 
     try {
-      await window.electronAPI.createSite(newSiteData);
+      await invoke('create_site', { siteData: newSiteData });
       await fetchSites();
       openSiteUrl(`https://${newSiteData.domain}`);
       setIsModalOpen(false);
@@ -401,37 +402,27 @@ const SiteList: React.FC = () => {
             )}
           </ul>
         </div>
-
-        <Suspense fallback={<div>Loading...</div>}>
-          <CreateSiteModal
-            isOpen={isModalOpen}
-            onClose={handleCloseModal}
-            onSubmit={handleSubmitNewSite}
-          />
-        </Suspense>
-
+        <CreateSiteModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          onSubmit={handleSubmitNewSite}
+        />
         {wpCliModal.open && wpCliModal.site && (
-          <Suspense fallback={<div>Loading...</div>}>
-            <WpCliModal
-              isOpen={wpCliModal.open}
-              site={wpCliModal.site}
-              onClose={handleCloseWpCliModal}
-            />
-          </Suspense>
+          <WpCliModal
+            isOpen={wpCliModal.open}
+            site={wpCliModal.site}
+            onClose={handleCloseWpCliModal}
+          />
         )}
-
         {editSiteModal.open && editSiteModal.site && (
-          <Suspense fallback={<div>Loading...</div>}>
-            <EditSiteModal
-              isOpen={editSiteModal.open}
-              site={editSiteModal.site}
-              onClose={handleCloseEditSiteModal}
-              onSubmit={handleUpdateSite}
-              onDelete={handleDeleteSite}
-            />
-          </Suspense>
+          <EditSiteModal
+            isOpen={editSiteModal.open}
+            site={editSiteModal.site}
+            onClose={handleCloseEditSiteModal}
+            onSubmit={handleUpdateSite}
+            onDelete={handleDeleteSite}
+          />
         )}
-
         {(scrollBar.visible ||
           isScrolling ||
           (!scrollBar.visible && barEverShown)) &&

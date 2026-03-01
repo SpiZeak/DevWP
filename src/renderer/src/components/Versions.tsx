@@ -1,12 +1,6 @@
 import type { KeyboardEvent, MouseEvent } from 'react';
-import { type JSX, useEffect, useMemo, useState } from 'react';
-import {
-  siAboutdotme,
-  siElectron,
-  siGooglechrome,
-  siNodedotjs,
-  siWordpress,
-} from 'simple-icons';
+import { type JSX, useEffect, useState } from 'react';
+import { siAboutdotme, siTauri, siWordpress } from 'simple-icons';
 import { BrandLogo } from './BrandLogo';
 import Icon from './ui/Icon';
 
@@ -16,13 +10,8 @@ interface VersionsProps {
 }
 
 function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
-  const systemVersions = useMemo(
-    () =>
-      window.electron?.process?.versions ??
-      ({} as Partial<NodeJS.ProcessVersions>),
-    [],
-  );
   const [appVersion, setAppVersion] = useState<string | null>(null);
+  const [tauriVersion, setTauriVersion] = useState<string | null>(null);
   const [versionError, setVersionError] = useState<boolean>(false);
   const [updateReady, setUpdateReady] = useState<boolean>(false);
   const [isInstallingUpdate, setIsInstallingUpdate] = useState<boolean>(false);
@@ -36,9 +25,11 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
     const fetchVersion = async (): Promise<void> => {
       try {
         const version = await window.electronAPI.getAppVersion();
+        const tauriVer = await window.electronAPI.getTauriVersion();
         const isUpdateReady = await window.electronAPI.getUpdateReady();
         if (isMounted) {
           setAppVersion(version);
+          setTauriVersion(tauriVer);
           setUpdateReady(isUpdateReady);
           setVersionError(false);
         }
@@ -70,16 +61,11 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
     : appVersion
       ? `v${appVersion}`
       : 'Loading...';
-
-  const electronVersionLabel = systemVersions.electron
-    ? `v${systemVersions.electron}`
-    : 'Unavailable';
-  const chromiumVersionLabel = systemVersions.chrome
-    ? `v${systemVersions.chrome}`
-    : 'Unavailable';
-  const nodeVersionLabel = systemVersions.node
-    ? `v${systemVersions.node}`
-    : 'Unavailable';
+  const tauriVersionLabel = versionError
+    ? 'Unavailable'
+    : tauriVersion
+      ? `v${tauriVersion}`
+      : 'Loading...';
 
   const handleOverlayClick = (): void => {
     onClose();
@@ -161,35 +147,13 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
           </li>
           <li className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <BrandLogo icon={siElectron} />
+              <BrandLogo icon={siTauri} />
               <span className="text-seasalt-400 text-xs uppercase tracking-wide">
-                Electron
+                Tauri
               </span>
             </div>
             <span className="font-semibold text-seasalt text-sm">
-              {electronVersionLabel}
-            </span>
-          </li>
-          <li className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <BrandLogo icon={siGooglechrome} />
-              <span className="text-seasalt-400 text-xs uppercase tracking-wide">
-                Chromium
-              </span>
-            </div>
-            <span className="font-semibold text-seasalt text-sm">
-              {chromiumVersionLabel}
-            </span>
-          </li>
-          <li className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <BrandLogo icon={siNodedotjs} />
-              <span className="text-seasalt-400 text-xs uppercase tracking-wide">
-                Node
-              </span>
-            </div>
-            <span className="font-semibold text-seasalt text-sm">
-              {nodeVersionLabel}
+              {tauriVersionLabel}
             </span>
           </li>
           <li className="flex justify-between items-center">
