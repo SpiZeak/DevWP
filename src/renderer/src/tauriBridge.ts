@@ -39,8 +39,6 @@ function createListener<T>(
 }
 
 const channelToCommand: Record<string, string> = {
-  'open-external': 'open_external',
-  'scan-site-sonarqube': 'scan_site_sonarqube',
   'open-directory': 'open_directory',
   'run-wp-cli': 'run_wp_cli',
 };
@@ -52,10 +50,6 @@ function invokeChannel<T = unknown>(
   const command = channelToCommand[channel] ?? channel.replaceAll('-', '_');
 
   switch (command) {
-    case 'open_external':
-      return invoke<T>(command, { url: args[0] });
-    case 'scan_site_sonarqube':
-      return invoke<T>(command, { siteName: args[0] });
     case 'open_directory':
       return invoke<T>(command, { path: args[0] });
     case 'run_wp_cli':
@@ -68,9 +62,6 @@ function invokeChannel<T = unknown>(
 export function initializeTauriBridge(): void {
   const electronAPI = {
     getSites: () => invoke('get_sites'),
-    deleteSite: (site: unknown) => invoke('delete_site', { site }),
-    updateSite: (site: unknown, updateData: unknown) =>
-      invoke('update_site', { site, data: updateData }),
     getContainerStatus: () => invoke('get_container_status'),
     getXdebugStatus: () => invoke<boolean>('get_xdebug_status'),
     toggleXdebug: () => invoke<boolean>('toggle_xdebug'),

@@ -49,10 +49,6 @@ declare global {
         }) => void,
       ) => RemoveListener;
       deleteSite: (siteName: Site) => Promise<void>;
-      updateSite: (
-        site: Site,
-        data: { aliases?: string; webRoot?: string },
-      ) => Promise<void>;
       getContainerStatus: () => Promise<void>;
       getSites: () => Promise<Site[]>;
       onWpCliStream: (

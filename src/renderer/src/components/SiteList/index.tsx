@@ -45,7 +45,7 @@ const SiteList: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const openSiteUrl = (url: string): void => {
-    window.electron.ipcRenderer.invoke('open-external', url);
+    invoke('open_external', { url });
   };
 
   const handleCreateSite = (): void => {
@@ -106,7 +106,7 @@ const SiteList: React.FC = () => {
   const handleDeleteSite = async (site: Site): Promise<void> => {
     if (confirm(`Are you sure you want to delete the site ${site.name}?`)) {
       try {
-        await window.electronAPI.deleteSite(site);
+        await invoke('delete_site', { site });
         setEditSiteModal({ open: false, site: null });
         await fetchSites();
       } catch (error) {
@@ -119,10 +119,10 @@ const SiteList: React.FC = () => {
     if (scanningSite) return;
     setScanningSite(site.name);
     try {
-      const result = await window.electron.ipcRenderer.invoke<{
+      const result = await invoke<{
         success: boolean;
         error?: string;
-      }>('scan-site-sonarqube', site.name);
+      }>('scan_site_sonarqube', { site_name: site.name });
       if (result.success) {
         alert(
           `SonarQube scan initiated successfully for ${site.name}. Check SonarQube UI for progress.`,
@@ -164,10 +164,10 @@ const SiteList: React.FC = () => {
   ): Promise<void> => {
     try {
       console.log('Calling updateSite with:', { site, data });
-      await window.electronAPI.updateSite(site, data);
+      await invoke('update_site', { site, data });
       console.log('updateSite completed successfully');
       setEditSiteModal({ open: false, site: null });
-      fetchSites(); // Refresh the sites list
+      fetchSites();
     } catch (error) {
       console.error('Failed to update site:', error);
     }
