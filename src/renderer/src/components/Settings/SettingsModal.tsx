@@ -32,7 +32,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     if (isOpen) {
       loadSettings();
     }
-  }, [isOpen, loadSettings]);
+  }, [isOpen]);
 
   useEffect(() => {
     setHasChanges(webrootPath !== originalWebrootPath);

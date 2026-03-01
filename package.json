@@ -14,7 +14,7 @@
     "lint": "biome lint",
     "start": "vite preview --config vite.config.ts",
     "test": "vitest",
-    "test:all": "npm run test:run && npm run test:integration",
+    "test:all": "bun run --bun test:run && bun run --bun test:integration",
     "test:coverage": "vitest run --coverage",
     "test:integration": "vitest run --config vitest.config.integration.ts",
     "test:integration:watch": "vitest --config vitest.config.integration.ts",
