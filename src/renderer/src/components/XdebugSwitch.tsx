@@ -1,3 +1,5 @@
+import { invoke } from '@tauri-apps/api/core';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { type JSX, useEffect, useState } from 'react';
 import Toggle from './ui/Toggle';
 
@@ -7,8 +9,7 @@ function XdebugSwitch(): JSX.Element {
 
   useEffect(() => {
     // Get initial Xdebug status
-    window.electronAPI
-      .getXdebugStatus()
+    invoke<boolean>('get_xdebug_status')
       .then((status) => {
         setXdebugEnabled(status);
       })
@@ -16,20 +17,35 @@ function XdebugSwitch(): JSX.Element {
         console.error('Error getting Xdebug status:', err);
       });
 
-    // Set up listener for status updates
-    const removeListener = window.electronAPI.onXdebugStatus((data) => {
-      if (data.status === 'restarting') {
-        setIsToggling(true);
-      } else if (data.status === 'complete') {
-        setXdebugEnabled(data.enabled || false);
-        setIsToggling(false);
-      } else if (data.status === 'error') {
-        console.error('Xdebug toggle error:', data.message);
-        setIsToggling(false);
-      }
-    });
+    let unlisten: UnlistenFn | undefined;
 
-    return removeListener;
+    // Set up listener for status updates
+    const setupListener = async () => {
+      unlisten = await listen<{
+        status: 'restarting' | 'complete' | 'error';
+        enabled?: boolean;
+        message?: string;
+      }>('xdebug-status', (event) => {
+        const data = event.payload;
+        if (data.status === 'restarting') {
+          setIsToggling(true);
+        } else if (data.status === 'complete') {
+          setXdebugEnabled(data.enabled || false);
+          setIsToggling(false);
+        } else if (data.status === 'error') {
+          console.error('Xdebug toggle error:', data.message);
+          setIsToggling(false);
+        }
+      });
+    };
+
+    setupListener();
+
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
   }, []);
 
   const handleToggle = async (): Promise<void> => {
@@ -37,7 +53,7 @@ function XdebugSwitch(): JSX.Element {
 
     setIsToggling(true);
     try {
-      await window.electronAPI.toggleXdebug();
+      await invoke<boolean>('toggle_xdebug');
     } catch (err) {
       console.error('Error toggling Xdebug:', err);
       setIsToggling(false);

@@ -1,4 +1,5 @@
 import type { Site } from '@renderer/env';
+import { invoke } from '@tauri-apps/api/core';
 import Icon from '../ui/Icon';
 import Spinner from '../ui/Spinner';
 
@@ -23,7 +24,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
 }) => {
   const isProvisioning = site.status === 'provisioning';
   const handleOpenDirectory = (): void => {
-    window.electron.ipcRenderer.invoke('open-directory', site.path);
+    invoke('open_directory', { path: site.path });
   };
 
   return (

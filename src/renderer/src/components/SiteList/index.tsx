@@ -176,7 +176,7 @@ const SiteList: React.FC = () => {
   const fetchSites = async (): Promise<void> => {
     try {
       setLoading(true);
-      const siteList = await window.electronAPI.getSites();
+      const siteList = await invoke<Site[]>('get_sites');
       setSites(siteList);
     } catch (error) {
       console.error('Failed to fetch sites:', error);

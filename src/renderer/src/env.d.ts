@@ -17,70 +17,7 @@ export interface Site {
 
 type DockerStatus = 'starting' | 'progress' | 'complete' | 'error';
 
-type RemoveListener = () => void;
-
-type ElectronIpcRendererLike = {
-  invoke: <T = unknown>(channel: string, ...args: unknown[]) => Promise<T>;
-};
-
 declare global {
-  interface Window {
-    electron: {
-      ipcRenderer: ElectronIpcRendererLike;
-      process?: {
-        versions?: NodeJS.ProcessVersions;
-      };
-    };
-    dockerControl: {
-      startService: (serviceName: string) => void;
-      stopService: (serviceName: string) => void;
-      getStatus: (serviceName?: string) => void;
-      getSites: () => Promise<Site[]>;
-    };
-    electronAPI: {
-      getLogDir: () => Promise<string>;
-      getXdebugStatus: () => Promise<boolean>;
-      toggleXdebug: () => Promise<boolean>;
-      onXdebugStatus: (
-        callback: (data: {
-          status: 'restarting' | 'complete' | 'error';
-          enabled?: boolean;
-          message?: string;
-        }) => void,
-      ) => RemoveListener;
-      deleteSite: (siteName: Site) => Promise<void>;
-      getContainerStatus: () => Promise<void>;
-      getSites: () => Promise<Site[]>;
-      onWpCliStream: (
-        callback: (data: {
-          type: 'stdout' | 'stderr' | 'complete' | 'error';
-          data?: string;
-          error?: string;
-          siteId?: string;
-        }) => void,
-      ) => RemoveListener;
-      onNotification: (
-        callback: (data: {
-          type: 'success' | 'error';
-          message: string;
-        }) => void,
-      ) => RemoveListener;
-      getSettings: () => Promise<Record<string, string>>;
-      getSetting: (key: string) => Promise<string | null>;
-      saveSetting: (
-        key: string,
-        value: string,
-      ) => Promise<{ success: boolean; error?: string }>;
-      deleteSetting: (
-        key: string,
-      ) => Promise<{ success: boolean; error?: string }>;
-      getWebrootPath: () => Promise<string>;
-      getXdebugEnabledSetting: () => Promise<boolean>;
-      pickDirectory: (defaultPath?: string) => Promise<string | null>;
-      installUpdateNow: () => Promise<{ success: boolean; message: string }>;
-    };
-  }
-
   interface Container {
     id: string;
     name: string;

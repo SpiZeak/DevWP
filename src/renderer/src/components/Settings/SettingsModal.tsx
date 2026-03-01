@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { useEffect, useState } from 'react';
 import Icon from '../ui/Icon';
 import Spinner from '../ui/Spinner';
@@ -17,7 +18,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const loadSettings = async (): Promise<void> => {
     try {
       setLoading(true);
-      const path = await window.electronAPI.getWebrootPath();
+      const path = await invoke<string>('get_webroot_path');
       setWebrootPath(path);
       setOriginalWebrootPath(path);
     } catch (error) {
@@ -40,9 +41,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const handleSaveSettings = async (): Promise<void> => {
     try {
       setSaving(true);
-      const result = await window.electronAPI.saveSetting(
-        'webroot_path',
-        webrootPath,
+      const result = await invoke<{ success: boolean; error?: string }>(
+        'save_setting',
+        {
+          key: 'webroot_path',
+          value: webrootPath,
+        },
       );
 
       if (result.success) {
@@ -68,7 +72,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
   const handleSelectDirectory = async (): Promise<void> => {
     try {
-      const selectedPath = await window.electronAPI.pickDirectory(webrootPath);
+      const selectedPath = await invoke<string | null>('pick_directory', {
+        defaultPath: webrootPath,
+      });
       if (selectedPath) {
         setWebrootPath(selectedPath);
       }

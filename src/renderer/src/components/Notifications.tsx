@@ -1,3 +1,4 @@
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { useEffect, useRef, useState } from 'react';
 
 interface Notification {
@@ -11,23 +12,34 @@ const Notifications: React.FC = () => {
   const notificationIdRef = useRef(0);
 
   useEffect(() => {
-    const removeListener = window.electronAPI.onNotification((data) => {
-      notificationIdRef.current += 1;
-      const newNotification = {
-        id: notificationIdRef.current,
-        ...data,
-      };
-      setNotifications((prev) => [...prev, newNotification]);
+    let unlisten: UnlistenFn | undefined;
 
-      setTimeout(() => {
-        setNotifications((prev) =>
-          prev.filter((n) => n.id !== newNotification.id),
-        );
-      }, 5000);
-    });
+    const setupListener = async () => {
+      unlisten = await listen<{ type: 'success' | 'error'; message: string }>(
+        'notification',
+        (event) => {
+          notificationIdRef.current += 1;
+          const newNotification = {
+            id: notificationIdRef.current,
+            ...event.payload,
+          };
+          setNotifications((prev) => [...prev, newNotification]);
+
+          setTimeout(() => {
+            setNotifications((prev) =>
+              prev.filter((n) => n.id !== newNotification.id),
+            );
+          }, 5000);
+        },
+      );
+    };
+
+    setupListener();
 
     return () => {
-      removeListener();
+      if (unlisten) {
+        unlisten();
+      }
     };
   }, []);
 

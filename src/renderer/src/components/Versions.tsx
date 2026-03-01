@@ -77,7 +77,9 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
     setUpdateActionMessage(null);
 
     try {
-      const result = await window.electronAPI.installUpdateNow();
+      const result = await invoke<{ success: boolean; message: string }>(
+        'install_update_now',
+      );
       setUpdateActionMessage(result.message);
       if (result.success) {
         setUpdateReady(false);

@@ -1,4 +1,6 @@
 import type { Site } from '@renderer/env';
+import { invoke } from '@tauri-apps/api/core';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { useEffect, useRef, useState } from 'react';
 
 interface WpCliModalProps {
@@ -17,29 +19,44 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
   useEffect(() => {
     if (!isOpen || !site) return;
 
-    // Set up streaming listener
-    const removeListener = window.electronAPI.onWpCliStream((data) => {
-      // Only handle streams for the current site
-      if (data.siteId !== site.name) return;
+    let unlisten: UnlistenFn | undefined;
 
-      switch (data.type) {
-        case 'stdout':
-          setWpCliOutput((prev) => prev + data.data);
-          break;
-        case 'stderr':
-          setWpCliError((prev) => prev + data.data);
-          break;
-        case 'complete':
-          setWpCliLoading(false);
-          break;
-        case 'error':
-          setWpCliError((prev) => prev + data.error);
-          setWpCliLoading(false);
-          break;
+    const setupListener = async () => {
+      unlisten = await listen<{
+        type: 'stdout' | 'stderr' | 'complete' | 'error';
+        data?: string;
+        error?: string;
+        siteId?: string;
+      }>('wp-cli-stream', (event) => {
+        const data = event.payload;
+        // Only handle streams for the current site
+        if (data.siteId !== site.name) return;
+
+        switch (data.type) {
+          case 'stdout':
+            setWpCliOutput((prev) => prev + data.data);
+            break;
+          case 'stderr':
+            setWpCliError((prev) => prev + data.data);
+            break;
+          case 'complete':
+            setWpCliLoading(false);
+            break;
+          case 'error':
+            setWpCliError((prev) => prev + data.error);
+            setWpCliLoading(false);
+            break;
+        }
+      });
+    };
+
+    setupListener();
+
+    return () => {
+      if (unlisten) {
+        unlisten();
       }
-    });
-
-    return removeListener;
+    };
   }, [isOpen, site]);
 
   // Auto-scroll to bottom when output changes
@@ -57,9 +74,11 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
     setWpCliError('');
 
     try {
-      await window.electron.ipcRenderer.invoke('run-wp-cli', {
-        site: site,
-        command: wpCliCommand,
+      await invoke('run_wp_cli', {
+        request: {
+          site: site,
+          command: wpCliCommand,
+        },
       });
     } catch (e) {
       setWpCliError(String(e));
