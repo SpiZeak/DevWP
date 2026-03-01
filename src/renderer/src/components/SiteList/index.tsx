@@ -79,7 +79,7 @@ const SiteList: React.FC = () => {
     ]);
 
     try {
-      await invoke('create_site', { siteData: newSiteData });
+      await invoke('create_site', { site: newSiteData });
       await fetchSites();
       openSiteUrl(`https://${newSiteData.domain}`);
       setIsModalOpen(false);

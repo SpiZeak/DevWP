@@ -54,7 +54,6 @@ declare global {
         data: { aliases?: string; webRoot?: string },
       ) => Promise<void>;
       getContainerStatus: () => Promise<void>;
-      restartContainer: (containerId: string) => Promise<void>;
       getSites: () => Promise<Site[]>;
       onWpCliStream: (
         callback: (data: {

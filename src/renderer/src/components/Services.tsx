@@ -87,7 +87,7 @@ const Services: React.FC<ServicesProps> = ({
     setRestarting((prev) => ({ ...prev, [containerId]: true }));
 
     try {
-      await window.electronAPI.restartContainer(containerId);
+      await invoke('restart_container', { containerId });
     } catch (error) {
       console.error(`Error restarting container ${containerName}:`, error);
     } finally {
