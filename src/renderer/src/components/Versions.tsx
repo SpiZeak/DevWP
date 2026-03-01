@@ -1,3 +1,5 @@
+import { getTauriVersion, getVersion } from '@tauri-apps/api/app';
+import { invoke } from '@tauri-apps/api/core';
 import type { KeyboardEvent, MouseEvent } from 'react';
 import { type JSX, useEffect, useState } from 'react';
 import { siAboutdotme, siTauri, siWordpress } from 'simple-icons';
@@ -12,7 +14,6 @@ interface VersionsProps {
 function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [tauriVersion, setTauriVersion] = useState<string | null>(null);
-  const [versionError, setVersionError] = useState<boolean>(false);
   const [updateReady, setUpdateReady] = useState<boolean>(false);
   const [isInstallingUpdate, setIsInstallingUpdate] = useState<boolean>(false);
   const [updateActionMessage, setUpdateActionMessage] = useState<string | null>(
@@ -24,26 +25,24 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
 
     const fetchVersion = async (): Promise<void> => {
       try {
-        const version = await window.electronAPI.getAppVersion();
-        const tauriVer = await window.electronAPI.getTauriVersion();
-        const isUpdateReady = await window.electronAPI.getUpdateReady();
+        const version = await getVersion();
+        const tauriVer = await getTauriVersion();
+        const isUpdateReady = await invoke<boolean>('get_update_ready');
+
         if (isMounted) {
           setAppVersion(version);
           setTauriVersion(tauriVer);
           setUpdateReady(isUpdateReady);
-          setVersionError(false);
         }
       } catch (error) {
         console.error('Failed to load DevWP version:', error);
         if (isMounted) {
-          setVersionError(true);
           setUpdateReady(false);
         }
       }
     };
 
     if (isOpen) {
-      setVersionError(false);
       fetchVersion().catch(() => {});
     }
 
@@ -56,16 +55,8 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
     return null;
   }
 
-  const devwpVersionLabel = versionError
-    ? 'Unavailable'
-    : appVersion
-      ? `v${appVersion}`
-      : 'Loading...';
-  const tauriVersionLabel = versionError
-    ? 'Unavailable'
-    : tauriVersion
-      ? `v${tauriVersion}`
-      : 'Loading...';
+  const devwpVersionLabel = appVersion ? `v${appVersion}` : 'Loading...';
+  const tauriVersionLabel = tauriVersion ? `v${tauriVersion}` : 'Loading...';
 
   const handleOverlayClick = (): void => {
     onClose();
@@ -127,7 +118,7 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
             type="button"
             onClick={onClose}
             aria-label="Close About modal"
-            className="flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors"
+            className="flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer"
             title="Close About modal"
           >
             <Icon content="✕" className="text-lg" />

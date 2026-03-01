@@ -43,7 +43,10 @@ describe('initializeTauriBridge', () => {
   it('maps scan channel args to snake_case command params', async () => {
     initializeTauriBridge();
 
-    await window.electron.ipcRenderer.invoke('scan-site-sonarqube', 'alpha.test');
+    await window.electron.ipcRenderer.invoke(
+      'scan-site-sonarqube',
+      'alpha.test',
+    );
 
     expect(mockInvoke).toHaveBeenCalledWith('scan_site_sonarqube', {
       site_name: 'alpha.test',
@@ -66,5 +69,4 @@ describe('initializeTauriBridge', () => {
       container_id: 'container-id',
     });
   });
-
 });

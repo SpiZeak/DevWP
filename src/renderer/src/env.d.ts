@@ -82,9 +82,6 @@ declare global {
       getWebrootPath: () => Promise<string>;
       getXdebugEnabledSetting: () => Promise<boolean>;
       pickDirectory: (defaultPath?: string) => Promise<string | null>;
-      getAppVersion: () => Promise<string>;
-      getTauriVersion: () => Promise<string>;
-      getUpdateReady: () => Promise<boolean>;
       installUpdateNow: () => Promise<{ success: boolean; message: string }>;
     };
   }

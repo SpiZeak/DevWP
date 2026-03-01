@@ -87,7 +87,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           <button
             type="button"
             onClick={handleClose}
-            className="text-seasalt-400 hover:text-seasalt transition-colors"
+            className="text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer"
             title="Close Settings"
           >
             <Icon content="✕" className="text-lg" />

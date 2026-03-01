@@ -1,8 +1,5 @@
-import { getTauriVersion, getVersion } from '@tauri-apps/api/app';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-
-type DockerStatus = 'starting' | 'progress' | 'complete' | 'error';
 
 type UnlistenFn = () => void;
 
@@ -111,9 +108,6 @@ export function initializeTauriBridge(): void {
       invoke<boolean>('get_xdebug_enabled_setting'),
     pickDirectory: (defaultPath?: string) =>
       invoke<string | null>('pick_directory', { default_path: defaultPath }),
-    getAppVersion: () => getVersion(),
-    getTauriVersion: () => getTauriVersion(),
-    getUpdateReady: () => invoke<boolean>('get_update_ready'),
     installUpdateNow: () =>
       invoke<{ success: boolean; message: string }>('install_update_now'),
   };

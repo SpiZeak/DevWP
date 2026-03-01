@@ -2,11 +2,7 @@
   "compilerOptions": {
     "composite": true,
     "target": "ES2022",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true,
@@ -19,13 +15,8 @@
       "node"
     ],
     "paths": {
-      "@renderer/*": [
-        "./src/renderer/src/*"
-      ]
+      "@renderer/*": ["./src/renderer/src/*"]
     }
   },
-  "include": [
-    "src/renderer/src/env.d.ts",
-    "src/renderer/src/**/*"
-  ]
+  "include": ["src/renderer/src/env.d.ts", "src/renderer/src/**/*"]
 }
