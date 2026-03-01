@@ -76,8 +76,6 @@ export function initializeTauriBridge(): void {
     updateSite: (site: unknown, updateData: unknown) =>
       invoke('update_site', { site, data: updateData }),
     getContainerStatus: () => invoke('get_container_status'),
-    onContainerStatus: (callback: (containers: unknown[]) => void) =>
-      createListener('container-status', callback),
     restartContainer: (containerId: string) =>
       invoke('restart_container', { container_id: containerId }),
     getXdebugStatus: () => invoke<boolean>('get_xdebug_status'),

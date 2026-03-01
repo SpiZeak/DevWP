@@ -1,3 +1,5 @@
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import {
@@ -62,18 +64,18 @@ const Services: React.FC<ServicesProps> = ({
 
   useEffect(() => {
     // Set up a listener for container status updates
-    const removeListener = window.electronAPI.onContainerStatus(
-      (containers) => {
-        setContainers(containers);
-        setLoading(false);
-      },
-    );
+    const unlisten = listen('container-status', (event) => {
+      setContainers(event.payload as Container[]);
+      setLoading(false);
+    });
 
     // Request initial container status
-    window.electronAPI.getContainerStatus();
+    invoke('get_container_status');
 
     // Clean up listener when component unmounts
-    return removeListener;
+    return () => {
+      unlisten.then((unlisten) => unlisten());
+    };
   }, []);
 
   const restartContainer = async (

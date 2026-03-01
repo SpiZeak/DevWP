@@ -63,9 +63,6 @@ declare global {
         };
       }) => Promise<void>;
       getContainerStatus: () => Promise<void>;
-      onContainerStatus: (
-        callback: (containers: Container[]) => void,
-      ) => RemoveListener;
       restartContainer: (containerId: string) => Promise<void>;
       getSites: () => Promise<Site[]>;
       onWpCliStream: (

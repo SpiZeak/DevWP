@@ -248,7 +248,6 @@ const SiteList: React.FC = () => {
       el.removeEventListener('scroll', onScroll);
       if (barTimeoutRef.current) clearTimeout(barTimeoutRef.current);
     };
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional - scroll handler setup uses stable refs
   }, []);
 
   useEffect(() => {
@@ -257,7 +256,6 @@ const SiteList: React.FC = () => {
 
   useEffect(() => {
     updateScrollBar();
-    // biome-ignore lint/correctness/useExhaustiveDependencies: updateScrollBar is stable for this component's lifecycle
   }, [sites, loading]);
 
   useEffect(() => {
