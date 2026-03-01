@@ -37,6 +37,74 @@ pub fn parse_compose_ps(stdout: &str) -> Vec<Container> {
         .collect()
 }
 
+fn get_container_version(name: &str) -> Option<String> {
+    let (cmd, args, use_stderr) = if name.contains("php") {
+        ("php", vec!["--version"], false)
+    } else if name.contains("nginx") {
+        ("nginx", vec!["-v"], true)
+    } else if name.contains("mariadb") {
+        ("mariadb", vec!["--version"], false)
+    } else if name.contains("redis") {
+        ("redis-server", vec!["--version"], false)
+    } else if name.contains("mailpit") {
+        ("/mailpit", vec!["version"], false)
+    } else {
+        return None;
+    };
+
+    let mut exec_args = vec!["exec", name, cmd];
+    exec_args.extend(args);
+
+    let output = match run_command("docker", &exec_args) {
+        Ok(out) => out,
+        Err(_) => return None,
+    };
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let output_str = if use_stderr {
+        String::from_utf8_lossy(&output.stderr).to_string()
+    } else {
+        String::from_utf8_lossy(&output.stdout).to_string()
+    };
+
+    let first_line = output_str.lines().next().unwrap_or("").trim();
+
+    if name.contains("php") {
+        first_line
+            .split_whitespace()
+            .nth(1)
+            .map(|v| format!("v{}", v))
+    } else if name.contains("nginx") {
+        first_line
+            .split('/')
+            .nth(1)
+            .map(|v| format!("v{}", v.trim()))
+    } else if name.contains("mariadb") {
+        first_line
+            .split("from ")
+            .nth(1)
+            .and_then(|s| s.split('-').next())
+            .map(|v| format!("v{}", v.trim()))
+    } else if name.contains("redis") {
+        first_line
+            .split("v=")
+            .nth(1)
+            .and_then(|s| s.split_whitespace().next())
+            .map(|v| format!("v{}", v))
+    } else if name.contains("mailpit") {
+        first_line
+            .split('v')
+            .nth(1)
+            .and_then(|s| s.split_whitespace().next())
+            .map(|v| format!("v{}", v))
+    } else {
+        None
+    }
+}
+
 #[tauri::command]
 pub async fn get_container_status(app: tauri::AppHandle) -> Result<Vec<Container>, String> {
     let output = run_command(
@@ -54,7 +122,14 @@ pub async fn get_container_status(app: tauri::AppHandle) -> Result<Vec<Container
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
     }
 
-    let containers = parse_compose_ps(&String::from_utf8_lossy(&output.stdout));
+    let mut containers = parse_compose_ps(&String::from_utf8_lossy(&output.stdout));
+
+    for container in &mut containers {
+        if container.state == "running" {
+            container.version = get_container_version(&container.name);
+        }
+    }
+
     let _ = app.emit("container-status", containers.clone());
     Ok(containers)
 }
@@ -66,7 +141,9 @@ pub fn restart_container(app: tauri::AppHandle, container_id: String) -> Result<
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
     }
 
-    let _ = get_container_status(app);
+    tauri::async_runtime::spawn(async move {
+        let _ = get_container_status(app).await;
+    });
     Ok(true)
 }
 
@@ -142,7 +219,15 @@ pub async fn get_status(service_name: Option<String>) -> Result<Vec<Container>, 
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
     }
 
-    Ok(parse_compose_ps(&String::from_utf8_lossy(&output.stdout)))
+    let mut containers = parse_compose_ps(&String::from_utf8_lossy(&output.stdout));
+
+    for container in &mut containers {
+        if container.state == "running" {
+            container.version = get_container_version(&container.name);
+        }
+    }
+
+    Ok(containers)
 }
 
 #[cfg(test)]
