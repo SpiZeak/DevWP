@@ -43,7 +43,7 @@
     "one-time": "^1.0.0",
     "readable-stream": "^4.7.0",
     "safe-stable-stringify": "^2.5.0",
-    "simple-icons": "^16.9.0",
+    "simple-icons": "^16.10.0",
     "stack-trace": "^0.0.10",
     "sudo-prompt": "^9.2.1",
     "tailwindcss": "^4.2.1",
