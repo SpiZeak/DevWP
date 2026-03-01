@@ -144,6 +144,7 @@ pub fn restart_container(app: tauri::AppHandle, container_id: String) -> Result<
     tauri::async_runtime::spawn(async move {
         let _ = get_container_status(app).await;
     });
+
     Ok(true)
 }
 

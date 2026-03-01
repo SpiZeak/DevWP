@@ -23,5 +23,5 @@ tsconfig.node.tsbuildinfo
 tsconfig.web.tsbuildinfo
 
 .devwp-tauri
-src-tauri/target
-src-tauri/gen/schemas
+src/tauri/target
+src/tauri/gen/schemas

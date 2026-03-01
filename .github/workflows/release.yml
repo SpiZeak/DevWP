@@ -42,7 +42,7 @@ jobs:
         with:
           name: build-artifacts-${{ matrix.os }}
           path: |
-            src-tauri/target/release/bundle/**/*
+            src/tauri/target/release/bundle/**/*
           if-no-files-found: ignore
 
   create_release:
