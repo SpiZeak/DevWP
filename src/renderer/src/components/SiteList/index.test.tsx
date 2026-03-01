@@ -229,9 +229,9 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const editBtn = Array.from(item.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Edit',
+      (b: any) => b.textContent === 'Edit',
     );
-    fireEvent.click(editBtn!);
+    fireEvent.click(editBtn as Element);
 
     await waitFor(() => {
       expect(component.getByTestId('edit-modal')).toBeInTheDocument();
@@ -254,9 +254,9 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const scanBtn = Array.from(item.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Scan',
+      (b: any) => b.textContent === 'Scan',
     );
-    fireEvent.click(scanBtn!);
+    fireEvent.click(scanBtn as Element);
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith('scan_site_sonarqube', {
@@ -288,9 +288,9 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const scanBtn = Array.from(item.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Scan',
+      (b: any) => b.textContent === 'Scan',
     );
-    fireEvent.click(scanBtn!);
+    fireEvent.click(scanBtn as Element);
 
     await waitFor(() => {
       expect(global.alert).toHaveBeenCalledWith(
@@ -320,9 +320,9 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const scanBtn = Array.from(item.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Scan',
+      (b: any) => b.textContent === 'Scan',
     );
-    fireEvent.click(scanBtn!);
+    fireEvent.click(scanBtn as Element);
 
     await waitFor(() => {
       expect(global.alert).toHaveBeenCalledWith(
@@ -340,9 +340,9 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const cliBtn = Array.from(item.querySelectorAll('button')).find(
-      (b) => b.textContent === 'CLI',
+      (b: any) => b.textContent === 'CLI',
     );
-    fireEvent.click(cliBtn!);
+    fireEvent.click(cliBtn as Element);
 
     await waitFor(() => {
       expect(component.getByTestId('cli-modal')).toBeInTheDocument();
@@ -363,9 +363,9 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const editBtn = Array.from(item.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Edit',
+      (b: any) => b.textContent === 'Edit',
     );
-    fireEvent.click(editBtn!);
+    fireEvent.click(editBtn as Element);
 
     await waitFor(() => {
       expect(component.getByTestId('edit-modal')).toBeInTheDocument();
@@ -415,9 +415,9 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const editBtn = Array.from(item.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Edit',
+      (b: any) => b.textContent === 'Edit',
     );
-    fireEvent.click(editBtn!);
+    fireEvent.click(editBtn as Element);
 
     await waitFor(() => {
       expect(component.getByTestId('edit-modal')).toBeInTheDocument();
@@ -454,9 +454,9 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const editBtn = Array.from(item.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Edit',
+      (b: any) => b.textContent === 'Edit',
     );
-    fireEvent.click(editBtn!);
+    fireEvent.click(editBtn as Element);
 
     await waitFor(() => {
       expect(component.getByTestId('edit-modal')).toBeInTheDocument();

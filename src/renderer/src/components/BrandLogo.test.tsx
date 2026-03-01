@@ -4,6 +4,7 @@ import { BrandLogo } from './BrandLogo';
 
 describe('BrandLogo', () => {
   const mockIcon = {
+    svg: '',
     title: 'Test Icon',
     slug: 'testicon',
     hex: '000000',
