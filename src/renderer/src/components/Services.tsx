@@ -34,7 +34,6 @@ const containerNameMapping: Record<string, string> = {
   devwp_mariadb: 'MariaDB',
   devwp_redis: 'Redis',
   devwp_mailpit: 'Mailpit',
-  devwp_certs: 'Certificates',
   devwp_sonarqube: 'SonarQube',
 };
 
@@ -44,7 +43,6 @@ const containerIconMapping: Record<string, React.ReactNode> = {
   devwp_mariadb: <BrandLogo icon={siMariadb} />,
   devwp_redis: <BrandLogo icon={siRedis} />,
   devwp_mailpit: <BrandLogo icon={siDocker} />,
-  devwp_certs: <BrandLogo icon={siDocker} />,
   devwp_sonarqube: <BrandLogo icon={siSonarqubeserver} />,
 };
 
@@ -55,7 +53,11 @@ const Services: React.FC<ServicesProps> = ({
   const [containers, setContainers] = useState([] as Container[]);
   const [loading, setLoading] = useState(true);
   const [restarting, setRestarting] = useState({} as Record<string, boolean>);
-  const excludedContainers = ['devwp_seonaut', 'devwp_sonarqube-scanner'];
+  const excludedContainers = [
+    'devwp_seonaut',
+    'devwp_sonarqube-scanner',
+    'devwp_certs',
+  ];
   const containerMap = containers.filter(
     (container) =>
       container.name.includes('devwp_') &&
