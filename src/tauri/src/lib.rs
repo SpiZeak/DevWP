@@ -57,7 +57,7 @@ pub fn run() {
                     "docker-status",
                     DockerStatusPayload {
                         status: "starting".to_string(),
-                        message: "Starting core services...".to_string(),
+                        message: "Starting services...".to_string(),
                     },
                 );
 
@@ -69,7 +69,7 @@ pub fn run() {
                             "docker-status",
                             DockerStatusPayload {
                                 status: "complete".to_string(),
-                                message: "Core services started".to_string(),
+                                message: "Services started".to_string(),
                             },
                         );
                     }
@@ -98,7 +98,7 @@ pub fn run() {
                     "docker-status",
                     DockerStatusPayload {
                         status: "stopping".to_string(),
-                        message: "Stopping core services...".to_string(),
+                        message: "Stopping services...".to_string(),
                     },
                 );
                 let result = run_command("docker", &["compose", "down"]);
@@ -109,7 +109,7 @@ pub fn run() {
                             "docker-status",
                             DockerStatusPayload {
                                 status: "stopped".to_string(),
-                                message: "Core services stopped".to_string(),
+                                message: "Services stopped".to_string(),
                             },
                         );
                     }

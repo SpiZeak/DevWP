@@ -60,7 +60,7 @@ fn get_container_version(name: &str) -> Option<String> {
         Err(_) => return None,
     };
 
-    if !output.status.success() {
+    if !output.status.success() && !name.contains("mailpit") && !name.contains("php") {
         return None;
     }
 
@@ -73,7 +73,13 @@ fn get_container_version(name: &str) -> Option<String> {
     let first_line = output_str.lines().next().unwrap_or("").trim();
 
     if name.contains("php") {
-        first_line
+        output_str
+            .lines()
+            .find(|line| {
+                line.starts_with("PHP ")
+                    && line.chars().nth(4).map_or(false, |c| c.is_ascii_digit())
+            })
+            .unwrap_or("")
             .split_whitespace()
             .nth(1)
             .map(|v| format!("v{}", v))
@@ -95,8 +101,11 @@ fn get_container_version(name: &str) -> Option<String> {
             .and_then(|s| s.split_whitespace().next())
             .map(|v| format!("v{}", v))
     } else if name.contains("mailpit") {
-        first_line
-            .split('v')
+        output_str
+            .lines()
+            .find(|line| line.contains("mailpit") && line.contains(" v"))
+            .unwrap_or("")
+            .split(" v")
             .nth(1)
             .and_then(|s| s.split_whitespace().next())
             .map(|v| format!("v{}", v))
