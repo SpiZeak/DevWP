@@ -22,23 +22,20 @@ pub fn get_xdebug_status() -> bool {
         Err(_) => return false,
     };
 
-    let disabled = content.lines().any(|line| {
-        let trimmed = line.trim();
-        !trimmed.starts_with(';')
-            && !trimmed.starts_with('#')
-            && trimmed.eq_ignore_ascii_case("xdebug.mode = off")
-    });
+    let mut enabled = false;
 
-    let enabled = content.lines().any(|line| {
+    for line in content.lines() {
         let trimmed = line.trim().to_lowercase();
-        !trimmed.starts_with(';')
-            && !trimmed.starts_with('#')
-            && trimmed.starts_with("xdebug.mode")
-            && !trimmed.ends_with("off")
-    });
+        if trimmed.starts_with(';') || trimmed.starts_with('#') {
+            continue;
+        }
 
-    if disabled {
-        return false;
+        if trimmed.starts_with("xdebug.mode") {
+            if let Some((_, value)) = trimmed.split_once('=') {
+                let mode = value.trim();
+                enabled = mode != "off" && !mode.is_empty();
+            }
+        }
     }
 
     enabled
