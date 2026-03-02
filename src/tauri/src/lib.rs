@@ -7,7 +7,9 @@ pub mod utils;
 pub mod wp_cli;
 pub mod xdebug;
 
-use tauri_plugin_log::log::LevelFilter;
+use crate::docker::DockerStatusPayload;
+use tauri::Manager;
+use tauri_plugin_log::log::{error, info, LevelFilter};
 use utils::run_command;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -50,10 +52,10 @@ pub fn run() {
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 use tauri::Emitter;
-                tauri_plugin_log::log::info!("Starting Docker services...");
+                info!("Starting Docker services...");
                 let _ = app_handle.emit(
                     "docker-status",
-                    crate::docker::DockerStatusPayload {
+                    DockerStatusPayload {
                         status: "starting".to_string(),
                         message: "Starting core services...".to_string(),
                     },
@@ -62,20 +64,20 @@ pub fn run() {
                 let result = run_command("docker", &["compose", "up", "-d", "nginx"]);
                 match result {
                     Ok(_) => {
-                        tauri_plugin_log::log::info!("Docker services started successfully.");
+                        info!("Docker services started successfully.");
                         let _ = app_handle.emit(
                             "docker-status",
-                            crate::docker::DockerStatusPayload {
+                            DockerStatusPayload {
                                 status: "complete".to_string(),
                                 message: "Core services started".to_string(),
                             },
                         );
                     }
                     Err(e) => {
-                        tauri_plugin_log::log::error!("Failed to start Docker services: {}", e);
+                        error!("Failed to start Docker services: {}", e);
                         let _ = app_handle.emit(
                             "docker-status",
-                            crate::docker::DockerStatusPayload {
+                            DockerStatusPayload {
                                 status: "error".to_string(),
                                 message: format!("Failed to start Docker services: {}", e),
                             },
@@ -85,6 +87,44 @@ pub fn run() {
             });
 
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                // Stop Docker services when the app is closed
+                let app_handle = window.app_handle().clone();
+                use tauri::Emitter;
+                info!("Stopping Docker services...");
+                let _ = app_handle.emit(
+                    "docker-status",
+                    DockerStatusPayload {
+                        status: "stopping".to_string(),
+                        message: "Stopping core services...".to_string(),
+                    },
+                );
+                let result = run_command("docker", &["compose", "down"]);
+                match result {
+                    Ok(_) => {
+                        info!("Docker services stopped successfully.");
+                        let _ = app_handle.emit(
+                            "docker-status",
+                            DockerStatusPayload {
+                                status: "stopped".to_string(),
+                                message: "Core services stopped".to_string(),
+                            },
+                        );
+                    }
+                    Err(e) => {
+                        error!("Failed to stop Docker services: {}", e);
+                        let _ = app_handle.emit(
+                            "docker-status",
+                            DockerStatusPayload {
+                                status: "error".to_string(),
+                                message: format!("Failed to stop Docker services: {}", e),
+                            },
+                        );
+                    }
+                };
+            }
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
