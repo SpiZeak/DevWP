@@ -428,7 +428,7 @@ const SiteList: React.FC = () => {
           (!scrollBar.visible && barEverShown)) &&
           scrollBar.height > 0 && (
             <div
-              className={`absolute right-2 w-1 rounded-full bg-linear-to-b from-pumpkin to-pumpkin-600 z-10 transition-all duration-200 ${scrollBar.visible || isScrolling ? 'opacity-80' : 'opacity-0'}`}
+              className={`absolute right-2 w-1 rounded-full bg-linear-to-b from-pumpkin to-pumpkin-600 z-10 transition-opacity duration-200 ${scrollBar.visible || isScrolling ? 'opacity-80' : 'opacity-0'}`}
               style={{
                 top: scrollBar.top,
                 height: scrollBar.height,

@@ -35,7 +35,6 @@ const SiteItem: React.FC<SiteItemProps> = ({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-1">
             <div className="flex items-center gap-2">
-              <div className="bg-emerald shadow-sm rounded-full size-3"></div>
               <h4 className="font-semibold text-md text-seasalt truncate leading-tight">
                 {site.name}
               </h4>
