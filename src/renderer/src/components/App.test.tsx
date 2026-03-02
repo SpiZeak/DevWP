@@ -1,19 +1,20 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react';
-import React, { Suspense } from 'react';
+import { Suspense } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import App from './App';
 
-vi.mock('./DockerLoader', () => ({
-  default: () => <div data-testid="docker-loader" />,
-}));
 vi.mock('./Notifications', () => ({
   default: () => <div data-testid="notifications" />,
 }));
 vi.mock('./Services', () => ({
   default: ({ onOpenSettings, onOpenVersions }: any) => (
     <div>
-      <button onClick={onOpenSettings}>Open Settings</button>
-      <button onClick={onOpenVersions}>Open Versions</button>
+      <button type="button" onClick={onOpenSettings}>
+        Open Settings
+      </button>
+      <button type="button" onClick={onOpenVersions}>
+        Open Versions
+      </button>
     </div>
   ),
 }));
@@ -24,7 +25,9 @@ vi.mock('./Versions', () => ({
   default: ({ isOpen, onClose }: any) =>
     isOpen ? (
       <div data-testid="versions-modal">
-        <button onClick={onClose}>Close Versions</button>
+        <button type="button" onClick={onClose}>
+          Close Versions
+        </button>
       </div>
     ) : null,
 }));
@@ -34,7 +37,9 @@ vi.mock('./Settings/SettingsModal', () => ({
   default: ({ isOpen, onClose }: any) =>
     isOpen ? (
       <div data-testid="settings-modal">
-        <button onClick={onClose}>Close Settings</button>
+        <button type="button" onClick={onClose}>
+          Close Settings
+        </button>
       </div>
     ) : null,
 }));

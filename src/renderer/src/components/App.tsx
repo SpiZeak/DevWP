@@ -1,5 +1,4 @@
 import { type JSX, lazy, Suspense, useState } from 'react';
-import DockerLoader from './DockerLoader';
 import Notifications from './Notifications';
 import Services from './Services';
 import SiteList from './SiteList';
@@ -38,7 +37,6 @@ function App(): JSX.Element {
         <SiteList />
       </div>
       <Versions isOpen={isVersionsOpen} onClose={handleCloseVersions} />
-      <DockerLoader />
       <Notifications />
       <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
     </>
