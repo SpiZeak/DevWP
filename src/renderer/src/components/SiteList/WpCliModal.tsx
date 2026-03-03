@@ -2,6 +2,7 @@ import type { Site } from '@renderer/env';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useEffect, useRef, useState } from 'react';
+import Spinner from '../ui/Spinner';
 
 interface WpCliModalProps {
   isOpen: boolean;
@@ -86,8 +87,9 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
+  const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>): void => {
     e.preventDefault();
+
     if (!wpCliLoading && wpCliCommand.trim()) {
       handleRunWpCli();
     }
@@ -132,14 +134,18 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
               className="bg-gunmetal-500 hover:bg-gunmetal-600 px-4 py-2 border-0 rounded text-seasalt-400 hover:text-seasalt transition-colors duration-200 cursor-pointer"
               disabled={wpCliLoading}
             >
-              {wpCliLoading ? 'Close' : 'Cancel'}
+              Cancel
             </button>
             <button
               type="submit"
               className="bg-pumpkin hover:bg-pumpkin-600 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt-400 transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed"
               disabled={!wpCliCommand.trim() || wpCliLoading}
             >
-              {wpCliLoading ? 'Running...' : 'Run'}
+              {wpCliLoading ? (
+                <Spinner title="Loading WP-CLI response..." />
+              ) : (
+                'Run'
+              )}
             </button>
           </div>
         </form>

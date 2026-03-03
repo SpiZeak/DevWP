@@ -7,5 +7,6 @@
   },
   "[json]": {
     "editor.defaultFormatter": "biomejs.biome"
-  }
+  },
+  "rust-analyzer.linkedProjects": ["src/tauri/Cargo.toml"]
 }
