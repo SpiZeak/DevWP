@@ -20,10 +20,24 @@ pub struct NotificationPayload {
     pub message: String,
 }
 
+/// Walk up from CWD until we find the directory containing `compose.yml`.
+/// Falls back to CWD if not found.
+pub fn project_root() -> PathBuf {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let mut dir = cwd.clone();
+    loop {
+        if dir.join("compose.yml").exists() {
+            return dir;
+        }
+        match dir.parent() {
+            Some(parent) => dir = parent.to_path_buf(),
+            None => return cwd,
+        }
+    }
+}
+
 pub fn state_root() -> PathBuf {
-    std::env::current_dir()
-        .unwrap_or_else(|_| PathBuf::from("."))
-        .join(".devwp-tauri")
+    project_root().join(".devwp-tauri")
 }
 
 pub fn ensure_state_root() -> Result<PathBuf, String> {
@@ -57,6 +71,7 @@ pub fn default_webroot() -> PathBuf {
 pub fn run_command(command: &str, args: &[&str]) -> Result<std::process::Output, String> {
     Command::new(command)
         .args(args)
+        .current_dir(project_root())
         .output()
         .map_err(|e| format!("Failed to execute command `{command}`: {e}"))
 }

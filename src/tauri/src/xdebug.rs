@@ -1,11 +1,13 @@
 use crate::settings::{read_settings, write_settings};
-use crate::utils::run_command;
+use crate::utils::{project_root, run_command};
 use serde::Serialize;
 use std::fs;
-use std::path::Path;
+use std::path::PathBuf;
 use tauri::Emitter;
 
-pub const XDEBUG_CONFIG_PATH: &str = "config/php/conf.d/xdebug.ini";
+pub fn xdebug_config_path() -> PathBuf {
+    project_root().join("config/php/conf.d/xdebug.ini")
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct XdebugStatusPayload {
@@ -16,12 +18,18 @@ pub struct XdebugStatusPayload {
 
 #[tauri::command]
 pub fn get_xdebug_status() -> bool {
-    let config_path = Path::new(XDEBUG_CONFIG_PATH);
-    let content = match fs::read_to_string(config_path) {
+    let config_path = xdebug_config_path();
+    let content = match fs::read_to_string(&config_path) {
         Ok(content) => content,
-        Err(_) => return false,
+        Err(_) => {
+            return read_settings()
+                .get("xdebug_enabled")
+                .map(|v| v == "true")
+                .unwrap_or(false);
+        }
     };
 
+    let mut found = false;
     let mut enabled = false;
 
     for line in content.lines() {
@@ -31,11 +39,21 @@ pub fn get_xdebug_status() -> bool {
         }
 
         if trimmed.starts_with("xdebug.mode") {
-            if let Some((_, value)) = trimmed.split_once('=') {
-                let mode = value.trim();
-                enabled = mode != "off" && !mode.is_empty();
+            if let Some((key, value)) = trimmed.split_once('=') {
+                if key.trim() == "xdebug.mode" {
+                    let mode = value.trim();
+                    found = true;
+                    enabled = mode != "off" && !mode.is_empty();
+                }
             }
         }
+    }
+
+    if !found {
+        return read_settings()
+            .get("xdebug_enabled")
+            .map(|v| v == "true")
+            .unwrap_or(false);
     }
 
     enabled
@@ -53,8 +71,8 @@ pub fn toggle_xdebug(app: tauri::AppHandle) -> Result<bool, String> {
         },
     );
 
-    let config_path = Path::new(XDEBUG_CONFIG_PATH);
-    let current = fs::read_to_string(config_path).unwrap_or_default();
+    let config_path = xdebug_config_path();
+    let current = fs::read_to_string(&config_path).unwrap_or_default();
     let mut lines: Vec<String> = current
         .lines()
         .filter(|line| !line.trim().starts_with("xdebug.mode"))
@@ -70,7 +88,17 @@ pub fn toggle_xdebug(app: tauri::AppHandle) -> Result<bool, String> {
         .map_err(|e| format!("Failed to update xdebug.ini: {e}"))?;
 
     let restart = run_command("docker", &["compose", "restart", "php"]);
-    if let Err(error) = restart {
+    let restart_failed = match &restart {
+        Err(e) => Some(e.clone()),
+        Ok(output) if !output.status.success() => Some(
+            String::from_utf8_lossy(&output.stderr)
+                .trim()
+                .to_string()
+                .into(),
+        ),
+        Ok(_) => None,
+    };
+    if let Some(error) = restart_failed {
         let _ = app.emit(
             "xdebug-status",
             XdebugStatusPayload {

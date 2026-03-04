@@ -6,8 +6,12 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-pub const NGINX_TEMPLATE_PATH: &str = "config/nginx/template-site.conf";
-pub const NGINX_SITES_ENABLED_PATH: &str = "config/nginx/sites-enabled";
+pub fn nginx_template_path() -> std::path::PathBuf {
+    crate::utils::project_root().join("config/nginx/template-site.conf")
+}
+pub fn nginx_sites_enabled_path() -> std::path::PathBuf {
+    crate::utils::project_root().join("config/nginx/sites-enabled")
+}
 
 #[cfg(target_os = "windows")]
 pub const HOSTS_FILE_PATH: &str = r"C:\Windows\System32\drivers\etc\hosts";
@@ -114,7 +118,7 @@ fn generate_nginx_config(
     aliases: Option<&str>,
     multisite: Option<&MultisiteConfig>,
 ) -> Result<(), String> {
-    let template = fs::read_to_string(NGINX_TEMPLATE_PATH)
+    let template = fs::read_to_string(nginx_template_path())
         .map_err(|e| format!("Failed to read nginx template: {e}"))?;
 
     let active_type = match multisite {
@@ -176,10 +180,11 @@ fn generate_nginx_config(
 
     let config_content = output_lines.join("\n") + "\n";
 
-    fs::create_dir_all(NGINX_SITES_ENABLED_PATH)
+    let sites_enabled = nginx_sites_enabled_path();
+    fs::create_dir_all(&sites_enabled)
         .map_err(|e| format!("Failed to create sites-enabled directory: {e}"))?;
 
-    let conf_path = Path::new(NGINX_SITES_ENABLED_PATH).join(format!("{domain}.conf"));
+    let conf_path = sites_enabled.join(format!("{domain}.conf"));
     fs::write(conf_path, config_content)
         .map_err(|e| format!("Failed to write nginx config: {e}"))?;
 
@@ -484,7 +489,7 @@ pub fn delete_site(app: tauri::AppHandle, site: Site) -> Result<(), String> {
         fs::remove_dir_all(path).map_err(|e| format!("Failed to remove site directory: {e}"))?;
     }
 
-    let conf_path = Path::new(NGINX_SITES_ENABLED_PATH).join(format!("{}.conf", site.name));
+    let conf_path = nginx_sites_enabled_path().join(format!("{}.conf", site.name));
     if conf_path.exists() {
         let _ = fs::remove_file(conf_path);
     }

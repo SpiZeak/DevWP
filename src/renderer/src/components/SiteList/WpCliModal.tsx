@@ -70,10 +70,6 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
   if (!isOpen || !site) return null;
 
   const handleRunWpCli = async (): Promise<void> => {
-    setWpCliLoading(true);
-    setWpCliOutput('');
-    setWpCliError('');
-
     try {
       await invoke('run_wp_cli', {
         request: {
@@ -89,6 +85,10 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
 
   const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>): void => {
     e.preventDefault();
+
+    setWpCliLoading(true);
+    setWpCliOutput('');
+    setWpCliError('');
 
     if (!wpCliLoading && wpCliCommand.trim()) {
       handleRunWpCli();
@@ -112,8 +112,14 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
         </h3>
         <form onSubmit={handleSubmit}>
           <div className="mb-5">
-            <label className="block mb-1 text-seasalt text-sm">Command</label>
+            <label
+              htmlFor="wp-cli-command"
+              className="block mb-1 text-seasalt text-sm"
+            >
+              Command
+            </label>
             <input
+              id="wp-cli-command"
               type="text"
               className="bg-gunmetal-500 p-2 border border-gunmetal-600 focus:border-pumpkin-500 rounded focus:outline-none w-full text-seasalt"
               value={wpCliCommand}

@@ -30,7 +30,7 @@ function XdebugSwitch(): JSX.Element {
         if (data.status === 'restarting') {
           setIsToggling(true);
         } else if (data.status === 'complete') {
-          setXdebugEnabled(data.enabled || false);
+          setXdebugEnabled(data.enabled ?? false);
           setIsToggling(false);
         } else if (data.status === 'error') {
           console.error('Xdebug toggle error:', data.message);
