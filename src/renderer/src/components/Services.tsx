@@ -65,18 +65,22 @@ const Services: React.FC<ServicesProps> = ({
   );
 
   useEffect(() => {
-    // Set up a listener for container status updates
-    const unlisten = listen('container-status', (event) => {
-      setContainers(event.payload as Container[]);
-      setLoading(false);
-    });
+    let unlistenFn: (() => void) | undefined;
 
-    // Request initial container status
-    invoke('get_container_status');
+    const setup = async () => {
+      // Register listener before invoking to avoid missing the response event
+      unlistenFn = await listen('container-status', (event) => {
+        setContainers(event.payload as Container[]);
+        setLoading(false);
+      });
+      invoke('get_container_status');
+    };
+
+    setup();
 
     // Clean up listener when component unmounts
     return () => {
-      unlisten.then((unlisten) => unlisten());
+      unlistenFn?.();
     };
   }, []);
 
