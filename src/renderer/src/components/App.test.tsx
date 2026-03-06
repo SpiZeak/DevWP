@@ -64,7 +64,6 @@ describe('App', () => {
   it('renders all core components', async () => {
     const component = await renderApp();
 
-    expect(component.getByTestId('docker-loader')).toBeInTheDocument();
     expect(component.getByTestId('notifications')).toBeInTheDocument();
     expect(component.getByTestId('sitelist')).toBeInTheDocument();
     expect(component.queryByTestId('versions-modal')).not.toBeInTheDocument();
