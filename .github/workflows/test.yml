@@ -146,9 +146,14 @@ jobs:
             php
             nginx
           set: |
-            *.cache-from=type=gha,scope=devwp-integration
-            *.cache-to=type=gha,mode=max,scope=devwp-integration
-            *.output=type=docker
+            php.cache-from=type=gha,scope=devwp-integration-php
+            php.cache-to=type=gha,mode=max,scope=devwp-integration-php
+            php.output=type=docker
+            php.tags=devwp-php:latest
+            nginx.cache-from=type=gha,scope=devwp-integration-nginx
+            nginx.cache-to=type=gha,mode=max,scope=devwp-integration-nginx
+            nginx.output=type=docker
+            nginx.tags=devwp-nginx:latest
 
       - name: Start Docker services
         run: docker compose up -d --no-build nginx
