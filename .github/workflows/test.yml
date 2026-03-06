@@ -135,8 +135,21 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build cached Docker images
+        uses: docker/bake-action@v6
+        with:
+          files: compose.yml
+          targets: php nginx
+          set: |
+            *.cache-from=type=gha,scope=devwp-integration
+            *.cache-to=type=gha,mode=max,scope=devwp-integration
+            *.output=type=docker
+
       - name: Start Docker services
-        run: docker compose up -d nginx
+        run: docker compose up -d --no-build nginx
         timeout-minutes: 30
 
       - name: Wait for services to be healthy
