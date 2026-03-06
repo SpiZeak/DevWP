@@ -74,15 +74,15 @@ src/
 For testing Node.js code in the main process:
 
 ```typescript
-import { describe, it, expect } from 'vitest'
-import { myFunction } from './myModule'
+import { describe, it, expect } from "vitest";
+import { myFunction } from "./myModule";
 
-describe('myFunction', () => {
-  it('should return expected result', () => {
-    const result = myFunction('input')
-    expect(result).toBe('expected')
-  })
-})
+describe("myFunction", () => {
+  it("should return expected result", () => {
+    const result = myFunction("input");
+    expect(result).toBe("expected");
+  });
+});
 ```
 
 ### Component Tests (Renderer Process)
@@ -122,23 +122,20 @@ describe('Button', () => {
 })
 ```
 
-### Mocking Electron APIs
+### Mocking Tauri APIs
 
-When testing components that use Electron APIs:
+When testing components that use Tauri APIs:
 
 ```typescript
-import { beforeEach, vi } from 'vitest'
+import { beforeEach, vi } from "vitest";
 
 beforeEach(() => {
-  vi.stubGlobal('window', {
-    electron: {
-      ipcRenderer: {
-        invoke: vi.fn(),
-        on: vi.fn()
-      }
-    }
-  })
-})
+  vi.stubGlobal("__TAURI__", {
+    core: {
+      invoke: vi.fn(),
+    },
+  });
+});
 ```
 
 ## Configuration
@@ -197,7 +194,7 @@ The following are excluded from coverage:
 
 ### 4. Mocking
 
-- Mock external dependencies (file system, network, Electron APIs)
+- Mock external dependencies (file system, network, Tauri APIs)
 - Keep mocks simple and focused
 - Use `vi.mock()` for module-level mocks
 - Use `vi.fn()` for function mocks
@@ -213,36 +210,36 @@ The following are excluded from coverage:
 ### Testing Async Operations
 
 ```typescript
-it('should handle async operations', async () => {
-  const result = await asyncFunction()
-  expect(result).toBe('expected')
-})
+it("should handle async operations", async () => {
+  const result = await asyncFunction();
+  expect(result).toBe("expected");
+});
 ```
 
 ### Testing Error Handling
 
 ```typescript
-it('should throw error for invalid input', () => {
-  expect(() => functionThatThrows()).toThrow('Error message')
-})
+it("should throw error for invalid input", () => {
+  expect(() => functionThatThrows()).toThrow("Error message");
+});
 ```
 
 ### Testing with Timers
 
 ```typescript
-import { vi } from 'vitest'
+import { vi } from "vitest";
 
-it('should work with timers', () => {
-  vi.useFakeTimers()
+it("should work with timers", () => {
+  vi.useFakeTimers();
 
-  const callback = vi.fn()
-  setTimeout(callback, 1000)
+  const callback = vi.fn();
+  setTimeout(callback, 1000);
 
-  vi.advanceTimersByTime(1000)
-  expect(callback).toHaveBeenCalled()
+  vi.advanceTimersByTime(1000);
+  expect(callback).toHaveBeenCalled();
 
-  vi.useRealTimers()
-})
+  vi.useRealTimers();
+});
 ```
 
 ## CI/CD Integration
@@ -269,13 +266,13 @@ Run `bun install` to ensure all dependencies are installed.
 Increase timeout in test file:
 
 ```typescript
-import { describe, it } from 'vitest'
+import { describe, it } from "vitest";
 
-describe('slow tests', () => {
-  it('should handle slow operation', async () => {
+describe("slow tests", () => {
+  it("should handle slow operation", async () => {
     // Test code
-  }, 10000) // 10 second timeout
-})
+  }, 10000); // 10 second timeout
+});
 ```
 
 ### jsdom errors

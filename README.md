@@ -8,10 +8,10 @@ A Tauri desktop application for simplified local WordPress development using Doc
 
 ## <img src="https://skillicons.dev/icons?i=rust" alt="Rust" width="26" height="26"> Now rewritten in Rust!
 
-DevWP has been completely rewritten in Rust using the Tauri framework, replacing the previous Electron-based implementation. This transition has resulted in significant improvements in performance, stability, and resource efficiency.
+DevWP has been completely rewritten in Rust using the Tauri framework, replacing the previous JavaScript desktop implementation. This transition has resulted in significant improvements in performance, stability, and resource efficiency.
 
 - Enhanced security features and stability due to Rust's memory safety guarantees
-- Smaller application size compared to Electron-based apps (~96% reduction in bundle size), leading to faster downloads and reduced disk space usage
+- Smaller application size compared to the legacy desktop build (~96% reduction in bundle size), leading to faster downloads and reduced disk space usage
 - More efficient resource usage (~58% less memory usage), resulting in faster load times and smoother user experience
 - Native integration with the operating system, providing a more seamless and responsive interface
 - Simpler binary distribution without the need for bundling a separate runtime, making it easier to install and update
@@ -30,8 +30,15 @@ DevWP has been completely rewritten in Rust using the Tauri framework, replacing
 
 ## Prerequisites
 
+### For Using the App
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) - Required for managing WordPress environments
+
+### For Development (Building from Source)
+
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [Bun](https://bun.sh/)
+- [Bun](https://bun.sh/) - JavaScript runtime and package manager
+- [Rust](https://rustup.rs/) - Required for Tauri framework and native compilation
 
 ## Installation
 
@@ -57,6 +64,8 @@ makepkg -si
 
 ## Development Setup
 
+### Quick Start
+
 ```bash
 # Clone and setup
 git clone https://github.com/SpiZeak/DevWP.git
@@ -71,9 +80,18 @@ git submodule update --init --recursive
 # Trust the SSL certificate (eliminates browser warnings)
 ./scripts/trust-certificate.sh
 
-# Start development
+# Start development (launches Tauri with hot reload)
 bun run dev
 ```
+
+### Building for Distribution
+
+```bash
+# Build the production app (creates native executable)
+bun run build:tauri
+```
+
+Built binaries are created in `src-tauri/target/release/bundle/`
 
 See [Certificate Trust Setup](docs/certificate-trust-setup.md) for detailed SSL configuration instructions.
 

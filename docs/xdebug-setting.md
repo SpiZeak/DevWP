@@ -14,25 +14,25 @@ Added database storage for the Xdebug toggle state to persist user preferences a
 
 ### 2. Backend Services
 
-- **Database Functions** (`src/main/services/database.ts`):
+- **Database Functions** (`src/tauri/src/settings.rs`):
   - `getXdebugEnabledSetting()`: Get Xdebug setting with default fallback
   - Updated `initializeDefaultSettings()`: Initialize Xdebug setting on first run
 
-- **Xdebug Service Updates** (`src/main/services/xdebug.ts`):
+- **Xdebug Service Updates** (`src/tauri/src/xdebug.rs`):
   - `initializeXdebugStatus()`: Initialize status from database on startup
   - Updated `getXdebugStatus()`: Save current status to database
   - Updated `toggleXdebug()`: Save new status after successful toggle
 
-- **IPC Handlers** (`src/main/ipc/settings.ts`):
+- **Tauri Commands** (`src/tauri/src/main.rs`):
   - `get-xdebug-enabled-setting`: Get the Xdebug preference from database
 
 ### 3. Frontend API
 
 - **Type Definitions** (`src/renderer/src/env.d.ts`):
-  - Added `getXdebugEnabledSetting()` to electronAPI interface
+  - Added `getXdebugEnabledSetting()` to the Tauri-facing frontend interface
 
-- **Preload Script** (`src/renderer/src/preload/index.ts`):
-  - Exposed `getXdebugEnabledSetting` API method
+- **Frontend Integration** (`src/renderer/src/`):
+  - Added `getXdebugEnabledSetting` invocation through the Tauri bridge
 
 ### 4. Initialization Process
 
@@ -54,17 +54,19 @@ Added database storage for the Xdebug toggle state to persist user preferences a
 
 ```typescript
 // Get Xdebug setting from database
-const isEnabled = await getXdebugEnabledSetting()
+const isEnabled = await getXdebugEnabledSetting();
 
 // Save Xdebug setting to database
-await saveSetting('xdebug_enabled', 'true')
+await saveSetting("xdebug_enabled", "true");
 ```
 
 ### Frontend Access
 
 ```typescript
+import { invoke } from "@tauri-apps/api/core";
+
 // Get current Xdebug preference
-const isEnabled = await window.electronAPI.getXdebugEnabledSetting()
+const isEnabled = await invoke("get_xdebug_enabled_setting");
 ```
 
 ## Database Verification

@@ -1,8 +1,21 @@
-# DevWP - WordPress Development Environment
+# DevWP - Tauri-Based WordPress Development Environment
 
-DevWP is an Electron-based desktop application for managing local WordPress development sites. It uses React, TypeScript, Docker services (Nginx, PHP-FPM, MariaDB, Redis, Mailpit, SonarQube, Seonaut), and provides a graphical interface for creating and managing WordPress installations.
+DevWP is a **Tauri desktop application** (written in Rust) for managing local WordPress development sites. It features a React/TypeScript UI and integrates with Docker services (Nginx, PHP-FPM, MariaDB, Redis, Mailpit, SonarQube, Seonaut) for isolated WordPress environments.
+
+**Key Architecture**: Rust backend + React TypeScript frontend (Tauri framework)
 
 **Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.**
+
+## Quick Reference: Is Bun/Node Required for Built Apps?
+
+**NO** — Bun is **ONLY needed for development** (building from source). The distributed app is a native compiled binary with no runtime dependencies beyond Docker Desktop.
+
+| Task                                      | Bun Required? | Notes                              |
+| ----------------------------------------- | ------------- | ---------------------------------- |
+| Use pre-built app (.exe, .dmg, .AppImage) | ❌ No         | Docker Desktop only                |
+| Download from releases or AUR             | ❌ No         | Native binary, no runtime          |
+| Develop/modify source code                | ✅ Yes        | Dependency for build process       |
+| Build from source                         | ✅ Yes        | Required for `bun run build:tauri` |
 
 ## Working Effectively
 
@@ -37,22 +50,23 @@ bun run lint  # Takes several minutes, finds ~3685 issues (mostly in config/seon
 ### Build Process
 
 ```bash
-# Core build (VERY FAST)
-bun run build  # Takes ~6.6 seconds. NEVER CANCEL. Set timeout to 10+ minutes.
+# Web frontend build (VERY FAST)
+bun run build:web  # Takes ~6.6 seconds. Compiles React/TypeScript to dist/
 
-# Platform-specific builds (NETWORK DEPENDENT)
-bun run build:linux   # FAILS in restricted networks due to Electron binary downloads
-bun run build:win     # FAILS in restricted networks due to Electron binary downloads
-bun run build:mac     # FAILS in restricted networks due to Electron binary downloads
-# NEVER CANCEL: Platform builds may take 30+ minutes if network allows. Set timeout to 60+ minutes.
+# Full Tauri app build (INCLUDES native binary compilation)
+bun run build:tauri  # First build: 30-60 seconds, subsequent: 15-30 seconds
+# Output: src-tauri/target/release/bundle/ (native executables for current platform)
+# No separate platform builds needed - Rust handles native compilation
 ```
 
 ### Development Server
 
 ```bash
-# Start development server
-bun run dev  # Starts Vite dev server on http://localhost:5173/ and attempts to launch Electron
-# NEVER CANCEL: May fail to launch Electron in sandboxed environments but Vite server will work. Set timeout to 5+ minutes.
+# Start development with hot reload (Tauri + Vite)
+bun run dev  # Starts Tauri in dev mode with Vite dev server on http://localhost:5173/
+# Hot reload enabled for frontend code changes
+# Will auto-recompile Rust backend changes
+# NEVER CANCEL: Set timeout to 5+ minutes.
 ```
 
 ### Docker Services (NETWORK DEPENDENT)
@@ -111,19 +125,19 @@ bun run dev
 ### Network Restrictions
 
 - **Docker builds FAIL**: Services require unrestricted internet for package downloads
-- **Platform builds FAIL**: Electron binary downloads blocked in restricted networks
+- **Rust compilation FAILS**: In very restricted networks, Rust toolchain may need mirror configuration
 - **Seonaut build FAILS**: Go proxy certificate verification issues
 
 ### Known Working Alternatives
 
 ```bash
 # When Docker fails
-# Test Electron build only: bun run build
+# Test web build only: bun run build:web
 # Manual WordPress setup can be documented without running containers
 
-# When platform builds fail
-# Core development: bun run build (works fine)
-# Testing: bun run dev (Vite server works even if Electron can't launch)
+# When Tauri build fails
+# Web frontend: bun run build:web (works fine)
+# Development: bun run dev (Tauri dev mode with hot reload)
 ```
 
 ### Lint Configuration Issues
@@ -137,51 +151,54 @@ bun run dev
 
 ```
 src/
-├── main/           # Electron main process (Node.js backend)
-│   ├── index.ts    # Application entry point
-│   ├── ipc/        # Inter-process communication handlers
-│   └── services/   # Core business logic (site creation, Docker management)
-├── preload/        # Electron preload scripts (security bridge)
-└── renderer/       # React frontend (TypeScript + Tailwind CSS)
-    └── src/
-        ├── components/  # React components
-        │   ├── SiteList/    # Site management UI
-        │   └── ui/          # Reusable UI components
-        └── assets/      # CSS and static assets
+├── renderer/       # React frontend (TypeScript + Tailwind CSS)
+│   ├── index.html
+│   └── src/
+│       ├── components/  # React components
+│       │   ├── SiteList/    # Site management UI
+│       │   └── ui/          # Reusable UI components
+│       └── assets/      # CSS and static assets
+└── tauri/          # Rust backend (Tauri framework)
+    ├── src/        # Rust source code
+    ├── Cargo.toml  # Rust dependencies
+    └── tauri.conf.json  # Tauri configuration
 ```
 
 ### Configuration Files
 
 ```
-package.json              # Scripts and dependencies
-electron.vite.config.ts   # Build configuration
-biome.json                # Biome formatter/linter config
-compose.yml              # Docker services definition
-config/                  # Docker service configurations
-├── nginx/               # Web server config
-├── php/                 # PHP-FPM config
-└── seonaut/             # SEO analysis tool (submodule)
+package.json            # Scripts and dependencies
+vite.config.ts          # Vite build configuration
+biome.json              # Biome formatter/linter config
+src/tauri/Cargo.toml    # Rust dependencies and metadata
+src/tauri/tauri.conf.json  # Tauri app configuration
+compose.yml             # Docker services definition
+config/                 # Docker service configurations
+├── nginx/              # Web server config
+├── php/                # PHP-FPM config
+├── mariadb/            # Database config
+└── seonaut/            # SEO analysis tool (submodule)
 ```
 
 ### Always check these locations after changes:
 
-- **Site creation logic**: `src/main/services/site.ts`
-- **Docker integration**: `src/main/services/docker.ts`
+- **Site creation logic**: `src/tauri/src/site.rs`
+- **Docker integration**: `src/tauri/src/docker.rs`
+- **WP-CLI commands**: `src/tauri/src/wp_cli.rs`
 - **UI components**: `src/renderer/src/components/SiteList/`
-- **IPC handlers**: `src/main/ipc/`
 
 ## Timing Expectations and Timeouts
 
-| Command             | Expected Time           | Timeout Setting | Can Cancel?      |
-| ------------------- | ----------------------- | --------------- | ---------------- |
-| `bun install`       | ~8-12 seconds           | 5+ minutes      | **NEVER CANCEL** |
-| `bun run typecheck` | ~4 seconds              | 3+ minutes      | **NEVER CANCEL** |
-| `bun run format`    | ~13 seconds             | 3+ minutes      | **NEVER CANCEL** |
-| `bun run build`     | ~6.6 seconds            | 10+ minutes     | **NEVER CANCEL** |
-| `bun run lint`      | 2-5 minutes             | 15+ minutes     | **NEVER CANCEL** |
-| `bun run dev`       | ~10 seconds             | 5+ minutes      | **NEVER CANCEL** |
-| `docker compose up` | 15+ minutes first build | 30+ minutes     | **NEVER CANCEL** |
-| Platform builds     | 20-45 minutes           | 60+ minutes     | **NEVER CANCEL** |
+| Command               | Expected Time                    | Timeout Setting | Can Cancel?      |
+| --------------------- | -------------------------------- | --------------- | ---------------- |
+| `bun install`         | ~8-12 seconds                    | 5+ minutes      | **NEVER CANCEL** |
+| `bun run typecheck`   | ~4 seconds                       | 3+ minutes      | **NEVER CANCEL** |
+| `bun run format`      | ~13 seconds                      | 3+ minutes      | **NEVER CANCEL** |
+| `bun run build`       | ~6.6 seconds                     | 10+ minutes     | **NEVER CANCEL** |
+| `bun run lint`        | 2-5 minutes                      | 15+ minutes     | **NEVER CANCEL** |
+| `bun run dev`         | ~10 seconds                      | 5+ minutes      | **NEVER CANCEL** |
+| `docker compose up`   | 15+ minutes first build          | 30+ minutes     | **NEVER CANCEL** |
+| `bun run build:tauri` | 30-60 sec (first), 15-30 (after) | 60+ minutes     | **NEVER CANCEL** |
 
 **CRITICAL**: Set explicit timeouts and NEVER cancel builds or long-running commands. They may appear to hang but are working.
 
@@ -197,13 +214,20 @@ config/                  # Docker service configurations
 ### Before Committing Changes
 
 ```bash
-# ALWAYS run these commands before commits
-bun run typecheck  # Verify TypeScript
-bun run format     # Auto-fix formatting
-bun run build      # Ensure builds work
+# ALWAYS run these validation steps after making changes:
 
-# Optional but recommended
-bun run lint       # Check for code issues (ignore seonaut submodule errors)
+# 1. Install dependencies and check they work
+bun install && bun run typecheck
+
+# 2. Verify code formatting and basic linting
+bun run format
+bun run typecheck
+
+# 3. Build the application
+bun run build
+
+# 4. If making UI changes, start dev server to test
+bun run dev
 ```
 
 ## Service Architecture
@@ -222,9 +246,9 @@ bun run lint       # Check for code issues (ignore seonaut submodule errors)
 
 ### When Docker services are unavailable:
 
-- Focus on Electron application development
+- Focus on Tauri application development
 - Test UI components and core functionality
-- Use `bun run build` and `bun run dev` for development
+- Use `bun run build:web` and `bun run dev` for development
 - Document WordPress setup steps for manual execution
 
 ## Troubleshooting Quick Reference
@@ -257,14 +281,14 @@ bun run lint -- src/
 ### Development Issues
 
 ```bash
-# Problem: Electron won't start
+# Problem: Tauri window won't open
 # Solution: Check if Vite server runs (it should)
 bun run dev
 # Look for "Local: http://localhost:5173/" - this indicates success
 
 # Problem: Docker services won't start
-# Solution: Work without Docker for Electron development
+# Solution: Work without Docker for Tauri development
 bun run build && bun run dev
 ```
 
-Remember: **This project prioritizes working Electron builds over full Docker stack** in restricted environments. Focus on application development when infrastructure dependencies fail.
+Remember: **This project prioritizes working Tauri builds over full Docker stack** in restricted environments. Focus on application development when infrastructure dependencies fail.

@@ -261,7 +261,7 @@ echo "bun run test:run" > .husky/pre-commit
 - ✅ CI/CD integration with GitHub Actions
 - ✅ Auto-cleanup between tests
 - ✅ TypeScript support throughout
-- ✅ Mocking utilities for Electron APIs
+- ✅ Mocking utilities for Tauri APIs
 - ✅ React Testing Library integration
 - ✅ Fast test execution (~900ms for 36 tests)
 

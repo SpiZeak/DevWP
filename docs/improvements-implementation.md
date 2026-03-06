@@ -114,7 +114,7 @@ This document describes the enhancements implemented to improve DevWP's reliabil
 1. **SonarQube Configuration** - Token generation instructions
 2. **Docker Environment** - UID/GID configuration for permissions
 3. **Seonaut Configuration** - Port settings
-4. **Development Settings** - NODE_ENV and Electron DevTools
+4. **Development Settings** - NODE_ENV and Tauri developer tooling
 5. **Database Configuration** - MariaDB credentials (advanced)
 6. **Service Ports** - Port override options (advanced)
 7. **Logging Configuration** - Log level and retention
@@ -203,10 +203,10 @@ None. All changes are backward compatible.
 
    ```typescript
    // Use logger instead of console
-   import { logger, logSiteOperation } from './services/logger'
+   import { logger, logSiteOperation } from "./services/logger";
 
    // Use validation schemas
-   import { SiteConfigSchema } from './validation/schemas'
+   import { SiteConfigSchema } from "./validation/schemas";
    ```
 
 ### For Users
