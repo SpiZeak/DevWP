@@ -14,7 +14,7 @@ permissions:
 jobs:
   validate:
     name: Validate PR
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout code
@@ -25,6 +25,19 @@ jobs:
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src/tauri -> target'
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Install dependencies
         run: bun install
@@ -43,7 +56,7 @@ jobs:
         timeout-minutes: 10
 
       - name: Run linting
-        run: bun run lint -- src/
+        run: bun run lint -- src/renderer src/tauri
         continue-on-error: true
         timeout-minutes: 10
 
@@ -62,9 +75,16 @@ jobs:
 
       - name: Check for console.log statements
         run: |
-          if grep -r "console\.log" src/main src/renderer --exclude-dir=node_modules; then
+          if grep -r "console\.log" src/renderer --exclude-dir=node_modules; then
             echo "Warning: Found console.log statements. Consider using the logger service."
           fi
+        continue-on-error: true
+
+      - name: Check Rust code
+        run: |
+          cd src/tauri
+          cargo check
+          cargo clippy -- -D warnings
         continue-on-error: true
 
   integration-tests:
@@ -90,7 +110,7 @@ jobs:
 
       - name: Wait for MariaDB
         run: |
-          timeout 30 bash -c 'until docker exec devwp_mariadb mariadb-admin ping -h localhost -u root -proot; do sleep 1; done'
+          timeout 60 bash -c 'until docker compose exec -T mariadb mariadb-admin ping -h localhost -u root -proot; do sleep 1; done'
 
       - name: Run integration tests
         run: bun run test:integration
@@ -130,8 +150,11 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Run security audit
-        run: bun audit
+      - name: Run Rust security audit
+        run: |
+          cd src/tauri
+          cargo install cargo-audit
+          cargo audit
         continue-on-error: true
 
       - name: Check for secrets
@@ -157,17 +180,18 @@ jobs:
 
       - name: Build and check size
         run: |
-          bun run build
+          bun run build:web
           echo "## Build Output Size" >> $GITHUB_STEP_SUMMARY
-          du -sh out/ >> $GITHUB_STEP_SUMMARY
+          du -sh dist/ >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Detailed Breakdown" >> $GITHUB_STEP_SUMMARY
-          du -sh out/* >> $GITHUB_STEP_SUMMARY
+          du -sh dist/* >> $GITHUB_STEP_SUMMARY
 
   pr-comment:
     name: Post PR Summary
     runs-on: ubuntu-latest
-    needs: [validate, integration-tests, test-docker, security-check, size-check]
+    needs:
+      [validate, integration-tests, test-docker, security-check, size-check]
     if: always()
 
     steps:

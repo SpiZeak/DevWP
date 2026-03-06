@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [master, develop]
+    branches: [master, develop, feature/*]
     paths:
       - 'src/**'
       - 'package.json'
@@ -125,10 +125,8 @@ jobs:
         timeout-minutes: 5
 
       - name: Run integration tests
-        run: |
-          # Add integration tests here when available
-          echo "Integration tests would run here"
-        continue-on-error: true
+        run: bun run test:integration
+        timeout-minutes: 15
 
       - name: Docker logs on failure
         if: failure()

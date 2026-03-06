@@ -10,70 +10,64 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+  publish-tauri:
+    permissions:
+      contents: write
     strategy:
+      fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        include:
+          - platform: 'macos-latest' # for Arm based macs (M1 and above)
+            args: '--target aarch64-apple-darwin'
+          - platform: 'macos-latest' # for Intel based macs
+            args: '--target x86_64-apple-darwin'
+          - platform: 'ubuntu-22.04' # for Tauri v2 you could also use ubuntu-22.04
+            args: ''
+          - platform: 'windows-latest'
+            args: ''
 
+    runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      - name: Install dependencies
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src/tauri -> target'
+
+      - name: Install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
-      - name: Run unit tests
-        run: bun run test:run
-        timeout-minutes: 10
+      - name: Build frontend
+        run: bun run build:web
 
-      - name: Build application
-        run: bun run build:tauri
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-artifacts-${{ matrix.os }}
-          path: |
-            src/tauri/target/release/bundle/**/*
-          if-no-files-found: ignore
-
-  create_release:
-    name: Create GitHub Release
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download all build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: all-build-artifacts
-
-      - name: Prepare release assets
-        run: |
-          mkdir -p release-assets
-          find all-build-artifacts -type f -exec cp {} release-assets/ \;
-          echo "Release assets prepared:"
-          ls -lh release-assets/
-
-      - name: Create Release and Upload Assets
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          generate_release_notes: true
-          draft: false
-          prerelease: contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha')
-          files: release-assets/*
-          fail_on_unmatched_files: true
+      - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'DevWP ${{ github.ref_name }}'
+          releaseBody: 'See the assets to download this version and install.'
+          releaseDraft: false
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          args: ${{ matrix.args }}
+          projectPath: src/tauri

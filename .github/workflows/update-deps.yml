@@ -11,17 +11,37 @@ permissions:
 
 jobs:
   update-deps:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Update dependencies in package.json
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src/tauri -> target'
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Update JavaScript dependencies
         run: bunx npm-check-updates -u
+
+      - name: Update Rust dependencies
+        run: |
+          cd src/tauri
+          cargo update
 
       - name: Install updated dependencies and generate bun.lock
         run: bun install
@@ -41,7 +61,7 @@ jobs:
 
       - name: Wait for MariaDB
         run: |
-          timeout 30 bash -c 'until docker exec devwp_mariadb mariadb-admin ping -h localhost -u root -proot; do sleep 1; done'
+          timeout 60 bash -c 'until docker compose exec -T mariadb mariadb-admin ping -h localhost -u root -proot; do sleep 1; done'
 
       - name: Run integration tests
         run: bun run test:integration
@@ -55,19 +75,26 @@ jobs:
         run: bun run build
         timeout-minutes: 10
 
+      - name: Check Rust code
+        run: |
+          cd src/tauri
+          cargo check
+          cargo clippy -- -D warnings
+        continue-on-error: true
+
       - name: Commit changes
         id: commit # Add an id to check output later
         run: |
           git config --global user.name "${{ github.actor }}"
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-          git add package.json bun.lock # Be specific about files to add
+          git add package.json bun.lock src/tauri/Cargo.toml src/tauri/Cargo.lock # Be specific about files to add
           # Check if there are staged changes before committing
           if git diff --staged --quiet; then
             echo "No changes to commit"
             echo "changes_exist=false" >> $GITHUB_OUTPUT
           else
             echo "Changes detected, committing..."
-            git commit -m "chore: Auto-update dependencies and lockfile"
+            git commit -m "chore: Auto-update dependencies and lockfiles"
             echo "changes_exist=true" >> $GITHUB_OUTPUT
           fi
 

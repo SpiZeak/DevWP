@@ -39,13 +39,18 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
 
+          # Tauri produces AppImages with lowercase name and architecture suffix
+          # Format: {productName}_{version}_{arch}.AppImage
+          APPIMAGE_NAME="dev-wp_${VERSION}_amd64.AppImage"
+
           # Download the AppImage from the GitHub release
           curl -L -o devwp-${VERSION}.AppImage \
-            "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/devwp-${VERSION}.AppImage"
+            "https://github.com/${{ github.repository }}/releases/download/v${VERSION}/${APPIMAGE_NAME}"
 
           # Verify the file was downloaded
           if [[ ! -f "devwp-${VERSION}.AppImage" ]]; then
             echo "Error: Failed to download AppImage"
+            echo "Attempted to download: ${APPIMAGE_NAME}"
             exit 1
           fi
 
@@ -104,6 +109,10 @@ jobs:
           # Reset pkgrel to 1 for new version
           sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
 
+          # Update source URL to use Tauri naming convention
+          # Tauri produces: dev-wp_{version}_amd64.AppImage
+          sed -i "s|source=([^)]*)|source=(\"https://github.com/${{ github.repository }}/releases/download/v\${pkgver}/dev-wp_\${pkgver}_amd64.AppImage\")|" PKGBUILD
+
           # Update sha256sum
           sed -i "s/sha256sums=('[^']*'/sha256sums=('${SHA256}'/" PKGBUILD
 
@@ -155,7 +164,8 @@ jobs:
 
           **Version:** ${VERSION}
           **Package:** devwp
-          **AppImage SHA256:** \`${SHA256}\`
+          **AppImage:** dev-wp_${VERSION}_amd64.AppImage
+          **SHA256:** \`${SHA256}\`
 
           ## Next Steps
 
@@ -170,6 +180,8 @@ jobs:
           ## Verification
 
           Check the AUR page: https://aur.archlinux.org/packages/devwp
+
+          **Note:** This package uses Tauri-built AppImages with the naming format: \`dev-wp_{version}_amd64.AppImage\`
           EOF
 
       - name: Cleanup
