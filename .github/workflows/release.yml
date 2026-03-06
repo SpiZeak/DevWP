@@ -35,6 +35,16 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
 
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -44,6 +54,14 @@ jobs:
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src/tauri -> target'
+
+      - name: Cache Tauri bundler tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/tauri
+            ~/AppData/Local/tauri
+          key: ${{ runner.os }}-tauri-tools-v1
 
       - name: Install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-24.04'
