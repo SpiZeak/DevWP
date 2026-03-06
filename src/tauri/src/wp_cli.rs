@@ -14,7 +14,7 @@ pub struct WpCliRequest {
 }
 
 #[tauri::command]
-pub fn run_wp_cli(
+pub async fn run_wp_cli(
     app: tauri::AppHandle,
     request: WpCliRequest,
 ) -> Result<serde_json::Value, String> {

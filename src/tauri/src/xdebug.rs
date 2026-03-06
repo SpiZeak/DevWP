@@ -60,7 +60,7 @@ pub fn get_xdebug_status() -> bool {
 }
 
 #[tauri::command]
-pub fn toggle_xdebug(app: tauri::AppHandle) -> Result<bool, String> {
+pub async fn toggle_xdebug(app: tauri::AppHandle) -> Result<bool, String> {
     let target_enabled = !get_xdebug_status();
     let _ = app.emit(
         "xdebug-status",
@@ -87,7 +87,12 @@ pub fn toggle_xdebug(app: tauri::AppHandle) -> Result<bool, String> {
     fs::write(config_path, format!("{}\n", lines.join("\n")))
         .map_err(|e| format!("Failed to update xdebug.ini: {e}"))?;
 
-    let restart = run_command("docker", &["compose", "restart", "php"]);
+    let restart = tauri::async_runtime::spawn_blocking(|| {
+        run_command("docker", &["compose", "restart", "php"])
+    })
+    .await
+    .map_err(|e| format!("Task join error: {e}"))?;
+
     let restart_failed = match &restart {
         Err(e) => Some(e.clone()),
         Ok(output) if !output.status.success() => Some(

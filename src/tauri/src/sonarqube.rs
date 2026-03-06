@@ -9,7 +9,7 @@ pub struct ScanResult {
 }
 
 #[tauri::command]
-pub fn scan_site_sonarqube(site_name: String) -> ScanResult {
+pub async fn scan_site_sonarqube(site_name: String) -> ScanResult {
     let validated_site_name = match validate_site_name(&site_name) {
         Ok(name) => name,
         Err(error) => {
@@ -32,32 +32,42 @@ pub fn scan_site_sonarqube(site_name: String) -> ScanResult {
         }
     };
 
-    let output = run_command(
-        "docker",
-        &[
-            "compose",
-            "run",
-            "sonarqube-scanner",
-            "sonar-scanner",
-            &format!("-Dsonar.projectKey={project_key}"),
-            &format!("-Dsonar.sources={source_path}"),
-            "-Dsonar.host.url=http://sonarqube:9000",
-            &format!("-Dsonar.token={token}"),
-        ],
-    );
+    let output = tauri::async_runtime::spawn_blocking(move || {
+        let project_key_arg = format!("-Dsonar.projectKey={project_key}");
+        let source_path_arg = format!("-Dsonar.sources={source_path}");
+        let token_arg = format!("-Dsonar.token={token}");
+        run_command(
+            "docker",
+            &[
+                "compose",
+                "run",
+                "sonarqube-scanner",
+                "sonar-scanner",
+                &project_key_arg,
+                &source_path_arg,
+                "-Dsonar.host.url=http://sonarqube:9000",
+                &token_arg,
+            ],
+        )
+    })
+    .await;
 
     match output {
-        Ok(result) if result.status.success() => ScanResult {
+        Ok(Ok(result)) if result.status.success() => ScanResult {
             success: true,
             error: None,
         },
-        Ok(result) => ScanResult {
+        Ok(Ok(result)) => ScanResult {
             success: false,
             error: Some(String::from_utf8_lossy(&result.stderr).to_string()),
         },
-        Err(error) => ScanResult {
+        Ok(Err(error)) => ScanResult {
             success: false,
             error: Some(error),
+        },
+        Err(e) => ScanResult {
+            success: false,
+            error: Some(format!("Task join error: {e}")),
         },
     }
 }

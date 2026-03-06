@@ -71,6 +71,10 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
 
   const handleRunWpCli = async (): Promise<void> => {
     try {
+      setWpCliLoading(true);
+      setWpCliOutput('');
+      setWpCliError('');
+
       await invoke('run_wp_cli', {
         request: {
           site: site,
@@ -85,10 +89,6 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
 
   const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>): void => {
     e.preventDefault();
-
-    setWpCliLoading(true);
-    setWpCliOutput('');
-    setWpCliError('');
 
     if (!wpCliLoading && wpCliCommand.trim()) {
       handleRunWpCli();
@@ -148,7 +148,7 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
               disabled={!wpCliCommand.trim() || wpCliLoading}
             >
               {wpCliLoading ? (
-                <Spinner title="Loading WP-CLI response..." />
+                <Spinner svgClass="size-6" title="Loading WP-CLI response..." />
               ) : (
                 'Run'
               )}

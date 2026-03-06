@@ -144,21 +144,26 @@ pub async fn get_container_status(app: tauri::AppHandle) -> Result<Vec<Container
 }
 
 #[tauri::command]
-pub fn restart_container(app: tauri::AppHandle, container_id: String) -> Result<bool, String> {
-    let output = run_command("docker", &["restart", &container_id])?;
+pub async fn restart_container(
+    app: tauri::AppHandle,
+    container_id: String,
+) -> Result<bool, String> {
+    let output = tauri::async_runtime::spawn_blocking(move || {
+        run_command("docker", &["restart", &container_id])
+    })
+    .await
+    .map_err(|e| format!("Task join error: {e}"))??;
+
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
     }
 
-    tauri::async_runtime::spawn(async move {
-        let _ = get_container_status(app).await;
-    });
-
+    let _ = get_container_status(app).await;
     Ok(true)
 }
 
 #[tauri::command]
-pub fn start_service(app: tauri::AppHandle, service_name: String) -> Result<(), String> {
+pub async fn start_service(app: tauri::AppHandle, service_name: String) -> Result<(), String> {
     let _ = app.emit(
         "docker-status",
         DockerStatusPayload {
@@ -167,7 +172,13 @@ pub fn start_service(app: tauri::AppHandle, service_name: String) -> Result<(), 
         },
     );
 
-    let output = run_command("docker", &["compose", "up", "-d", "--build", &service_name])?;
+    let svc = service_name.clone();
+    let output = tauri::async_runtime::spawn_blocking(move || {
+        run_command("docker", &["compose", "up", "-d", "--build", &svc])
+    })
+    .await
+    .map_err(|e| format!("Task join error: {e}"))??;
+
     if !output.status.success() {
         let message = String::from_utf8_lossy(&output.stderr).to_string();
         let _ = app.emit(
@@ -192,8 +203,14 @@ pub fn start_service(app: tauri::AppHandle, service_name: String) -> Result<(), 
 }
 
 #[tauri::command]
-pub fn stop_service(app: tauri::AppHandle, service_name: String) -> Result<(), String> {
-    let output = run_command("docker", &["compose", "stop", &service_name])?;
+pub async fn stop_service(app: tauri::AppHandle, service_name: String) -> Result<(), String> {
+    let svc = service_name.clone();
+    let output = tauri::async_runtime::spawn_blocking(move || {
+        run_command("docker", &["compose", "stop", &svc])
+    })
+    .await
+    .map_err(|e| format!("Task join error: {e}"))??;
+
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
     }
