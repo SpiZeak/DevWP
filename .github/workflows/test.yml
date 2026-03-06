@@ -142,7 +142,9 @@ jobs:
         uses: docker/bake-action@v6
         with:
           files: compose.yml
-          targets: php nginx
+          targets: |
+            php
+            nginx
           set: |
             *.cache-from=type=gha,scope=devwp-integration
             *.cache-to=type=gha,mode=max,scope=devwp-integration
