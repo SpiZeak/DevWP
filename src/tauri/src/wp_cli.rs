@@ -64,9 +64,7 @@ fn extract_error(stdout: &str, stderr: &str, args: &[String]) -> String {
 }
 
 #[tauri::command]
-pub async fn run_wp_cli(
-    request: WpCliRequest,
-) -> Result<serde_json::Value, String> {
+pub async fn run_wp_cli(request: WpCliRequest) -> Result<serde_json::Value, String> {
     let site_name = validate_site_name(&request.site.name)?;
     let work_dir = if let Some(web_root) = request.site.web_root.as_deref() {
         format!("{}/{}/{}", DOCKER_SITE_ROOT_PATH, site_name, web_root)
