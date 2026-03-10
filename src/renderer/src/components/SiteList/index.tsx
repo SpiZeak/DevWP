@@ -84,7 +84,7 @@ const SiteList: React.FC = () => {
       openSiteUrl(`https://${newSiteData.domain}`);
       setIsModalOpen(false);
     } catch (error) {
-      console.error('Failed to create new site:', error);
+      console.error(`Failed to create new site: ${error}`);
       setSites((prevSites) =>
         prevSites.filter(
           (site) =>

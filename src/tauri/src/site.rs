@@ -1,5 +1,8 @@
 use crate::settings::{ensure_webroot_exists, get_webroot_from_settings};
-use crate::utils::{emit_notification, ensure_state_root, OperationResult, DOCKER_SITE_ROOT_PATH};
+use crate::utils::{
+    emit_notification, ensure_state_root, run_command, OperationResult, DOCKER_SITE_ROOT_PATH,
+};
+use crate::wp_cli::{PHP_CONTAINER_NAME, WP_CLI_ERROR_REPORTING};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
@@ -40,11 +43,21 @@ pub struct MultisiteConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct WordPressInstallConfig {
+    pub title: String,
+    pub admin_user: String,
+    pub admin_password: String,
+    pub admin_email: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SiteCreateRequest {
     pub domain: String,
     pub web_root: Option<String>,
     pub aliases: Option<String>,
     pub multisite: Option<MultisiteConfig>,
+    pub wordpress: Option<WordPressInstallConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,6 +124,169 @@ fn parse_domains(domain: &str, aliases: Option<&str>) -> Vec<String> {
         }
     }
     domains
+}
+
+fn regenerate_certificate(sites: &[Site]) -> Result<(), String> {
+    let cert_dir = crate::utils::project_root().join("config/certs");
+
+    // Collect every domain and alias across all sites
+    let mut domains: Vec<String> = Vec::new();
+    for s in sites {
+        domains.push(s.name.clone());
+        if let Some(aliases) = &s.aliases {
+            for alias in aliases.split(|c: char| c.is_whitespace() || c == ',') {
+                let alias = alias.trim();
+                if !alias.is_empty() {
+                    domains.push(alias.to_string());
+                }
+            }
+        }
+    }
+    domains.dedup();
+
+    if domains.is_empty() {
+        return Ok(());
+    }
+
+    let san_lines: String = domains
+        .iter()
+        .enumerate()
+        .map(|(i, d)| format!("DNS.{} = {}", i + 1, d))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let cnf = format!(
+        "[req]\n\
+         req_extensions = v3_req\n\
+         distinguished_name = req_distinguished_name\n\
+         [req_distinguished_name]\n\
+         [v3_req]\n\
+         basicConstraints = CA:FALSE\n\
+         keyUsage = nonRepudiation, digitalSignature, keyEncipherment\n\
+         extendedKeyUsage = clientAuth, serverAuth\n\
+         subjectAltName = @alt_names\n\
+         [alt_names]\n\
+         {san_lines}\n"
+    );
+
+    let tmp_conf = std::env::temp_dir().join("devwp_san.cnf");
+    fs::write(&tmp_conf, &cnf).map_err(|e| format!("Failed to write temp OpenSSL config: {e}"))?;
+
+    let ca_cert = cert_dir.join("ca.pem");
+    let ca_key = cert_dir.join("ca-key.pem");
+    let cert_key = cert_dir.join("key.pem");
+    let cert_csr = std::env::temp_dir().join("devwp_key.csr");
+    let cert_out_tmp = std::env::temp_dir().join("devwp_cert.pem");
+    let cert_out = cert_dir.join("cert.pem");
+    let ca_srl = cert_dir.join("ca.srl");
+    let ca_srl_tmp = std::env::temp_dir().join("devwp_ca.srl");
+    // Copy the serial file to temp so OpenSSL can update it without needing root
+    if ca_srl.exists() {
+        fs::copy(&ca_srl, &ca_srl_tmp)
+            .map_err(|e| format!("Failed to copy ca.srl to temp: {e}"))?;
+    }
+
+    let s_key = cert_key.to_str().ok_or("Non-UTF8 cert path")?.to_string();
+    let s_csr = cert_csr.to_str().ok_or("Non-UTF8 cert path")?.to_string();
+    let s_ca_cert = ca_cert.to_str().ok_or("Non-UTF8 cert path")?.to_string();
+    let s_ca_key = ca_key.to_str().ok_or("Non-UTF8 cert path")?.to_string();
+    let s_ca_srl = ca_srl_tmp.to_str().ok_or("Non-UTF8 cert path")?.to_string();
+    let s_cert_out_tmp = cert_out_tmp
+        .to_str()
+        .ok_or("Non-UTF8 cert path")?
+        .to_string();
+    let s_cert_out = cert_out.to_str().ok_or("Non-UTF8 cert path")?.to_string();
+    let s_tmp_conf = tmp_conf.to_str().ok_or("Non-UTF8 cert path")?.to_string();
+
+    let csr_result = run_command(
+        "openssl",
+        &[
+            "req",
+            "-new",
+            "-key",
+            &s_key,
+            "-out",
+            &s_csr,
+            "-subj",
+            "/CN=DevWP Local",
+            "-config",
+            &s_tmp_conf,
+        ],
+    );
+
+    let sign_result = csr_result.and_then(|out| {
+        if !out.status.success() {
+            let err = String::from_utf8_lossy(&out.stderr).to_string();
+            return Err(format!("openssl req failed: {err}"));
+        }
+        run_command(
+            "openssl",
+            &[
+                "x509",
+                "-req",
+                "-in",
+                &s_csr,
+                "-CA",
+                &s_ca_cert,
+                "-CAkey",
+                &s_ca_key,
+                "-CAserial",
+                &s_ca_srl,
+                "-out",
+                &s_cert_out_tmp,
+                "-days",
+                "3650",
+                "-extfile",
+                &s_tmp_conf,
+                "-extensions",
+                "v3_req",
+            ],
+        )
+    });
+
+    let _ = fs::remove_file(&tmp_conf);
+    let _ = fs::remove_file(&cert_csr);
+
+    let sign_output = sign_result?;
+    if !sign_output.status.success() {
+        let err = String::from_utf8_lossy(&sign_output.stderr).to_string();
+        return Err(format!("openssl x509 failed: {err}"));
+    }
+
+    // Copy the new cert to the certs directory — try directly first, fall back to pkexec
+    let cert_bytes =
+        fs::read(&cert_out_tmp).map_err(|e| format!("Failed to read generated cert: {e}"))?;
+    let _ = fs::remove_file(&cert_out_tmp);
+
+    match fs::write(&cert_out, &cert_bytes) {
+        Ok(_) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
+            let mut child = Command::new("pkexec")
+                .args(["tee", &s_cert_out])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::null())
+                .spawn()
+                .map_err(|e| format!("Failed to launch pkexec for cert: {e}"))?;
+            if let Some(mut stdin) = child.stdin.take() {
+                stdin
+                    .write_all(&cert_bytes)
+                    .map_err(|e| format!("Failed to write cert via pkexec: {e}"))?;
+            }
+            let status = child
+                .wait()
+                .map_err(|e| format!("pkexec wait failed: {e}"))?;
+            if !status.success() {
+                return Err("Failed to write cert.pem: pkexec returned non-zero".to_string());
+            }
+        }
+        Err(e) => return Err(format!("Failed to write cert.pem: {e}")),
+    }
+
+    Ok(())
+}
+
+fn nginx_reload() {
+    let _ = run_command("docker", &["exec", "devwp_nginx", "nginx", "-s", "reload"]);
 }
 
 fn generate_nginx_config(
@@ -433,6 +609,132 @@ pub fn get_sites() -> Vec<Site> {
     sites
 }
 
+fn install_wordpress(
+    app: &tauri::AppHandle,
+    domain: &str,
+    web_root: Option<&str>,
+    config: &WordPressInstallConfig,
+) -> Result<(), String> {
+    let work_dir = match web_root {
+        Some(wr) => format!("{DOCKER_SITE_ROOT_PATH}/{domain}/{wr}"),
+        None => format!("{DOCKER_SITE_ROOT_PATH}/{domain}"),
+    };
+
+    let db_name = domain.replace(['.', '-'], "_");
+
+    let run_wp = |cmd_args: &[&str]| -> Result<(), String> {
+        let mut args = vec![
+            "exec",
+            "-w",
+            work_dir.as_str(),
+            PHP_CONTAINER_NAME,
+            "php",
+            "-d",
+            WP_CLI_ERROR_REPORTING,
+            "/usr/local/bin/wp",
+        ];
+        args.extend_from_slice(cmd_args);
+        let output = run_command("docker", &args)?;
+        if output.status.success() {
+            Ok(())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+            let detail = if !stderr.is_empty() { stderr } else { stdout };
+            Err(format!(
+                "wp {} failed: {}",
+                cmd_args.first().copied().unwrap_or(""),
+                detail
+            ))
+        }
+    };
+
+    emit_notification(app, "info", format!("[{domain}] Downloading WordPress..."));
+    run_wp(&["core", "download"])?;
+
+    let dbname_arg = format!("--dbname={db_name}");
+    emit_notification(app, "info", format!("[{domain}] Creating wp-config.php..."));
+    run_wp(&[
+        "config",
+        "create",
+        &dbname_arg,
+        "--dbuser=root",
+        "--dbpass=root",
+        "--dbhost=devwp_mariadb",
+    ])?;
+
+    emit_notification(app, "info", format!("[{domain}] Creating database..."));
+    let create_db_sql = format!("CREATE DATABASE IF NOT EXISTS `{db_name}`");
+    let output = run_command(
+        "docker",
+        &[
+            "exec",
+            "devwp_mariadb",
+            "mariadb",
+            "-uroot",
+            "-proot",
+            "-e",
+            &create_db_sql,
+        ],
+    )?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(format!("Failed to create database: {stderr}"));
+    }
+
+    emit_notification(
+        app,
+        "info",
+        format!("[{domain}] Running WordPress install..."),
+    );
+
+    let url_arg = format!("--url=https://{domain}");
+    let title_arg = format!(
+        "--title={}",
+        if config.title.is_empty() {
+            domain
+        } else {
+            &config.title
+        }
+    );
+    let user_arg = format!(
+        "--admin_user={}",
+        if config.admin_user.is_empty() {
+            "root"
+        } else {
+            &config.admin_user
+        }
+    );
+    let pass_arg = format!(
+        "--admin_password={}",
+        if config.admin_password.is_empty() {
+            "root"
+        } else {
+            &config.admin_password
+        }
+    );
+    let email_arg = format!(
+        "--admin_email={}",
+        if config.admin_email.is_empty() {
+            "root@example.com"
+        } else {
+            &config.admin_email
+        }
+    );
+    run_wp(&[
+        "core",
+        "install",
+        &url_arg,
+        &title_arg,
+        &user_arg,
+        &pass_arg,
+        &email_arg,
+        "--skip-email",
+    ])?;
+
+    Ok(())
+}
+
 #[tauri::command]
 pub fn create_site(app: tauri::AppHandle, site: SiteCreateRequest) -> Result<(), String> {
     if site.domain.trim().is_empty() {
@@ -463,12 +765,19 @@ pub fn create_site(app: tauri::AppHandle, site: SiteCreateRequest) -> Result<(),
     );
 
     write_sites(&sites)?;
+    regenerate_certificate(&sites)?;
     generate_nginx_config(
         &site.domain,
         site.aliases.as_deref(),
         site.multisite.as_ref(),
     )?;
+    nginx_reload();
     add_hosts_entry(&site.domain, site.aliases.as_deref())?;
+
+    if let Some(wp_config) = &site.wordpress {
+        install_wordpress(&app, &site.domain, site.web_root.as_deref(), wp_config)?;
+    }
+
     emit_notification(&app, "success", format!("Site {} created", site.domain));
     Ok(())
 }
@@ -478,6 +787,7 @@ pub fn delete_site(app: tauri::AppHandle, site: Site) -> Result<(), String> {
     let mut sites = read_sites();
     sites.retain(|existing| existing.name != site.name);
     write_sites(&sites)?;
+    let _ = regenerate_certificate(&sites);
 
     let path = if site.path.trim().is_empty() {
         get_webroot_from_settings().join(&site.name)
@@ -494,6 +804,7 @@ pub fn delete_site(app: tauri::AppHandle, site: Site) -> Result<(), String> {
         let _ = fs::remove_file(conf_path);
     }
 
+    nginx_reload();
     let _ = remove_hosts_entry(&site.name, site.aliases.as_deref());
 
     emit_notification(&app, "success", format!("Site {} deleted", site.name));

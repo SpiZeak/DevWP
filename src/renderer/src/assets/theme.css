@@ -1,7 +1,7 @@
 @theme {
   /* Fonts */
-  --font-sans: 'Montserrat', sans-serif;
-  --font-mono: 'Monaspace Neon', monospace;
+  --font-sans: "Montserrat", sans-serif;
+  --font-mono: "Monaspace Neon", monospace;
 
   /* Colors */
   --color-*: initial;
