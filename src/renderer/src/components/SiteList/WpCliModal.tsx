@@ -1,7 +1,6 @@
 import type { Site } from '@renderer/env';
 import { invoke } from '@tauri-apps/api/core';
-import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import Spinner from '../ui/Spinner';
 
 interface WpCliModalProps {
@@ -17,56 +16,6 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
   const [wpCliLoading, setWpCliLoading] = useState<boolean>(false);
   const outputRef = useRef<HTMLPreElement>(null);
 
-  useEffect(() => {
-    if (!isOpen || !site) return;
-
-    let unlisten: UnlistenFn | undefined;
-
-    const setupListener = async () => {
-      unlisten = await listen<{
-        type: 'stdout' | 'stderr' | 'complete' | 'error';
-        data?: string;
-        error?: string;
-        siteId?: string;
-      }>('wp-cli-stream', (event) => {
-        const data = event.payload;
-        // Only handle streams for the current site
-        if (data.siteId !== site.name) return;
-
-        switch (data.type) {
-          case 'stdout':
-            setWpCliOutput((prev) => prev + data.data);
-            break;
-          case 'stderr':
-            setWpCliError((prev) => prev + data.data);
-            break;
-          case 'complete':
-            setWpCliLoading(false);
-            break;
-          case 'error':
-            setWpCliError((prev) => prev + data.error);
-            setWpCliLoading(false);
-            break;
-        }
-      });
-    };
-
-    setupListener();
-
-    return () => {
-      if (unlisten) {
-        unlisten();
-      }
-    };
-  }, [isOpen, site]);
-
-  // Auto-scroll to bottom when output changes
-  useEffect(() => {
-    if (outputRef.current) {
-      outputRef.current.scrollTop = outputRef.current.scrollHeight;
-    }
-  });
-
   if (!isOpen || !site) return null;
 
   const handleRunWpCli = async (): Promise<void> => {
@@ -75,14 +24,22 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
       setWpCliOutput('');
       setWpCliError('');
 
-      await invoke('run_wp_cli', {
+      const result = await invoke<{
+        success: boolean;
+        output: string;
+        error: string;
+      }>('run_wp_cli', {
         request: {
           site: site,
           command: wpCliCommand,
         },
       });
+
+      setWpCliOutput(result.output ?? '');
+      setWpCliError(result.error ?? '');
     } catch (e) {
       setWpCliError(String(e));
+    } finally {
       setWpCliLoading(false);
     }
   };

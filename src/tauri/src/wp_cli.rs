@@ -1,9 +1,8 @@
 use crate::site::{validate_site_name, Site};
 use crate::utils::{run_command, DOCKER_SITE_ROOT_PATH};
 use serde::{Deserialize, Serialize};
-use tauri::Emitter;
 
-pub const WP_CLI_ERROR_REPORTING: &str = "error_reporting=\"E_ALL & ~E_DEPRECATED & ~E_WARNING\"";
+pub const WP_CLI_ERROR_REPORTING: &str = "error_reporting=E_ALL & ~E_DEPRECATED & ~E_WARNING";
 pub const PHP_CONTAINER_NAME: &str = "devwp_php";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -13,9 +12,59 @@ pub struct WpCliRequest {
     pub command: String,
 }
 
+fn build_wp_args(work_dir: &str, extra: &[&str]) -> Vec<String> {
+    let mut args = vec![
+        "exec".to_string(),
+        "-w".to_string(),
+        work_dir.to_string(),
+        PHP_CONTAINER_NAME.to_string(),
+        "php".to_string(),
+        "-d".to_string(),
+        WP_CLI_ERROR_REPORTING.to_string(),
+        "/usr/local/bin/wp".to_string(),
+    ];
+    args.extend(extra.iter().map(|s| s.to_string()));
+    args
+}
+
+/// WP-CLI's exception handler buffers its output and may never flush it when the
+/// process has produced no prior output (a known WP-CLI + piped-stream issue).
+/// If both stdout and stderr are empty on a non-zero exit we re-run with
+/// `--debug` which forces the buffer to flush, then strip the noisy debug lines
+/// so only the actual error is returned.
+fn extract_error(stdout: &str, stderr: &str, args: &[String]) -> String {
+    if !stderr.is_empty() {
+        return stderr.to_string();
+    }
+    if !stdout.is_empty() {
+        return stdout.to_string();
+    }
+
+    // Both empty – retry with --debug to flush WP-CLI's internal output buffer.
+    let mut debug_args = args.to_vec();
+    debug_args.push("--debug".to_string());
+    let debug_arg_refs: Vec<&str> = debug_args.iter().map(|s| s.as_str()).collect();
+
+    if let Ok(debug_output) = run_command("docker", &debug_arg_refs) {
+        let debug_stderr = String::from_utf8_lossy(&debug_output.stderr).to_string();
+        let debug_stdout = String::from_utf8_lossy(&debug_output.stdout).to_string();
+
+        let meaningful: Vec<&str> = debug_stderr
+            .lines()
+            .chain(debug_stdout.lines())
+            .filter(|line| !line.starts_with("Debug ("))
+            .collect();
+
+        if !meaningful.is_empty() {
+            return meaningful.join("\n");
+        }
+    }
+
+    "WP-CLI command failed with no output".to_string()
+}
+
 #[tauri::command]
 pub async fn run_wp_cli(
-    app: tauri::AppHandle,
     request: WpCliRequest,
 ) -> Result<serde_json::Value, String> {
     let site_name = validate_site_name(&request.site.name)?;
@@ -25,54 +74,13 @@ pub async fn run_wp_cli(
         format!("{}/{}", DOCKER_SITE_ROOT_PATH, site_name)
     };
 
-    let mut args = vec![
-        "exec".to_string(),
-        "-w".to_string(),
-        work_dir,
-        PHP_CONTAINER_NAME.to_string(),
-        "php".to_string(),
-        "-d".to_string(),
-        WP_CLI_ERROR_REPORTING.to_string(),
-        "/usr/local/bin/wp".to_string(),
-    ];
-    args.extend(request.command.split_whitespace().map(str::to_string));
-
-    let arg_refs: Vec<&str> = args.iter().map(|arg| arg.as_str()).collect();
+    let cmd_parts: Vec<&str> = request.command.split_whitespace().collect();
+    let args = build_wp_args(&work_dir, &cmd_parts);
+    let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     let output = run_command("docker", &arg_refs)?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-    if !stdout.is_empty() {
-        let _ = app.emit(
-            "wp-cli-stream",
-            serde_json::json!({
-                "type": "stdout",
-                "data": stdout,
-                "siteId": site_name
-            }),
-        );
-    }
-
-    if !stderr.is_empty() {
-        let _ = app.emit(
-            "wp-cli-stream",
-            serde_json::json!({
-                "type": "stderr",
-                "data": stderr,
-                "siteId": site_name
-            }),
-        );
-    }
-
-    let _ = app.emit(
-        "wp-cli-stream",
-        serde_json::json!({
-            "type": "complete",
-            "siteId": site_name,
-            "code": output.status.code().unwrap_or(-1)
-        }),
-    );
 
     if output.status.success() {
         Ok(serde_json::json!({
@@ -81,16 +89,11 @@ pub async fn run_wp_cli(
             "error": stderr
         }))
     } else {
-        let failure_error = if stderr.is_empty() {
-            "WP-CLI command failed".to_string()
-        } else {
-            stderr
-        };
-
+        let error = extract_error(&stdout, &stderr, &args);
         Ok(serde_json::json!({
             "success": false,
             "output": stdout,
-            "error": failure_error
+            "error": error
         }))
     }
 }
