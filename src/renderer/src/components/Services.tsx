@@ -112,8 +112,11 @@ const Services: React.FC<ServicesProps> = ({
 
   return (
     <div className="mr-6 mb-5 rounded-lg">
+      <h1 className="mb-8 font-bold text-blue-600 text-4xl tracking-wide">
+        DevWP
+      </h1>
       <XdebugSwitch />
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-2">
           <BrandLogo icon={siDocker} />
           <h2 className="font-semibold text-seasalt text-lg">

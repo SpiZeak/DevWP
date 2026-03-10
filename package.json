@@ -29,6 +29,7 @@
     "@dabh/diagnostics": "^2.0.8",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-log": "~2",
+    "@tauri-apps/plugin-opener": "~2",
     "async": "^3.2.6",
     "fecha": "^4.2.3",
     "inherits": "^2.0.4",

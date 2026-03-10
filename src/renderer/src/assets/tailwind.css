@@ -4,6 +4,10 @@
 
 /* Root */
 @layer base {
+  html, body {
+    height: 100%;
+  }
+
   #root {
     @apply flex flex-col w-full h-full;
   }

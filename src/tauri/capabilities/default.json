@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Default desktop capability for DevWP",
   "windows": ["main"],
-  "permissions": ["core:default", "log:default"]
+  "permissions": ["core:default", "log:default", "opener:default"]
 }
