@@ -65,7 +65,7 @@ RUN cd /usr/src/nginx-$NGINX_VERSION && \
 	--add-dynamic-module=../ngx_brotli \
 	--with-openssl=/usr/src/libressl-4.2.1 \
 	--with-openssl-opt=enable-tls1_3 && \
-	make && make install
+	make -j$(nproc) && make install
 
 FROM nginx:alpine
 
