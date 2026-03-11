@@ -37,6 +37,12 @@ describe('CreateSiteModal', () => {
         enabled: false,
         type: 'subdirectory',
       },
+      wordpress: {
+        title: 'my-site.test',
+        adminUser: '',
+        adminPassword: '',
+        adminEmail: '',
+      },
     });
   });
 
@@ -76,6 +82,12 @@ describe('CreateSiteModal', () => {
       multisite: {
         enabled: true,
         type: 'subdirectory',
+      },
+      wordpress: {
+        title: 'full-site.com',
+        adminUser: '',
+        adminPassword: '',
+        adminEmail: '',
       },
     });
   });

@@ -19,9 +19,13 @@ vi.mock('./XdebugSwitch', () => ({
 describe('Services', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (invoke as any).mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_build_status') return {};
+      return undefined;
+    });
   });
 
-  it('renders loading state initially', async () => {
+  it('renders initial state with all known services', async () => {
     (listen as any).mockResolvedValue(vi.fn());
 
     let component: any;
@@ -31,14 +35,17 @@ describe('Services', () => {
       );
     });
 
-    expect(component.getByText('Loading services...')).toBeInTheDocument();
+    expect(component.getByText('Nginx')).toBeInTheDocument();
+    expect(component.getByText('PHP')).toBeInTheDocument();
     expect(invoke).toHaveBeenCalledWith('get_container_status');
   });
 
   it('renders containers once loaded', async () => {
     let listenerCallback: any;
     (listen as any).mockImplementation((event: string, callback: any) => {
-      listenerCallback = callback;
+      if (event === 'container-status') {
+        listenerCallback = callback;
+      }
       return Promise.resolve(vi.fn());
     });
 
@@ -72,7 +79,9 @@ describe('Services', () => {
     vi.useFakeTimers();
     let listenerCallback: any;
     (listen as any).mockImplementation((event: string, callback: any) => {
-      listenerCallback = callback;
+      if (event === 'container-status') {
+        listenerCallback = callback;
+      }
       return Promise.resolve(vi.fn());
     });
 
@@ -91,7 +100,7 @@ describe('Services', () => {
       });
     });
 
-    const restartBtn = component.getByTitle('Restart service');
+    const restartBtn = component.getAllByTitle('Restart service')[0];
 
     await act(async () => {
       fireEvent.click(restartBtn);

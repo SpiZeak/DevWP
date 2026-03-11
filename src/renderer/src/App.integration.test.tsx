@@ -41,6 +41,8 @@ describe('App Integration with Tauri API mocks', () => {
             { id: '1', name: 'devwp_nginx', state: 'running', version: '1.2' },
             { id: '2', name: 'devwp_php', state: 'running', version: '8.2' },
           ];
+        case 'get_build_status':
+          return {};
         case 'get_xdebug_status':
           return { success: true, enabled: true };
         case 'toggle_xdebug':

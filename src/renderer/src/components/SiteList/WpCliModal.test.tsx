@@ -81,13 +81,12 @@ describe('WpCliModal', () => {
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
-  it('handles stream events (stdout, stderr, complete, error)', async () => {
-    let streamCallback: any;
-    (listen as any).mockImplementation((event: string, callback: any) => {
-      if (event === 'wp-cli-stream') {
-        streamCallback = callback;
-      }
-      return Promise.resolve(vi.fn());
+  it('shows output and errors from invoke response', async () => {
+    (listen as any).mockResolvedValue(vi.fn());
+    (invoke as any).mockResolvedValue({
+      success: true,
+      output: 'Plugin list output',
+      error: 'Some warning',
     });
 
     let component: any;
@@ -95,54 +94,21 @@ describe('WpCliModal', () => {
       component = render(<WpCliModal {...defaultProps} />);
     });
 
-    expect(streamCallback).toBeDefined();
-
-    // Ignore events for other sites
+    const input = component.getByPlaceholderText('e.g. plugin list');
     await act(async () => {
-      streamCallback({
-        payload: { siteId: 'other-site', type: 'stdout', data: 'ignored' },
-      });
+      fireEvent.change(input, { target: { value: 'plugin list' } });
     });
 
-    // Handle stdout
     await act(async () => {
-      streamCallback({
-        payload: { siteId: 'test-site', type: 'stdout', data: 'hello out' },
-      });
+      fireEvent.click(component.getByText('Run'));
     });
+
     expect(
-      component.getByText('hello out', { exact: false }),
+      component.getByText('Plugin list output', { exact: false }),
     ).toBeInTheDocument();
-
-    // Handle stderr
-    await act(async () => {
-      streamCallback({
-        payload: { siteId: 'test-site', type: 'stderr', data: 'hello err' },
-      });
-    });
     expect(
-      component.getByText('hello err', { exact: false }),
+      component.getByText('Some warning', { exact: false }),
     ).toBeInTheDocument();
-
-    // Handle error
-    await act(async () => {
-      streamCallback({
-        payload: { siteId: 'test-site', type: 'error', error: 'fatal error' },
-      });
-    });
-    expect(
-      component.getByText('fatal error', { exact: false }),
-    ).toBeInTheDocument();
-
-    // Handle complete
-    await act(async () => {
-      streamCallback({ payload: { siteId: 'test-site', type: 'complete' } });
-    });
-
-    // We can also trigger the unlisten on unmount
-    await act(async () => {
-      component.unmount();
-    });
   });
 
   it('handles invoke throwing an error', async () => {
