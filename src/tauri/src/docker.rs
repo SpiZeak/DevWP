@@ -1,6 +1,10 @@
-use crate::utils::run_command;
+use crate::utils::{run_command, run_command_streaming};
 use serde::{Deserialize, Serialize};
-use tauri::Emitter;
+use std::collections::HashMap;
+use std::sync::Mutex;
+use tauri::{Emitter, Manager};
+
+pub struct BuildState(pub Mutex<HashMap<String, bool>>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -8,6 +12,7 @@ pub struct Container {
     pub id: String,
     pub name: String,
     pub state: String,
+    pub health: Option<String>,
     pub version: Option<String>,
 }
 
@@ -15,6 +20,20 @@ pub struct Container {
 pub struct DockerStatusPayload {
     pub status: String,
     pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BuildStatusPayload {
+    pub service_name: String,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DockerLogPayload {
+    pub service_name: String,
+    pub line: String,
 }
 
 pub fn parse_compose_ps(stdout: &str) -> Vec<Container> {
@@ -26,11 +45,20 @@ pub fn parse_compose_ps(stdout: &str) -> Vec<Container> {
             let id = parts.next()?.to_string();
             let name = parts.next()?.to_string();
             let state = parts.next()?.to_lowercase();
+            let health = parts.next().and_then(|h| {
+                let h = h.trim().to_lowercase();
+                if h.is_empty() {
+                    None
+                } else {
+                    Some(h)
+                }
+            });
 
             Some(Container {
                 id,
                 name,
                 state,
+                health,
                 version: None,
             })
         })
@@ -122,7 +150,7 @@ pub async fn get_container_status(app: tauri::AppHandle) -> Result<Vec<Container
             "compose",
             "ps",
             "--format",
-            "{{.ID}}|{{.Name}}|{{.State}}",
+            "{{.ID}}|{{.Name}}|{{.State}}|{{.Health}}",
             "-a",
         ],
     )?;
@@ -164,6 +192,19 @@ pub async fn restart_container(
 
 #[tauri::command]
 pub async fn start_service(app: tauri::AppHandle, service_name: String) -> Result<(), String> {
+    {
+        let build_state = app.state::<BuildState>();
+        let mut map = build_state.0.lock().map_err(|e| e.to_string())?;
+        map.insert(service_name.clone(), true);
+    }
+
+    let _ = app.emit(
+        "build-status",
+        BuildStatusPayload {
+            service_name: service_name.clone(),
+            status: "building".to_string(),
+        },
+    );
     let _ = app.emit(
         "docker-status",
         DockerStatusPayload {
@@ -173,22 +214,43 @@ pub async fn start_service(app: tauri::AppHandle, service_name: String) -> Resul
     );
 
     let svc = service_name.clone();
-    let output = tauri::async_runtime::spawn_blocking(move || {
-        run_command("docker", &["compose", "up", "-d", "--build", &svc])
+    let app_for_log = app.clone();
+    let svc_for_log = svc.clone();
+    let success = tauri::async_runtime::spawn_blocking(move || {
+        run_command_streaming(
+            "docker",
+            &["compose", "up", "-d", "--build", &svc],
+            move |line| {
+                let _ = app_for_log.emit(
+                    "docker-log",
+                    DockerLogPayload {
+                        service_name: svc_for_log.clone(),
+                        line,
+                    },
+                );
+            },
+        )
     })
     .await
     .map_err(|e| format!("Task join error: {e}"))??;
 
-    if !output.status.success() {
-        let message = String::from_utf8_lossy(&output.stderr).to_string();
+    {
+        let build_state = app.state::<BuildState>();
+        let mut map = build_state.0.lock().map_err(|e| e.to_string())?;
+        map.remove(&service_name);
+    }
+
+    if !success {
         let _ = app.emit(
             "docker-status",
             DockerStatusPayload {
                 status: "error".to_string(),
-                message: message.clone(),
+                message: format!("Service {service_name} failed to start"),
             },
         );
-        return Err(message);
+        return Err(format!(
+            "Service {service_name} failed to start — see build log"
+        ));
     }
 
     let _ = app.emit(
@@ -199,7 +261,17 @@ pub async fn start_service(app: tauri::AppHandle, service_name: String) -> Resul
         },
     );
 
+    let _ = get_container_status(app.clone()).await;
+
     Ok(())
+}
+
+#[tauri::command]
+pub async fn get_build_status(
+    state: tauri::State<'_, BuildState>,
+) -> Result<HashMap<String, bool>, String> {
+    let map = state.0.lock().map_err(|e| e.to_string())?;
+    Ok(map.clone())
 }
 
 #[tauri::command]

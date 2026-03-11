@@ -76,6 +76,55 @@ pub fn run_command(command: &str, args: &[&str]) -> Result<std::process::Output,
         .map_err(|e| format!("Failed to execute command `{command}`: {e}"))
 }
 
+/// Run a command and stream stdout/stderr line-by-line to the provided callback.
+/// Returns `Ok(true)` if the process exits successfully, `Ok(false)` on non-zero exit.
+pub fn run_command_streaming<F>(command: &str, args: &[&str], on_line: F) -> Result<bool, String>
+where
+    F: Fn(String) + Send + Sync + 'static,
+{
+    use std::io::{BufRead, BufReader};
+    use std::process::Stdio;
+    use std::sync::Arc;
+
+    let on_line = Arc::new(on_line);
+
+    let mut child = Command::new(command)
+        .args(args)
+        .current_dir(project_root())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn `{command}`: {e}"))?;
+
+    let stdout = child.stdout.take();
+    let on_line_stdout = Arc::clone(&on_line);
+    let stdout_thread = stdout.map(|stdout| {
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines().flatten() {
+                on_line_stdout(line);
+            }
+        })
+    });
+
+    if let Some(stderr) = child.stderr.take() {
+        let reader = BufReader::new(stderr);
+        for line in reader.lines().flatten() {
+            on_line(line);
+        }
+    }
+
+    if let Some(t) = stdout_thread {
+        t.join().ok();
+    }
+
+    let status = child
+        .wait()
+        .map_err(|e| format!("Failed to wait for `{command}`: {e}"))?;
+
+    Ok(status.success())
+}
+
 pub fn emit_notification(
     app: &tauri::AppHandle,
     notification_type: &str,

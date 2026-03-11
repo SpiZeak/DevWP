@@ -11,6 +11,7 @@ import {
   siSonarqubeserver,
 } from 'simple-icons';
 import { BrandLogo } from './BrandLogo';
+import BuildLog from './BuildLog';
 import Icon from './ui/Icon';
 import Spinner from './ui/Spinner';
 import XdebugSwitch from './XdebugSwitch';
@@ -24,6 +25,7 @@ interface Container {
   id: string;
   name: string;
   state: string;
+  health?: string | undefined;
   version?: string | undefined;
 }
 
@@ -46,13 +48,35 @@ const containerIconMapping: Record<string, React.ReactNode> = {
   devwp_sonarqube: <BrandLogo icon={siSonarqubeserver} />,
 };
 
+// Maps Docker Compose service names → container names for build-status events
+const serviceToContainerName: Record<string, string> = {
+  nginx: 'devwp_nginx',
+  php: 'devwp_php',
+  mariadb: 'devwp_mariadb',
+  redis: 'devwp_redis',
+  mailpit: 'devwp_mailpit',
+  sonarqube: 'devwp_sonarqube',
+};
+
+// Ordered list of services to always display
+const knownContainerNames = [
+  'devwp_nginx',
+  'devwp_php',
+  'devwp_mariadb',
+  'devwp_redis',
+  'devwp_mailpit',
+  // 'devwp_sonarqube',
+];
+
 const Services: React.FC<ServicesProps> = ({
   onOpenSettings,
   onOpenVersions,
 }) => {
   const [containers, setContainers] = useState([] as Container[]);
-  const [loading, setLoading] = useState(true);
   const [restarting, setRestarting] = useState({} as Record<string, boolean>);
+  const [buildingServices, setBuildingServices] = useState<Set<string>>(
+    new Set(),
+  );
   const excludedContainers = [
     'devwp_seonaut',
     'devwp_sonarqube-scanner',
@@ -64,23 +88,89 @@ const Services: React.FC<ServicesProps> = ({
       !excludedContainers.includes(container.name),
   );
 
+  // Virtual entries for services currently building but not yet in container-status
+  const buildingOnlyItems: Container[] = [...buildingServices]
+    .filter((name) => !containerMap.some((c) => c.name === name))
+    .map((name) => ({ id: `building_${name}`, name, state: 'building' }));
+
+  // Always show all known services; use real data if available, otherwise placeholder
+  const allItems: Container[] = knownContainerNames.map((name) => {
+    const real = containerMap.find((c) => c.name === name);
+
+    if (real) return real;
+
+    const isBuilding =
+      buildingServices.has(name) ||
+      buildingOnlyItems.some((b) => b.name === name);
+
+    return {
+      id: isBuilding ? `building_${name}` : `placeholder_${name}`,
+      name,
+      state: isBuilding ? 'building' : 'pending',
+    };
+  });
+
   useEffect(() => {
-    let unlistenFn: (() => void) | undefined;
+    let unlistenContainer: (() => void) | undefined;
+    let unlistenBuild: (() => void) | undefined;
 
     const setup = async () => {
-      // Register listener before invoking to avoid missing the response event
-      unlistenFn = await listen('container-status', (event) => {
-        setContainers(event.payload as Container[]);
-        setLoading(false);
+      // Register listeners before invoking to avoid missing events
+      unlistenContainer = await listen('container-status', (event) => {
+        const newContainers = event.payload as Container[];
+        setContainers(newContainers);
+        // Clear building state for containers that now have actual status
+        setBuildingServices((prev) => {
+          if (prev.size === 0) return prev;
+          const next = new Set(prev);
+          for (const c of newContainers) {
+            next.delete(c.name);
+          }
+          return next.size !== prev.size ? next : prev;
+        });
       });
+
+      unlistenBuild = await listen<{ service_name: string; status: string }>(
+        'build-status',
+        (event) => {
+          const containerName =
+            serviceToContainerName[event.payload.service_name];
+          if (!containerName) return;
+          setBuildingServices((prev) => {
+            const next = new Set(prev);
+            if (event.payload.status === 'building') {
+              next.add(containerName);
+            } else {
+              next.delete(containerName);
+            }
+            return next;
+          });
+        },
+      );
+
+      // Query current build state to handle race with app startup
+      const buildStatus =
+        await invoke<Record<string, boolean>>('get_build_status');
+      const initialBuilding = new Set<string>();
+      for (const [service, isBuilding] of Object.entries(buildStatus)) {
+        if (isBuilding) {
+          const containerName = serviceToContainerName[service];
+          if (containerName) initialBuilding.add(containerName);
+        }
+      }
+      if (initialBuilding.size > 0) {
+        setBuildingServices(initialBuilding);
+      }
+
       invoke('get_container_status');
     };
 
     setup();
 
-    // Clean up listener when component unmounts
+    // Clean up listeners when component unmounts
     return () => {
-      unlistenFn?.();
+      unlistenContainer?.();
+      unlistenBuild?.();
     };
   }, []);
 
@@ -110,11 +200,50 @@ const Services: React.FC<ServicesProps> = ({
     );
   };
 
+  const getBorderClass = (
+    container: Container,
+    isBuilding: boolean,
+  ): string => {
+    if (isBuilding) return 'border-l-3 border-amber-500';
+    if (container.state === 'pending') return '';
+    if (container.state === 'running') {
+      if (container.health === 'unhealthy')
+        return 'border-l-3 border-orange-500';
+      return 'border-l-3 border-emerald-500';
+    }
+    if (container.state === 'exited' || container.state === 'stopped')
+      return 'border-l-3 border-crimson-500';
+    return '';
+  };
+
+  const getStatusText = (
+    container: Container,
+    isBuilding: boolean,
+  ): React.ReactNode => {
+    if (isBuilding) {
+      return <span className="mt-0.5 text-amber text-xs">Building...</span>;
+    }
+    if (container.state === 'pending') {
+      return (
+        <span className="mt-0.5 text-seasalt-400 text-xs">Starting...</span>
+      );
+    }
+    if (container.health === 'starting') {
+      return <span className="mt-0.5 text-amber text-xs">Starting...</span>;
+    }
+    if (container.health === 'unhealthy') {
+      return <span className="mt-0.5 text-crimson text-xs">Unhealthy</span>;
+    }
+    if (container.version) {
+      return (
+        <span className="mt-0.5 text-seasalt text-xs">{container.version}</span>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="mr-6 mb-5 rounded-lg">
-      <h1 className="mb-8 font-bold text-blue-600 text-4xl tracking-wide">
-        DevWP
-      </h1>
       <XdebugSwitch />
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-2">
@@ -142,57 +271,50 @@ const Services: React.FC<ServicesProps> = ({
           </button>
         </div>
       </div>
-      {loading ? (
-        <div className="flex flex-col items-center">
-          <Spinner className="p-4" />
-          <p>Loading services...</p>
-        </div>
-      ) : (
-        <ul className="gap-3 grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] m-0 p-0 list-none">
-          {containerMap.length > 0 ? (
-            containerMap.map((container) => (
-              <li
-                key={container.id}
-                className={`flex justify-between items-center px-3 py-1.5 bg-gunmetal-500 rounded-md transition-colors hover:bg-gunmetal-500 ${container.state === 'running' ? 'border-l-3 border-emerald-500' : container.state === 'exited' || container.state === 'stopped' ? 'border-l-3 border-crimson-500' : ''}`}
-              >
-                <div className="flex items-center gap-2.5">
-                  {containerIconMapping[container.name] || '🔧'}
-                  <div className="flex flex-col text-left">
-                    <span className="overflow-hidden font-medium text-sm text-ellipsis whitespace-nowrap">
-                      {getDisplayName(container.name)}
-                    </span>
-                    {container.version && (
-                      <span className="mt-0.5 text-seasalt text-xs">
-                        {container.version}
-                      </span>
-                    )}
-                  </div>
+      <ul className="gap-3 grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] m-0 p-0 list-none">
+        {allItems.map((container) => {
+          const isBuilding = buildingServices.has(container.name);
+          return (
+            <li
+              key={container.id}
+              className={`flex justify-between items-center px-3 py-1.5 bg-gunmetal-500 rounded-md transition-colors hover:bg-gunmetal-500 ${getBorderClass(container, isBuilding)}`}
+            >
+              <div className="flex items-center gap-2.5">
+                {isBuilding ? (
+                  <span className="text-xl leading-none">🔧</span>
+                ) : (
+                  containerIconMapping[container.name] || (
+                    <span className="text-xl leading-none">🔧</span>
+                  )
+                )}
+                <div className="flex flex-col text-left">
+                  <span className="overflow-hidden font-medium text-sm text-ellipsis whitespace-nowrap">
+                    {getDisplayName(container.name)}
+                  </span>
+                  {getStatusText(container, isBuilding)}
                 </div>
-                <button
-                  type="button"
-                  className={`flex shrink-0 justify-center items-center bg-gunmetal-500 disabled:opacity-50 rounded-full size-7 text-2xl text-seasalt hover:text-warm-charcoal transition-all duration-200 cursor-pointer disabled:cursor-not-allowed icon ${restarting[container.id] ? '' : 'hover:rotate-30 hover:bg-pumpkin hover:text-warm-charcoal hover:scale-110'}`}
-                  onClick={() => restartContainer(container.id, container.name)}
-                  disabled={restarting[container.id]}
-                  title="Restart service"
-                >
-                  {restarting[container.id] ? (
-                    <Spinner svgClass="size-6" />
-                  ) : (
-                    <span>↻</span>
-                  )}
-                </button>
-              </li>
-            ))
-          ) : (
-            <li className="col-span-full py-6">
-              <div className="flex flex-col items-center text-seasalt">
-                <div className="mb-2 text-2xl">🔧</div>
-                <span>No containers running</span>
               </div>
+              <button
+                type="button"
+                className={`flex shrink-0 justify-center items-center bg-gunmetal-500 disabled:opacity-50 rounded-full size-7 text-2xl text-seasalt hover:text-warm-charcoal transition-all duration-200 cursor-pointer disabled:cursor-not-allowed icon ${restarting[container.id] || isBuilding ? '' : 'hover:rotate-30 hover:bg-pumpkin hover:text-warm-charcoal hover:scale-110'}`}
+                onClick={() => restartContainer(container.id, container.name)}
+                disabled={restarting[container.id] || isBuilding}
+                title="Restart service"
+              >
+                {restarting[container.id] ||
+                isBuilding ||
+                container.state === 'pending' ||
+                container.health === 'starting' ? (
+                  <Spinner svgClass="size-6" />
+                ) : (
+                  <span>↻</span>
+                )}
+              </button>
             </li>
-          )}
-        </ul>
-      )}
+          );
+        })}
+      </ul>
+      <BuildLog isBuilding={buildingServices.size > 0} />
     </div>
   );
 };

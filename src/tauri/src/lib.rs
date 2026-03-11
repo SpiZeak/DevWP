@@ -7,10 +7,13 @@ pub mod utils;
 pub mod wp_cli;
 pub mod xdebug;
 
-use crate::docker::DockerStatusPayload;
+use crate::docker::{BuildState, BuildStatusPayload, DockerLogPayload, DockerStatusPayload};
+use std::collections::HashMap;
+use std::sync::Mutex;
 use tauri::Manager;
 use tauri_plugin_log::log::{error, info, LevelFilter};
 use utils::run_command;
+use utils::run_command_streaming;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -31,6 +34,7 @@ pub fn run() {
             docker::start_service,
             docker::stop_service,
             docker::get_status,
+            docker::get_build_status,
             xdebug::get_xdebug_status,
             xdebug::toggle_xdebug,
             settings::get_settings,
@@ -48,11 +52,32 @@ pub fn run() {
             sonarqube::scan_site_sonarqube,
             wp_cli::run_wp_cli,
         ])
+        .manage(BuildState(Mutex::new(HashMap::new())))
         .setup(|app| {
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 use tauri::Emitter;
                 info!("Starting Docker services...");
+
+                // Mark all services as building before starting
+                let startup_services = ["nginx", "php", "mariadb", "redis", "mailpit"];
+                {
+                    let build_state = app_handle.state::<BuildState>();
+                    let mut map = build_state.0.lock().unwrap();
+                    for svc in &startup_services {
+                        map.insert(svc.to_string(), true);
+                    }
+                }
+                for svc in &startup_services {
+                    let _ = app_handle.emit(
+                        "build-status",
+                        BuildStatusPayload {
+                            service_name: svc.to_string(),
+                            status: "building".to_string(),
+                        },
+                    );
+                }
+
                 let _ = app_handle.emit(
                     "docker-status",
                     DockerStatusPayload {
@@ -61,7 +86,36 @@ pub fn run() {
                     },
                 );
 
-                let result = run_command("docker", &["compose", "up", "-d", "nginx"]);
+                let app_for_log = app_handle.clone();
+                let result = tauri::async_runtime::spawn_blocking(move || {
+                    run_command_streaming(
+                        "docker",
+                        &["compose", "up", "-d", "nginx"],
+                        move |line| {
+                            let _ = app_for_log.emit(
+                                "docker-log",
+                                DockerLogPayload {
+                                    service_name: "startup".to_string(),
+                                    line,
+                                },
+                            );
+                        },
+                    )
+                })
+                .await;
+
+                let result = match result {
+                    Ok(inner) => inner,
+                    Err(e) => Err(format!("Task join error: {e}")),
+                };
+
+                // Clear building state regardless of outcome
+                {
+                    let build_state = app_handle.state::<BuildState>();
+                    let mut map = build_state.0.lock().unwrap();
+                    map.clear();
+                }
+
                 match result {
                     Ok(_) => {
                         info!("Docker services started successfully.");
@@ -72,6 +126,7 @@ pub fn run() {
                                 message: "Services started".to_string(),
                             },
                         );
+                        let _ = docker::get_container_status(app_handle.clone()).await;
                     }
                     Err(e) => {
                         error!("Failed to start Docker services: {}", e);
@@ -82,6 +137,7 @@ pub fn run() {
                                 message: format!("Failed to start Docker services: {}", e),
                             },
                         );
+                        let _ = docker::get_container_status(app_handle.clone()).await;
                     }
                 }
             });
