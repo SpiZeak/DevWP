@@ -1,5 +1,6 @@
 import type { Site } from '@renderer/env';
 import { useEffect, useState } from 'react';
+import FormInput from '../ui/FormInput';
 import Icon from '../ui/Icon';
 
 interface EditSiteData {
@@ -14,43 +15,6 @@ interface EditSiteModalProps {
   onSubmit: (site: Site, data: EditSiteData) => void;
   onDelete: (site: Site) => Promise<void> | void;
 }
-
-interface FormInputProps {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  helpText?: React.ReactNode;
-}
-
-const FormInput: React.FC<FormInputProps> = ({
-  label,
-  value,
-  onChange,
-  placeholder,
-  helpText,
-}) => {
-  const inputId = `input-${label.replace(/\s+/g, '-').toLowerCase()}`;
-  return (
-    <div className="mb-6">
-      <label
-        htmlFor={inputId}
-        className="block mb-2 font-medium text-seasalt text-sm"
-      >
-        {label}
-      </label>
-      <input
-        id={inputId}
-        type="text"
-        className="bg-gunmetal-400 p-3 border border-gunmetal-600 focus:border-pumpkin-500 rounded-lg focus:outline-none w-full text-seasalt transition-colors placeholder-seasalt-400"
-        value={value}
-        onChange={(e): void => onChange(e.target.value)}
-        placeholder={placeholder}
-      />
-      {helpText && helpText}
-    </div>
-  );
-};
 
 const EditSiteModal: React.FC<EditSiteModalProps> = ({
   isOpen,

@@ -8,19 +8,16 @@ function XdebugSwitch(): JSX.Element {
   const [isToggling, setIsToggling] = useState<boolean>(false);
 
   useEffect(() => {
-    // Get initial Xdebug status
-    invoke<boolean>('get_xdebug_status')
-      .then((status) => {
-        setXdebugEnabled(status);
-      })
-      .catch((err) => {
-        console.error('Error getting Xdebug status:', err);
-      });
-
     let unlisten: UnlistenFn | undefined;
 
-    // Set up listener for status updates
-    const setupListener = async () => {
+    const setup = async (): Promise<void> => {
+      try {
+        const status = await invoke<boolean>('get_xdebug_status');
+        setXdebugEnabled(status);
+      } catch (err) {
+        console.error('Error getting Xdebug status:', err);
+      }
+
       unlisten = await listen<{
         status: 'restarting' | 'complete' | 'error';
         enabled?: boolean;
@@ -39,7 +36,7 @@ function XdebugSwitch(): JSX.Element {
       });
     };
 
-    setupListener();
+    setup();
 
     return () => {
       if (unlisten) {

@@ -105,7 +105,7 @@ fn get_container_version(name: &str) -> Option<String> {
             .lines()
             .find(|line| {
                 line.starts_with("PHP ")
-                    && line.chars().nth(4).map_or(false, |c| c.is_ascii_digit())
+                    && line.chars().nth(4).is_some_and(|c| c.is_ascii_digit())
             })
             .unwrap_or("")
             .split_whitespace()
@@ -296,37 +296,6 @@ pub async fn stop_service(app: tauri::AppHandle, service_name: String) -> Result
     );
 
     Ok(())
-}
-
-#[tauri::command]
-pub async fn get_status(service_name: Option<String>) -> Result<Vec<Container>, String> {
-    let mut args = vec![
-        "compose".to_string(),
-        "ps".to_string(),
-        "--format".to_string(),
-        "{{.ID}}|{{.Name}}|{{.State}}".to_string(),
-        "-a".to_string(),
-    ];
-
-    if let Some(service) = service_name {
-        args.push(service);
-    }
-
-    let arg_refs: Vec<&str> = args.iter().map(|arg| arg.as_str()).collect();
-    let output = run_command("docker", &arg_refs)?;
-    if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
-    }
-
-    let mut containers = parse_compose_ps(&String::from_utf8_lossy(&output.stdout));
-
-    for container in &mut containers {
-        if container.state == "running" {
-            container.version = get_container_version(&container.name);
-        }
-    }
-
-    Ok(containers)
 }
 
 #[cfg(test)]

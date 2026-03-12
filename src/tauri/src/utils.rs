@@ -101,7 +101,7 @@ where
     let stdout_thread = stdout.map(|stdout| {
         std::thread::spawn(move || {
             let reader = BufReader::new(stdout);
-            for line in reader.lines().flatten() {
+            for line in reader.lines().map_while(|l| l.ok()) {
                 on_line_stdout(line);
             }
         })
@@ -109,7 +109,7 @@ where
 
     if let Some(stderr) = child.stderr.take() {
         let reader = BufReader::new(stderr);
-        for line in reader.lines().flatten() {
+        for line in reader.lines().map_while(|l| l.ok()) {
             on_line(line);
         }
     }

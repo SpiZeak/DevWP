@@ -11,17 +11,4 @@ export interface Site {
     enabled: boolean;
     type: 'subdomain' | 'subdirectory';
   };
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-type DockerStatus = 'starting' | 'progress' | 'complete' | 'error';
-
-declare global {
-  interface Container {
-    id: string;
-    name: string;
-    state: string;
-    version?: string;
-  }
 }

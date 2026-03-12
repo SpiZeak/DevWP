@@ -58,6 +58,12 @@ const serviceToContainerName: Record<string, string> = {
   sonarqube: 'devwp_sonarqube',
 };
 
+const EXCLUDED_CONTAINERS = [
+  'devwp_seonaut',
+  'devwp_sonarqube-scanner',
+  'devwp_certs',
+];
+
 // Ordered list of services to always display
 const knownContainerNames = [
   'devwp_nginx',
@@ -77,15 +83,10 @@ const Services: React.FC<ServicesProps> = ({
   const [buildingServices, setBuildingServices] = useState<Set<string>>(
     new Set(),
   );
-  const excludedContainers = [
-    'devwp_seonaut',
-    'devwp_sonarqube-scanner',
-    'devwp_certs',
-  ];
   const containerMap = containers.filter(
     (container) =>
       container.name.includes('devwp_') &&
-      !excludedContainers.includes(container.name),
+      !EXCLUDED_CONTAINERS.includes(container.name),
   );
 
   // Virtual entries for services currently building but not yet in container-status

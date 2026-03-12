@@ -113,17 +113,17 @@ pub fn validate_site_name(input: &str) -> Result<String, String> {
     Ok(input.to_string())
 }
 
-fn parse_domains(domain: &str, aliases: Option<&str>) -> Vec<String> {
-    let mut domains = vec![domain.to_string()];
+fn parse_domains(domain: &str, aliases: Option<&str>) -> Result<Vec<String>, String> {
+    let mut domains = vec![validate_site_name(domain)?];
     if let Some(a) = aliases {
         for alias in a.split(|c: char| c.is_whitespace() || c == ',') {
             let alias = alias.trim();
             if !alias.is_empty() {
-                domains.push(alias.to_string());
+                domains.push(validate_site_name(alias)?);
             }
         }
     }
-    domains
+    Ok(domains)
 }
 
 fn regenerate_certificate(sites: &[Site]) -> Result<(), String> {
@@ -368,7 +368,7 @@ fn generate_nginx_config(
 }
 
 fn add_hosts_entry(domain: &str, aliases: Option<&str>) -> Result<(), String> {
-    let domains = parse_domains(domain, aliases);
+    let domains = parse_domains(domain, aliases)?;
     let hosts_path = Path::new(HOSTS_FILE_PATH);
     let current = fs::read_to_string(hosts_path).unwrap_or_default();
 
@@ -472,7 +472,7 @@ fn elevate_append_hosts(content: &str) -> Result<(), String> {
 }
 
 fn remove_hosts_entry(domain: &str, aliases: Option<&str>) -> Result<(), String> {
-    let domains = parse_domains(domain, aliases);
+    let domains = parse_domains(domain, aliases)?;
     let hosts_path = Path::new(HOSTS_FILE_PATH);
 
     let current = match fs::read_to_string(hosts_path) {
@@ -824,14 +824,28 @@ pub fn update_site(
         .find(|s| s.name == site.name)
         .cloned()
         .unwrap_or(site);
+
+    let old_aliases = existing.aliases.clone();
+
     let updated = Site {
-        aliases: data.aliases.or(existing.aliases),
-        web_root: data.web_root.or(existing.web_root),
-        ..existing
+        aliases: data.aliases.filter(|s| !s.is_empty()).or(existing.aliases.clone()),
+        web_root: data.web_root.filter(|s| !s.is_empty()).or(existing.web_root.clone()),
+        ..existing.clone()
     };
 
-    update_or_insert_site(&mut sites, updated);
+    update_or_insert_site(&mut sites, updated.clone());
     write_sites(&sites)?;
+
+    // Remove old alias hosts entries, regenerate cert and nginx config, add new ones
+    let _ = remove_hosts_entry(&existing.name, old_aliases.as_deref());
+    let _ = regenerate_certificate(&sites);
+    generate_nginx_config(
+        &updated.name,
+        updated.aliases.as_deref(),
+        updated.multisite.as_ref(),
+    )?;
+    nginx_reload();
+    add_hosts_entry(&updated.name, updated.aliases.as_deref())?;
 
     emit_notification(&app, "success", "Site updated");
     Ok(OperationResult {

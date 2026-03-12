@@ -98,8 +98,7 @@ pub async fn toggle_xdebug(app: tauri::AppHandle) -> Result<bool, String> {
         Ok(output) if !output.status.success() => Some(
             String::from_utf8_lossy(&output.stderr)
                 .trim()
-                .to_string()
-                .into(),
+                .to_string(),
         ),
         Ok(_) => None,
     };
@@ -115,7 +114,7 @@ pub async fn toggle_xdebug(app: tauri::AppHandle) -> Result<bool, String> {
         return Err(error);
     }
 
-    let final_status = get_xdebug_status();
+    let final_status = target_enabled;
     let _ = app.emit(
         "xdebug-status",
         XdebugStatusPayload {

@@ -1,5 +1,5 @@
 use crate::site::validate_site_name;
-use crate::utils::{run_command, DOCKER_SITE_ROOT_PATH};
+use crate::utils::DOCKER_SITE_ROOT_PATH;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
@@ -35,20 +35,24 @@ pub async fn scan_site_sonarqube(site_name: String) -> ScanResult {
     let output = tauri::async_runtime::spawn_blocking(move || {
         let project_key_arg = format!("-Dsonar.projectKey={project_key}");
         let source_path_arg = format!("-Dsonar.sources={source_path}");
-        let token_arg = format!("-Dsonar.token={token}");
-        run_command(
-            "docker",
-            &[
+        std::process::Command::new("docker")
+            .args([
                 "compose",
                 "run",
+                "--rm",
+                "-e",
+                "SONAR_TOKEN",
                 "sonarqube-scanner",
                 "sonar-scanner",
                 &project_key_arg,
                 &source_path_arg,
                 "-Dsonar.host.url=http://sonarqube:9000",
-                &token_arg,
-            ],
-        )
+                "-Dsonar.token=${SONAR_TOKEN}",
+            ])
+            .env("SONAR_TOKEN", &token)
+            .current_dir(crate::utils::project_root())
+            .output()
+            .map_err(|e| format!("Failed to execute sonar-scanner: {e}"))
     })
     .await;
 

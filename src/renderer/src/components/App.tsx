@@ -1,5 +1,5 @@
-import { openPath, openUrl } from '@tauri-apps/plugin-opener';
-import { type JSX, lazy, useState } from 'react';
+import { openUrl } from '@tauri-apps/plugin-opener';
+import { type JSX, lazy, Suspense, useState } from 'react';
 import Notifications from './Notifications';
 import Services from './Services';
 import SiteList from './SiteList';
@@ -39,7 +39,9 @@ function App(): JSX.Element {
       </div>
       <Versions isOpen={isVersionsOpen} onClose={handleCloseVersions} />
       <Notifications />
-      <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
+      <Suspense fallback={null}>
+        <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
+      </Suspense>
       <footer className="mt-auto p-6 text-seasalt text-sm text-center">
         <h6 className="inline-block opacity-25 hover:opacity-100 m-0 font-medium transition-opacity">
           Crafted by{' '}
@@ -48,7 +50,10 @@ function App(): JSX.Element {
             target="_blank"
             rel="noopener noreferrer"
             className="group inline-flex items-center gap-1 hover:text-pumpkin transition-colors"
-            onClick={(e) => openUrl(e.currentTarget.href)}
+            onClick={(e) => {
+              e.preventDefault();
+              openUrl(e.currentTarget.href);
+            }}
           >
             SpiZeak
             <span className="opacity-0 group-hover:opacity-100 transition-opacity">

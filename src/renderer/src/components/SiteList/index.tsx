@@ -1,6 +1,7 @@
 import type { Site } from '@renderer/env';
 import { invoke } from '@tauri-apps/api/core';
-import { lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { emit } from '@tauri-apps/api/event';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../ui/Icon';
 import Spinner from '../ui/Spinner';
 import type { NewSiteData } from './CreateSiteModal';
@@ -10,6 +11,8 @@ import SiteItem from './SiteItem';
 const CreateSiteModal = lazy(() => import('./CreateSiteModal'));
 const WpCliModal = lazy(() => import('./WpCliModal'));
 const EditSiteModal = lazy(() => import('./EditSiteModal'));
+
+const SCROLLBAR_MARGIN = 16;
 
 const SiteList: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([]);
@@ -40,12 +43,11 @@ const SiteList: React.FC = () => {
   const barTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [barEverShown, setBarEverShown] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
-  const SCROLLBAR_MARGIN = 16;
   const [maxHeight, setMaxHeight] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const openSiteUrl = (url: string): void => {
-    invoke('open_external', { url });
+    void invoke('open_external', { url });
   };
 
   const handleCreateSite = (): void => {
@@ -99,12 +101,19 @@ const SiteList: React.FC = () => {
         error instanceof Error
           ? error.message
           : 'An unexpected error occurred.';
-      alert(`Provisioning failed for ${newSiteData.domain}: ${message}`);
+      void emit('notification', {
+        type: 'error',
+        message: `Provisioning failed for ${newSiteData.domain}: ${message}`,
+      });
+      // Note: provisioning failure notification is emitted by Rust backend
     }
   };
 
   const handleDeleteSite = async (site: Site): Promise<void> => {
-    if (confirm(`Are you sure you want to delete the site ${site.name}?`)) {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete the site ${site.name}?`,
+    );
+    if (confirmed) {
       try {
         await invoke('delete_site', { site });
         setEditSiteModal({ open: false, site: null });
@@ -124,19 +133,23 @@ const SiteList: React.FC = () => {
         error?: string;
       }>('scan_site_sonarqube', { site_name: site.name });
       if (result.success) {
-        alert(
-          `SonarQube scan initiated successfully for ${site.name}. Check SonarQube UI for progress.`,
-        );
+        // Scan initiated; backend emits a notification
       } else {
         console.error(`SonarQube scan failed for ${site.name}:`, result.error);
-        alert(`SonarQube scan failed for ${site.name}: ${result.error}`);
+        void emit('notification', {
+          type: 'error',
+          message: `SonarQube scan failed for ${site.name}: ${result.error}`,
+        });
       }
     } catch (error) {
       console.error(
         `Failed to trigger SonarQube scan for ${site.name}:`,
         error,
       );
-      alert(`Failed to trigger SonarQube scan for ${site.name}.`);
+      void emit('notification', {
+        type: 'error',
+        message: `Failed to trigger SonarQube scan for ${site.name}.`,
+      });
     } finally {
       setScanningSite(null);
     }
@@ -163,11 +176,9 @@ const SiteList: React.FC = () => {
     data: { aliases: string; webRoot: string },
   ): Promise<void> => {
     try {
-      console.log('Calling updateSite with:', { site, data });
       await invoke('update_site', { site, data });
-      console.log('updateSite completed successfully');
       setEditSiteModal({ open: false, site: null });
-      fetchSites();
+      await fetchSites();
     } catch (error) {
       console.error('Failed to update site:', error);
     }
@@ -402,26 +413,32 @@ const SiteList: React.FC = () => {
             )}
           </ul>
         </div>
-        <CreateSiteModal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          onSubmit={handleSubmitNewSite}
-        />
-        {wpCliModal.open && wpCliModal.site && (
-          <WpCliModal
-            isOpen={wpCliModal.open}
-            site={wpCliModal.site}
-            onClose={handleCloseWpCliModal}
+        <Suspense fallback={null}>
+          <CreateSiteModal
+            isOpen={isModalOpen}
+            onClose={handleCloseModal}
+            onSubmit={handleSubmitNewSite}
           />
+        </Suspense>
+        {wpCliModal.open && wpCliModal.site && (
+          <Suspense fallback={null}>
+            <WpCliModal
+              isOpen={wpCliModal.open}
+              site={wpCliModal.site}
+              onClose={handleCloseWpCliModal}
+            />
+          </Suspense>
         )}
         {editSiteModal.open && editSiteModal.site && (
-          <EditSiteModal
-            isOpen={editSiteModal.open}
-            site={editSiteModal.site}
-            onClose={handleCloseEditSiteModal}
-            onSubmit={handleUpdateSite}
-            onDelete={handleDeleteSite}
-          />
+          <Suspense fallback={null}>
+            <EditSiteModal
+              isOpen={editSiteModal.open}
+              site={editSiteModal.site}
+              onClose={handleCloseEditSiteModal}
+              onSubmit={handleUpdateSite}
+              onDelete={handleDeleteSite}
+            />
+          </Suspense>
         )}
         {(scrollBar.visible ||
           isScrolling ||

@@ -33,7 +33,6 @@ pub fn run() {
             docker::restart_container,
             docker::start_service,
             docker::stop_service,
-            docker::get_status,
             docker::get_build_status,
             xdebug::get_xdebug_status,
             xdebug::toggle_xdebug,
@@ -63,7 +62,7 @@ pub fn run() {
                 let startup_services = ["nginx", "php", "mariadb", "redis", "mailpit"];
                 {
                     let build_state = app_handle.state::<BuildState>();
-                    let mut map = build_state.0.lock().unwrap();
+                    let mut map = build_state.0.lock().expect("build state mutex poisoned");
                     for svc in &startup_services {
                         map.insert(svc.to_string(), true);
                     }
@@ -112,7 +111,7 @@ pub fn run() {
                 // Clear building state regardless of outcome
                 {
                     let build_state = app_handle.state::<BuildState>();
-                    let mut map = build_state.0.lock().unwrap();
+                    let mut map = build_state.0.lock().expect("build state mutex poisoned");
                     map.clear();
                 }
 
