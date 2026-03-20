@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { emit } from '@tauri-apps/api/event';
 import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import { Suspense } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,6 +11,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn().mockResolvedValue(vi.fn()),
+  emit: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('./SiteItem', () => ({
@@ -212,10 +214,14 @@ describe('SiteList', () => {
     fireEvent.click(component.getByText('Submit Create'));
 
     await waitFor(() => {
-      expect(global.alert).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'Provisioning failed for newsite.test: Provision failed',
-        ),
+      expect(emit).toHaveBeenCalledWith(
+        'notification',
+        expect.objectContaining({
+          type: 'error',
+          message: expect.stringContaining(
+            'Provisioning failed for newsite.test: Provision failed',
+          ),
+        }),
       );
     });
     consoleSpy.mockRestore();
@@ -262,9 +268,6 @@ describe('SiteList', () => {
       expect(invoke).toHaveBeenCalledWith('scan_site_sonarqube', {
         site_name: 'Site1.test',
       });
-      expect(global.alert).toHaveBeenCalledWith(
-        expect.stringContaining('SonarQube scan initiated successfully'),
-      );
     });
   });
 
@@ -293,8 +296,12 @@ describe('SiteList', () => {
     fireEvent.click(scanBtn as Element);
 
     await waitFor(() => {
-      expect(global.alert).toHaveBeenCalledWith(
-        expect.stringContaining('SonarQube scan failed'),
+      expect(emit).toHaveBeenCalledWith(
+        'notification',
+        expect.objectContaining({
+          type: 'error',
+          message: expect.stringContaining('SonarQube scan failed'),
+        }),
       );
     });
     consoleSpy.mockRestore();
@@ -325,8 +332,12 @@ describe('SiteList', () => {
     fireEvent.click(scanBtn as Element);
 
     await waitFor(() => {
-      expect(global.alert).toHaveBeenCalledWith(
-        'Failed to trigger SonarQube scan for Site1.test.',
+      expect(emit).toHaveBeenCalledWith(
+        'notification',
+        expect.objectContaining({
+          type: 'error',
+          message: 'Failed to trigger SonarQube scan for Site1.test.',
+        }),
       );
     });
     consoleSpy.mockRestore();
