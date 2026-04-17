@@ -1,4 +1,6 @@
-FROM nginx:mainline-alpine AS builder
+FROM nginx:stable-alpine-slim AS builder
+
+ARG LIBRESSL_VERSION=4.2.1
 
 # For latest build deps, see https://github.com/nginxinc/docker-nginx/blob/master/mainline/alpine/Dockerfile
 RUN apk add --no-cache --virtual .build-deps \
@@ -19,30 +21,24 @@ RUN apk add --no-cache --virtual .build-deps \
 	git \
 	cmake
 
-# Create required directory
-RUN mkdir -p /usr/src
+WORKDIR /usr/src
 
-# Download and compile LibreSSL 4.2.1 from Swedish FTP mirror
-RUN cd /usr/src && \
-	curl -sSL https://cdn.openbsd.org/pub/OpenBSD/LibreSSL/libressl-4.2.1.tar.gz -o libressl-4.2.1.tar.gz && \
-	tar -zxf libressl-4.2.1.tar.gz && \
-	cd libressl-4.2.1 && \
-	mkdir build && \
-	cd build && \
-	cmake .. \
-	-DCMAKE_INSTALL_PREFIX=/usr/local/libressl-4.2.1 \
+RUN curl -sSL "https://cdn.openbsd.org/pub/OpenBSD/LibreSSL/libressl-${LIBRESSL_VERSION}.tar.gz" \
+	-o libressl-${LIBRESSL_VERSION}.tar.gz && \
+	tar -zxf libressl-${LIBRESSL_VERSION}.tar.gz && \
+	rm libressl-${LIBRESSL_VERSION}.tar.gz && \
+	cmake -S libressl-${LIBRESSL_VERSION} -B libressl-${LIBRESSL_VERSION}/build \
+	-DCMAKE_INSTALL_PREFIX=/usr/local/libressl-${LIBRESSL_VERSION} \
 	-DCMAKE_BUILD_TYPE=Release && \
-	make -j$(nproc) && \
-	make install
+	cmake --build libressl-${LIBRESSL_VERSION}/build -j"$(nproc)" && \
+	cmake --install libressl-${LIBRESSL_VERSION}/build
 
-# Download sources
-RUN wget "http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" -O nginx.tar.gz && \
-	tar -zxC /usr/src -f nginx.tar.gz && \
-	cd /usr/src && \
-	git clone --recurse-submodules -j$(nproc) https://github.com/google/ngx_brotli.git
+RUN curl -sSL "http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" -o nginx.tar.gz && \
+	tar -zxf nginx.tar.gz && \
+	rm nginx.tar.gz && \
+	git clone --recurse-submodules -j"$(nproc)" https://github.com/google/ngx_brotli.git
 
-# Use a simplified configure approach with hardcoded core options and LibreSSL
-RUN cd /usr/src/nginx-$NGINX_VERSION && \
+RUN cd nginx-${NGINX_VERSION} && \
 	./configure \
 	--prefix=/etc/nginx \
 	--sbin-path=/usr/sbin/nginx \
@@ -63,62 +59,55 @@ RUN cd /usr/src/nginx-$NGINX_VERSION && \
 	--with-http_gzip_static_module \
 	--with-compat \
 	--add-dynamic-module=../ngx_brotli \
-	--with-openssl=/usr/src/libressl-4.2.1 \
+	--with-openssl=/usr/src/libressl-${LIBRESSL_VERSION} \
 	--with-openssl-opt=enable-tls1_3 && \
-	make -j$(nproc) && make install
+	make -j"$(nproc)" && \
+	make install
 
-FROM nginx:alpine
+FROM nginx:stable-alpine-slim
 
-# Add arguments for user and group IDs
+ARG LIBRESSL_VERSION=4.2.1
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 
-# Install su-exec for user switching in entrypoint
-RUN apk add --no-cache su-exec
-
-# Use Alpine-native commands for user creation
-RUN addgroup -g ${GROUP_ID} -S appuser && \
+RUN apk add --no-cache su-exec brotli-libs && \
+	addgroup -g ${GROUP_ID} -S appuser && \
 	adduser -u ${USER_ID} -S -G appuser -s /bin/sh appuser
 
-# Copy modules and LibreSSL from builder
 COPY --from=builder /usr/lib/nginx/modules/*.so /usr/lib/nginx/modules/
-COPY --from=builder /usr/local/libressl-4.2.1 /usr/local/libressl-4.2.1
+COPY --from=builder /usr/local/libressl-${LIBRESSL_VERSION} /usr/local/libressl-${LIBRESSL_VERSION}
 COPY --from=builder /usr/sbin/nginx /usr/sbin/nginx
 
-# Set up environment for LibreSSL
-ENV LD_LIBRARY_PATH=/usr/local/libressl-4.2.1/lib:$LD_LIBRARY_PATH
-ENV PATH=/usr/local/libressl-4.2.1/bin:$PATH
-
-RUN rm /etc/nginx/conf.d/default.conf
+ENV LD_LIBRARY_PATH=/usr/local/libressl-${LIBRESSL_VERSION}/lib \
+	PATH=/usr/local/libressl-${LIBRESSL_VERSION}/bin:$PATH
 
 COPY nginx.conf /etc/nginx/nginx.conf
-
 COPY ./dhparam2048.pem /etc/nginx/dhparam2048.pem
 
-# Create all required directories with proper permissions
-RUN mkdir -p /var/cache/nginx/client_temp && \
-	mkdir -p /var/cache/nginx/proxy_temp && \
-	mkdir -p /var/cache/nginx/fastcgi_temp && \
-	mkdir -p /var/cache/nginx/uwsgi_temp && \
-	mkdir -p /var/cache/nginx/scgi_temp && \
+RUN rm /etc/nginx/conf.d/default.conf && \
+	mkdir -p \
+	/var/cache/nginx/client_temp \
+	/var/cache/nginx/proxy_temp \
+	/var/cache/nginx/fastcgi_temp \
+	/var/cache/nginx/uwsgi_temp \
+	/var/cache/nginx/scgi_temp \
+	/etc/nginx/client_body_temp \
+	/etc/nginx/proxy_temp \
+	/etc/nginx/fastcgi_temp \
+	/etc/nginx/uwsgi_temp \
+	/etc/nginx/scgi_temp \
+	/var/log/nginx && \
 	chmod 755 /var/cache && \
-	mkdir -p /etc/nginx/client_body_temp && \
-	chmod 777 /etc/nginx/client_body_temp && \
-	mkdir -p /etc/nginx/proxy_temp && \
-	chmod 777 /etc/nginx/proxy_temp && \
-	mkdir -p /etc/nginx/fastcgi_temp && \
-	chmod 777 /etc/nginx/fastcgi_temp && \
-	mkdir -p /etc/nginx/uwsgi_temp && \
-	chmod 777 /etc/nginx/uwsgi_temp && \
-	mkdir -p /etc/nginx/scgi_temp && \
-	chmod 777 /etc/nginx/scgi_temp && \
+	chmod 777 \
+	/etc/nginx/client_body_temp \
+	/etc/nginx/proxy_temp \
+	/etc/nginx/fastcgi_temp \
+	/etc/nginx/uwsgi_temp \
+	/etc/nginx/scgi_temp && \
 	chmod -R 770 /var/cache/nginx && \
-	chown -R appuser:appuser /var/cache/nginx && \
+	chown -R appuser:appuser /var/cache/nginx /var/log/nginx && \
 	touch /var/run/nginx.pid && \
-	chown appuser:appuser /var/run/nginx.pid && \
-	# Ensure log directory exists with correct permissions
-	mkdir -p /var/log/nginx && \
-	chown -R appuser:appuser /var/log/nginx
+	chown appuser:appuser /var/run/nginx.pid
 
 USER appuser
 
