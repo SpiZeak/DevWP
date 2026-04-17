@@ -292,6 +292,7 @@ fn nginx_reload() {
 fn generate_nginx_config(
     domain: &str,
     aliases: Option<&str>,
+    web_root: Option<&str>,
     multisite: Option<&MultisiteConfig>,
 ) -> Result<(), String> {
     let template = fs::read_to_string(nginx_template_path())
@@ -327,7 +328,11 @@ fn generate_nginx_config(
         }
 
         if trimmed.starts_with("root /") {
-            output_lines.push(format!("{indent}root {DOCKER_SITE_ROOT_PATH}/{domain};"));
+            let root_path = match web_root.filter(|r| !r.is_empty()) {
+                Some(wr) => format!("{DOCKER_SITE_ROOT_PATH}/{domain}/{wr}"),
+                None => format!("{DOCKER_SITE_ROOT_PATH}/{domain}"),
+            };
+            output_lines.push(format!("{indent}root {root_path};"));
             continue;
         }
 
@@ -769,6 +774,7 @@ pub fn create_site(app: tauri::AppHandle, site: SiteCreateRequest) -> Result<(),
     generate_nginx_config(
         &site.domain,
         site.aliases.as_deref(),
+        site.web_root.as_deref(),
         site.multisite.as_ref(),
     )?;
     nginx_reload();
@@ -828,8 +834,14 @@ pub fn update_site(
     let old_aliases = existing.aliases.clone();
 
     let updated = Site {
-        aliases: data.aliases.filter(|s| !s.is_empty()).or(existing.aliases.clone()),
-        web_root: data.web_root.filter(|s| !s.is_empty()).or(existing.web_root.clone()),
+        aliases: data
+            .aliases
+            .filter(|s| !s.is_empty())
+            .or(existing.aliases.clone()),
+        web_root: data
+            .web_root
+            .filter(|s| !s.is_empty())
+            .or(existing.web_root.clone()),
         ..existing.clone()
     };
 
@@ -842,6 +854,7 @@ pub fn update_site(
     generate_nginx_config(
         &updated.name,
         updated.aliases.as_deref(),
+        updated.web_root.as_deref(),
         updated.multisite.as_ref(),
     )?;
     nginx_reload();
