@@ -111,6 +111,16 @@ const Services: React.FC<ServicesProps> = ({
     };
   });
 
+  // Poll container status while any container health check is still initializing
+  const hasStartingHealth = containers.some((c) => c.health === 'starting');
+  useEffect(() => {
+    if (!hasStartingHealth) return;
+    const interval = setInterval(() => {
+      invoke('get_container_status');
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [hasStartingHealth]);
+
   useEffect(() => {
     let unlistenContainer: (() => void) | undefined;
     let unlistenBuild: (() => void) | undefined;
