@@ -94,7 +94,7 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
 
   return (
     <div
-      className="z-40 fixed inset-0 flex justify-center items-center bg-black bg-opacity-50"
+      className="z-40 fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 animate-fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="versions-modal-title"
@@ -102,7 +102,7 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
       onKeyDown={handleOverlayKeyDown}
     >
       <div
-        className="bg-gunmetal-400 shadow-2xl mx-4 p-6 rounded-lg w-full max-w-md"
+        className="bg-gunmetal-400 shadow-2xl mx-4 p-6 rounded-lg w-full max-w-md animate-scale-in"
         onClick={handleContentClick}
         onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
           event.stopPropagation();

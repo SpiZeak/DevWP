@@ -283,12 +283,13 @@ const Services: React.FC<ServicesProps> = ({
         </div>
       </div>
       <ul className="gap-3 grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] m-0 p-0 list-none">
-        {allItems.map((container) => {
+        {allItems.map((container, index) => {
           const isBuilding = buildingServices.has(container.name);
           return (
             <li
               key={container.id}
-              className={`flex justify-between items-center px-3 py-1.5 bg-gunmetal-500 rounded-md transition-colors hover:bg-gunmetal-500 ${getBorderClass(container, isBuilding)}`}
+              className={`animate-fade-in-up flex justify-between items-center px-3 py-1.5 bg-gunmetal-500 rounded-md transition-colors hover:bg-gunmetal-500 ${getBorderClass(container, isBuilding)}`}
+              style={{ animationDelay: `${index * 55}ms` }}
             >
               <div className="flex items-center gap-2.5">
                 {isBuilding ? (
@@ -299,9 +300,11 @@ const Services: React.FC<ServicesProps> = ({
                   )
                 )}
                 <div className="flex flex-col text-left">
-                  <span className="overflow-hidden font-medium text-sm text-ellipsis whitespace-nowrap">
-                    {getDisplayName(container.name)}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="overflow-hidden font-medium text-sm text-ellipsis whitespace-nowrap">
+                      {getDisplayName(container.name)}
+                    </span>
+                  </div>
                   {getStatusText(container, isBuilding)}
                 </div>
               </div>

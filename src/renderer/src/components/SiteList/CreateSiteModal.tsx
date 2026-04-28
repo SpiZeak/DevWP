@@ -178,8 +178,8 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({
   );
 
   return (
-    <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70">
-      <div className="bg-gunmetal-500 shadow-xl p-5 rounded-lg w-[90%] max-w-lg max-h-[90vh] overflow-y-auto">
+    <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70 animate-fade-in">
+      <div className="bg-gunmetal-500 shadow-xl p-5 rounded-lg w-[90%] max-w-lg max-h-[90vh] overflow-y-auto animate-scale-in">
         <h3 className="mt-0 mb-5">Create New Site</h3>
 
         <FormInput

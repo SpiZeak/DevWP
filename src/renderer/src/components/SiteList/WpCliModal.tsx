@@ -62,8 +62,8 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
   const hasOutput = wpCliOutput || wpCliError;
 
   return (
-    <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70">
-      <div className="bg-gunmetal-400 shadow-xl p-5 rounded-lg w-[90%] max-w-lg">
+    <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70 animate-fade-in">
+      <div className="bg-gunmetal-400 shadow-xl p-5 rounded-lg w-[90%] max-w-lg animate-scale-in">
         <h3 className="mt-0 mb-5 text-seasalt">
           Run WP-CLI Command for <span className="font-bold">{site.name}</span>
         </h3>

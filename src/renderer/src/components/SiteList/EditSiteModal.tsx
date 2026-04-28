@@ -76,8 +76,8 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({
   );
 
   return (
-    <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70">
-      <div className="bg-gunmetal-500 shadow-xl p-5 rounded-lg w-[90%] max-w-lg">
+    <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70 animate-fade-in">
+      <div className="bg-gunmetal-500 shadow-xl p-5 rounded-lg w-[90%] max-w-lg animate-scale-in">
         <div className="flex justify-between items-center mb-5">
           <h3 className="mt-0 mb-0 text-seasalt">Edit Site Settings</h3>
           <button

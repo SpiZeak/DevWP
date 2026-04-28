@@ -29,7 +29,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
 
   return (
     <li
-      className={`group relative bg-gunmetal-300 hover:bg-gunmetal-400 transition-all duration-200 rounded-lg mx-2 ${isLast ? 'mb-2' : 'mb-3'}`}
+      className={`animate-fade-in-up group relative bg-gunmetal-300 hover:bg-gunmetal-400 transition-all duration-200 rounded-lg mx-2 ${isLast ? 'mb-2' : 'mb-3'}`}
     >
       <div className="flex justify-between items-center p-4">
         <div className="flex-1 min-w-0">

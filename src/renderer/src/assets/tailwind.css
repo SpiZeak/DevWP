@@ -2,7 +2,61 @@
 @import "./fonts.css";
 @import "./theme.css";
 
-/* Root */
+/* ── Keyframes ─────────────────────────────────────────────── */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.93);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-out-right {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+
+/* ── Root ──────────────────────────────────────────────────── */
 @layer base {
   html,
   body {
@@ -15,13 +69,26 @@
 }
 
 @layer components {
-  /* Enhanced site item animations */
-  .site-item-enter {
-    @apply opacity-0 translate-y-2;
+  /* Notification toasts */
+  .notification-container {
+    @apply right-5 bottom-5 z-50 fixed flex flex-col gap-2 pointer-events-none;
   }
 
-  .site-item-enter-active {
-    @apply opacity-100 transition-all translate-y-0 duration-300;
+  .notification {
+    @apply shadow-xl px-4 py-3 rounded-lg max-w-xs font-medium text-sm pointer-events-auto;
+    animation: slide-in-right 0.28s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+  }
+
+  .notification.leaving {
+    animation: slide-out-right 0.22s ease-in both;
+  }
+
+  .notification.success {
+    @apply bg-emerald text-warm-charcoal;
+  }
+
+  .notification.error {
+    @apply bg-crimson text-seasalt;
   }
 
   /* Custom scrollbar for webkit browsers */
@@ -41,5 +108,19 @@
 
   .btn-hover-lift:hover {
     @apply shadow-lg -translate-y-0.5;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in-up {
+    animation: fade-in-up 0.28s ease-out both;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.22s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.18s ease-out both;
   }
 }

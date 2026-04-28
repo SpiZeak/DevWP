@@ -86,8 +86,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="z-50 fixed inset-0 flex justify-center items-center bg-black bg-opacity-50">
-      <div className="bg-gunmetal-400 mx-4 p-6 rounded-lg w-full max-w-md">
+    <div className="z-50 fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 animate-fade-in">
+      <div className="bg-gunmetal-400 mx-4 p-6 rounded-lg w-full max-w-md animate-scale-in">
         <div className="flex justify-between items-center mb-6">
           <h2 className="font-semibold text-seasalt text-xl">Settings</h2>
           <button

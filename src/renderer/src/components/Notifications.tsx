@@ -5,6 +5,7 @@ interface Notification {
   id: number;
   type: 'success' | 'error';
   message: string;
+  leaving?: boolean;
 }
 
 const Notifications: React.FC = () => {
@@ -19,16 +20,19 @@ const Notifications: React.FC = () => {
         'notification',
         (event) => {
           notificationIdRef.current += 1;
-          const newNotification = {
-            id: notificationIdRef.current,
-            ...event.payload,
-          };
+          const id = notificationIdRef.current;
+          const newNotification: Notification = { id, ...event.payload };
           setNotifications((prev) => [...prev, newNotification]);
 
+          // Begin exit animation slightly before removal
           setTimeout(() => {
             setNotifications((prev) =>
-              prev.filter((n) => n.id !== newNotification.id),
+              prev.map((n) => (n.id === id ? { ...n, leaving: true } : n)),
             );
+          }, 4700);
+
+          setTimeout(() => {
+            setNotifications((prev) => prev.filter((n) => n.id !== id));
           }, 5000);
         },
       );
@@ -48,8 +52,7 @@ const Notifications: React.FC = () => {
       {notifications.map((notification) => (
         <div
           key={notification.id}
-          data-key={notification.id}
-          className={`notification ${notification.type}`}
+          className={`notification ${notification.type}${notification.leaving ? ' leaving' : ''}`}
         >
           {notification.message}
         </div>
