@@ -94,11 +94,14 @@ jobs:
             ## Installation
 
             ### Linux
-            - **AppImage** (recommended): Download `DevWP_x.x.x_amd64.AppImage`, make it executable (`chmod +x`), and run it.
-            - **Debian/Ubuntu**: Download `DevWP_x.x.x_amd64.deb` and install with `sudo dpkg -i DevWP_x.x.x_amd64.deb`.
+            - **AppImage** (recommended, x86_64): Download `DevWP_x.x.x_amd64.AppImage`, make it executable (`chmod +x`), and run it.
+            - **Debian/Ubuntu (x86_64)**: Download `DevWP_x.x.x_amd64.deb` and install with `sudo dpkg -i DevWP_x.x.x_amd64.deb`.
+            - **AppImage (ARM64)**: Download `DevWP_x.x.x_aarch64.AppImage`, make it executable (`chmod +x`), and run it.
+            - **Debian/Ubuntu (ARM64)**: Download `DevWP_x.x.x_arm64.deb` and install with `sudo dpkg -i DevWP_x.x.x_arm64.deb`.
 
             ### Windows
-            - Download `DevWP_x.x.x_x64-setup.exe` and run the installer.
+            - **x64**: Download `DevWP_x.x.x_x64-setup.exe` and run the installer.
+            - **ARM64**: Download `DevWP_x.x.x_arm64-setup.exe` and run the installer.
 
             ### macOS
             - **Apple Silicon (M1/M2/M3)**: Download `DevWP_x.x.x_aarch64.dmg`, open it, and drag DevWP to Applications.
