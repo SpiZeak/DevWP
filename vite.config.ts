@@ -27,7 +27,7 @@ export default defineConfig({
   build: {
     outDir: '../../dist',
     emptyOutDir: true,
-    minify: 'esbuild',
+    minify: 'oxc',
     target: 'esnext',
     sourcemap: false,
   },
