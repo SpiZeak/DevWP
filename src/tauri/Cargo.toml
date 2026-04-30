@@ -1,6 +1,6 @@
 [package]
 name = "devwp"
-version = "0.2.6"
+version = "0.2.7"
 description = "DevWP Tauri backend"
 authors = ["Trewhitt"]
 edition = "2021"
