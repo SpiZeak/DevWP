@@ -27,6 +27,7 @@ DevWP has been completely rewritten in Rust using the Tauri framework, replacing
 - **Xdebug Support**: Toggle PHP debugging on/off
 - **Multisite Support**: WordPress multisite configurations
 - **Cross-Platform**: Windows, macOS, and Linux support
+- **ARM Support**: Native ARM builds for Windows (ARM64), Apple Silicon (M1/M2/M3), and Linux (ARM64)
 
 ## Prerequisites
 
@@ -46,9 +47,11 @@ DevWP has been completely rewritten in Rust using the Tauri framework, replacing
 
 Download from [GitHub Releases](https://github.com/SpiZeak/DevWP/releases):
 
-- Windows: `devwp-x.x.x-setup.exe`
-- macOS: `devwp-x.x.x.dmg`
-- Linux: `devwp-x.x.x.AppImage`
+- Windows (x64): `devwp-x.x.x-setup.exe`
+- Windows (ARM64): `devwp-x.x.x-arm64-setup.exe`
+- macOS (Intel + Apple Silicon): `devwp-x.x.x.dmg`
+- Linux (x64): `devwp-x.x.x.AppImage`
+- Linux (ARM64): `devwp-x.x.x-aarch64.AppImage`
 
 ### Arch Linux (AUR)
 
