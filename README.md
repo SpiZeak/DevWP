@@ -45,13 +45,7 @@ DevWP has been completely rewritten in Rust using the Tauri framework, replacing
 
 ### Pre-built Binaries
 
-Download from [GitHub Releases](https://github.com/SpiZeak/DevWP/releases):
-
-- Windows (x64): `devwp-x.x.x-setup.exe`
-- Windows (ARM64): `devwp-x.x.x-arm64-setup.exe`
-- macOS (Intel + Apple Silicon): `devwp-x.x.x.dmg`
-- Linux (x64): `devwp-x.x.x.AppImage`
-- Linux (ARM64): `devwp-x.x.x-aarch64.AppImage`
+Download from [GitHub Releases](https://github.com/SpiZeak/DevWP/releases). See the release notes for platform-specific installation instructions.
 
 ### Arch Linux (AUR)
 
