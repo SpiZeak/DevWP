@@ -18,12 +18,22 @@ jobs:
         include:
           - platform: 'macos-latest' # for Arm based macs (M1 and above)
             args: '--target aarch64-apple-darwin'
+            rust-targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
           - platform: 'macos-latest' # for Intel based macs
             args: '--target x86_64-apple-darwin'
+            rust-targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
           - platform: 'ubuntu-24.04'
             args: ''
+            rust-targets: ''
+          - platform: 'ubuntu-24.04-arm'
+            args: ''
+            rust-targets: ''
           - platform: 'windows-latest'
             args: ''
+            rust-targets: ''
+          - platform: 'windows-latest' # for ARM based Windows
+            args: '--target aarch64-pc-windows-msvc'
+            rust-targets: 'aarch64-pc-windows-msvc'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -48,7 +58,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: ${{ matrix.rust-targets }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -64,7 +74,7 @@ jobs:
           key: ${{ runner.os }}-tauri-tools-v1
 
       - name: Install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-24.04'
+        if: startsWith(matrix.platform, 'ubuntu-')
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
@@ -97,6 +107,7 @@ jobs:
             > **Requirement**: [Docker Desktop](https://www.docker.com/products/docker-desktop/) must be installed and running.
           releaseDraft: false
           generateReleaseNotes: true
-          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name,
+            '-alpha') }}
           args: ${{ matrix.args }}
           projectPath: src/tauri
