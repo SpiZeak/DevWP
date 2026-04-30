@@ -71,13 +71,13 @@ jobs:
           path: |
             ~/.cache/tauri
             ~/AppData/Local/tauri
-          key: ${{ runner.os }}-tauri-tools-v1
+          key: ${{ runner.os }}-tauri-tools-v2
 
       - name: Install dependencies (ubuntu only)
         if: startsWith(matrix.platform, 'ubuntu-')
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils libfuse2
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils libfuse2 file wget desktop-file-utils
 
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
