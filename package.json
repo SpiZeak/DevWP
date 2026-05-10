@@ -38,7 +38,7 @@
     "one-time": "^1.0.0",
     "readable-stream": "^4.7.0",
     "safe-stable-stringify": "^2.5.0",
-    "simple-icons": "^16.18.1",
+    "simple-icons": "^16.19.0",
     "stack-trace": "^1.0.0",
     "sudo-prompt": "^9.2.1",
     "tailwindcss": "^4.3.0",
@@ -50,7 +50,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.4.14",
+    "@biomejs/biome": "^2.4.15",
     "@tailwindcss/vite": "^4.3.0",
     "@tauri-apps/cli": "^2.11.1",
     "@testing-library/jest-dom": "^6.9.1",
