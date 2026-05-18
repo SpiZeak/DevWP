@@ -88,6 +88,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPIMAGE_EXTRACT_AND_RUN: 1
+          # Use ad-hoc signing on macOS when no Apple Developer certificate is available.
+          # Replace '-' with a real Developer ID to enable notarization for Gatekeeper compliance.
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'DevWP ${{ github.ref_name }}'
@@ -115,7 +118,8 @@ jobs:
             > **Requirement**: [Docker Desktop](https://www.docker.com/products/docker-desktop/) must be installed and running.
           releaseDraft: false
           generateReleaseNotes: true
-          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name,
+          prerelease:
+            ${{ contains(github.ref_name, '-beta') || contains(github.ref_name,
             '-alpha') }}
           args: ${{ matrix.args }}
           projectPath: src/tauri
