@@ -9,11 +9,70 @@ pub mod xdebug;
 
 use crate::docker::{BuildState, BuildStatusPayload, DockerLogPayload, DockerStatusPayload};
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 use std::sync::Mutex;
 use tauri::Manager;
 use tauri_plugin_log::log::{error, info, LevelFilter};
 use utils::run_command;
 use utils::run_command_streaming;
+
+/// Recursively copy `src` into `dst`, skipping any entry that already exists at the destination.
+fn copy_dir_if_missing(src: &Path, dst: &Path) {
+    if let Err(e) = fs::create_dir_all(dst) {
+        error!("Failed to create directory {}: {}", dst.display(), e);
+        return;
+    }
+    let entries = match fs::read_dir(src) {
+        Ok(e) => e,
+        Err(e) => {
+            error!("Failed to read directory {}: {}", src.display(), e);
+            return;
+        }
+    };
+    for entry in entries.flatten() {
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+        // Skip files/directories that already exist at the destination so
+        // user customisations are preserved across app updates.
+        if dst_path.exists() {
+            continue;
+        }
+        if src_path.is_dir() {
+            copy_dir_if_missing(&src_path, &dst_path);
+        } else if let Err(e) = fs::copy(&src_path, &dst_path) {
+            error!(
+                "Failed to copy {} -> {}: {}",
+                src_path.display(),
+                dst_path.display(),
+                e
+            );
+        }
+    }
+}
+
+/// Copy bundled resources (compose.yml + config/) to `app_data_dir` if they are not already there.
+fn ensure_resources_in_app_data(resource_dir: &Path, app_data_dir: &Path) {
+    // Copy compose.yml
+    let compose_src = resource_dir.join("compose.yml");
+    let compose_dst = app_data_dir.join("compose.yml");
+    if compose_src.exists() && !compose_dst.exists() {
+        if let Err(e) = fs::copy(&compose_src, &compose_dst) {
+            error!("Failed to copy compose.yml: {}", e);
+        }
+    }
+
+    // Copy each config subdirectory that is listed under bundle.resources in
+    // tauri.conf.json (nginx, php, mariadb). Existing directories are skipped
+    // so user changes are not overwritten on subsequent launches.
+    for dir_name in &["nginx", "php", "mariadb"] {
+        let src = resource_dir.join("config").join(dir_name);
+        let dst = app_data_dir.join("config").join(dir_name);
+        if src.exists() && !dst.exists() {
+            copy_dir_if_missing(&src, &dst);
+        }
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -53,6 +112,24 @@ pub fn run() {
         ])
         .manage(BuildState(Mutex::new(HashMap::new())))
         .setup(|app| {
+            // ----------------------------------------------------------------
+            // Initialise the project root from the Tauri app-data directory.
+            // On first run, bundled resources (compose.yml, config/) are copied
+            // there so that Docker Compose can find them on any platform.
+            // ----------------------------------------------------------------
+            match app.path().app_data_dir() {
+                Ok(app_data_dir) => {
+                    if let Err(e) = fs::create_dir_all(&app_data_dir) {
+                        error!("Failed to create app data dir: {}", e);
+                    } else {
+                        if let Ok(resource_dir) = app.path().resource_dir() {
+                            ensure_resources_in_app_data(&resource_dir, &app_data_dir);
+                        }
+                        utils::init_project_root(app_data_dir);
+                    }
+                }
+                Err(e) => error!("Failed to resolve app data dir: {}", e),
+            }
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 use tauri::Emitter;
