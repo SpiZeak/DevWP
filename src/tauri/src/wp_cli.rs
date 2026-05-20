@@ -64,6 +64,45 @@ fn extract_error(stdout: &str, stderr: &str, args: &[String]) -> String {
 }
 
 #[tauri::command]
+pub async fn run_composer_update(site: crate::site::Site) -> Result<serde_json::Value, String> {
+    let site_name = validate_site_name(&site.name)?;
+    let work_dir = if let Some(web_root) = site.web_root.as_deref() {
+        format!("{}/{}/{}", DOCKER_SITE_ROOT_PATH, site_name, web_root)
+    } else {
+        format!("{}/{}", DOCKER_SITE_ROOT_PATH, site_name)
+    };
+
+    let args = vec![
+        "exec",
+        "-w",
+        work_dir.as_str(),
+        PHP_CONTAINER_NAME,
+        "composer",
+        "update",
+        "--no-interaction",
+    ];
+    let output = run_command("docker", &args)?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    if output.status.success() {
+        Ok(serde_json::json!({
+            "success": true,
+            "output": stdout,
+            "error": stderr
+        }))
+    } else {
+        let error = if !stderr.is_empty() { stderr } else { stdout };
+        Ok(serde_json::json!({
+            "success": false,
+            "output": "",
+            "error": error
+        }))
+    }
+}
+
+#[tauri::command]
 pub async fn run_wp_cli(request: WpCliRequest) -> Result<serde_json::Value, String> {
     let site_name = validate_site_name(&request.site.name)?;
     let work_dir = if let Some(web_root) = request.site.web_root.as_deref() {

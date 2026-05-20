@@ -28,6 +28,7 @@ RUN apk update && \
     imagemagick \
     shadow \
     git \
+    openssh-client \
     $PHPIZE_DEPS
 
 # Create a non-root user with same ID as host user

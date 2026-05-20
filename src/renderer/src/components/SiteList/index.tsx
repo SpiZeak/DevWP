@@ -11,6 +11,7 @@ import SiteItem from './SiteItem';
 const CreateSiteModal = lazy(() => import('./CreateSiteModal'));
 const WpCliModal = lazy(() => import('./WpCliModal'));
 const EditSiteModal = lazy(() => import('./EditSiteModal'));
+const ComposerModal = lazy(() => import('./ComposerModal'));
 
 const SCROLLBAR_MARGIN = 16;
 
@@ -19,6 +20,10 @@ const SiteList: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [scanningSite, setScanningSite] = useState<string | null>(null);
+  const [composerModal, setComposerModal] = useState<{
+    open: boolean;
+    site: Site | null;
+  }>({ open: false, site: null });
   const [wpCliModal, setWpCliModal] = useState<{
     open: boolean;
     site: Site | null;
@@ -153,6 +158,14 @@ const SiteList: React.FC = () => {
     } finally {
       setScanningSite(null);
     }
+  };
+
+  const handleComposerUpdate = (site: Site): void => {
+    setComposerModal({ open: true, site });
+  };
+
+  const handleCloseComposerModal = (): void => {
+    setComposerModal({ open: false, site: null });
   };
 
   const handleOpenWpCliModal = (site: Site): void => {
@@ -405,6 +418,7 @@ const SiteList: React.FC = () => {
                   isLast={index === filteredSites.length - 1}
                   onOpenUrl={openSiteUrl}
                   onScan={handleScanSite}
+                  onComposerUpdate={handleComposerUpdate}
                   onOpenWpCli={handleOpenWpCliModal}
                   onEditSite={handleOpenEditSiteModal}
                   scanningSite={scanningSite}
@@ -426,6 +440,15 @@ const SiteList: React.FC = () => {
               isOpen={wpCliModal.open}
               site={wpCliModal.site}
               onClose={handleCloseWpCliModal}
+            />
+          </Suspense>
+        )}
+        {composerModal.open && composerModal.site && (
+          <Suspense fallback={null}>
+            <ComposerModal
+              isOpen={composerModal.open}
+              site={composerModal.site}
+              onClose={handleCloseComposerModal}
             />
           </Suspense>
         )}

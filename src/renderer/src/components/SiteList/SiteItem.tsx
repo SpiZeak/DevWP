@@ -8,6 +8,7 @@ interface SiteItemProps {
   isLast: boolean;
   onOpenUrl: (url: string) => void;
   onScan: (site: Site) => void;
+  onComposerUpdate: (site: Site) => void;
   onOpenWpCli: (site: Site) => void;
   onEditSite: (site: Site) => void;
   scanningSite: string | null;
@@ -18,6 +19,7 @@ const SiteItem: React.FC<SiteItemProps> = ({
   isLast,
   onOpenUrl,
   onScan,
+  onComposerUpdate,
   onOpenWpCli,
   onEditSite,
   scanningSite,
@@ -101,6 +103,22 @@ const SiteItem: React.FC<SiteItemProps> = ({
                 content="󱉶"
               />
             )}
+          </button>
+          <button
+            type="button"
+            onClick={(): void => onComposerUpdate(site)}
+            className="group/btn relative bg-gunmetal-500 hover:bg-pumpkin disabled:bg-gunmetal-300 hover:shadow-lg rounded-lg size-10 hover:scale-105 disabled:hover:scale-100 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
+            disabled={isProvisioning}
+            title={
+              isProvisioning
+                ? 'Site is being provisioned'
+                : 'Run Composer Update'
+            }
+          >
+            <Icon
+              className="text-seasalt group-hover/btn:text-warm-charcoal text-2xl"
+              content="󰏗"
+            />
           </button>
           <button
             type="button"

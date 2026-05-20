@@ -50,6 +50,7 @@ pub fn run() {
             system::open_directory,
             sonarqube::scan_site_sonarqube,
             wp_cli::run_wp_cli,
+            wp_cli::run_composer_update,
         ])
         .manage(BuildState(Mutex::new(HashMap::new())))
         .setup(|app| {
