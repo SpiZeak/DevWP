@@ -14,6 +14,7 @@ services:
       - ./config/php/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
       - ./config/php/conf.d/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini:ro
       - ~/.ssh:/home/appuser/.ssh:ro
+      - ~/.config/composer:/home/appuser/.config/composer:ro
     healthcheck:
       test: ['CMD-SHELL', 'pidof php-fpm || exit 1']
       interval: 30s

@@ -66,21 +66,29 @@ fn extract_error(stdout: &str, stderr: &str, args: &[String]) -> String {
 #[tauri::command]
 pub async fn run_composer_update(site: crate::site::Site) -> Result<serde_json::Value, String> {
     let site_name = validate_site_name(&site.name)?;
-    let work_dir = if let Some(web_root) = site.web_root.as_deref() {
-        format!("{}/{}/{}", DOCKER_SITE_ROOT_PATH, site_name, web_root)
-    } else {
-        format!("{}/{}", DOCKER_SITE_ROOT_PATH, site_name)
-    };
+    let work_dir = format!("{}/{}", DOCKER_SITE_ROOT_PATH, site_name);
 
-    let args = vec![
-        "exec",
-        "-w",
-        work_dir.as_str(),
-        PHP_CONTAINER_NAME,
-        "composer",
-        "update",
-        "--no-interaction",
-    ];
+    // Read the host's composer auth.json so private-package credentials are
+    // available inside the container without requiring an interactive prompt.
+    let composer_auth = std::env::var("HOME").ok().and_then(|home| {
+        let xdg = format!("{}/.config/composer/auth.json", home);
+        let legacy = format!("{}/.composer/auth.json", home);
+        std::fs::read_to_string(&xdg)
+            .or_else(|_| std::fs::read_to_string(&legacy))
+            .ok()
+    });
+
+    let mut args = vec!["exec", "-w", work_dir.as_str()];
+
+    // Borrow outside the if so the String lives long enough.
+    let auth_env;
+    if let Some(auth) = &composer_auth {
+        auth_env = format!("COMPOSER_AUTH={auth}");
+        args.push("-e");
+        args.push(&auth_env);
+    }
+
+    args.extend_from_slice(&[PHP_CONTAINER_NAME, "composer", "update"]);
     let output = run_command("docker", &args)?;
 
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
