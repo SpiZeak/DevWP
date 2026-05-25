@@ -11,6 +11,7 @@ interface Notification {
 const Notifications: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const notificationIdRef = useRef(0);
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
     let unlisten: UnlistenFn | undefined;
@@ -25,15 +26,17 @@ const Notifications: React.FC = () => {
           setNotifications((prev) => [...prev, newNotification]);
 
           // Begin exit animation slightly before removal
-          setTimeout(() => {
+          const leaveTimer = setTimeout(() => {
             setNotifications((prev) =>
               prev.map((n) => (n.id === id ? { ...n, leaving: true } : n)),
             );
           }, 4700);
 
-          setTimeout(() => {
+          const removeTimer = setTimeout(() => {
             setNotifications((prev) => prev.filter((n) => n.id !== id));
           }, 5000);
+
+          timeoutsRef.current.push(leaveTimer, removeTimer);
         },
       );
     };
@@ -44,6 +47,10 @@ const Notifications: React.FC = () => {
       if (unlisten) {
         unlisten();
       }
+      for (const t of timeoutsRef.current) {
+        clearTimeout(t);
+      }
+      timeoutsRef.current = [];
     };
   }, []);
 

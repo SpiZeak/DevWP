@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type React from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   siDocker,
   siMariadb,
@@ -83,33 +83,45 @@ const Services: React.FC<ServicesProps> = ({
   const [buildingServices, setBuildingServices] = useState<Set<string>>(
     new Set(),
   );
-  const containerMap = containers.filter(
-    (container) =>
-      container.name.includes('devwp_') &&
-      !EXCLUDED_CONTAINERS.includes(container.name),
+  const containerMap = useMemo(
+    () =>
+      containers.filter(
+        (container) =>
+          container.name.includes('devwp_') &&
+          !EXCLUDED_CONTAINERS.includes(container.name),
+      ),
+    [containers],
   );
 
   // Virtual entries for services currently building but not yet in container-status
-  const buildingOnlyItems: Container[] = [...buildingServices]
-    .filter((name) => !containerMap.some((c) => c.name === name))
-    .map((name) => ({ id: `building_${name}`, name, state: 'building' }));
+  const buildingOnlyItems: Container[] = useMemo(
+    () =>
+      [...buildingServices]
+        .filter((name) => !containerMap.some((c) => c.name === name))
+        .map((name) => ({ id: `building_${name}`, name, state: 'building' })),
+    [buildingServices, containerMap],
+  );
 
   // Always show all known services; use real data if available, otherwise placeholder
-  const allItems: Container[] = knownContainerNames.map((name) => {
-    const real = containerMap.find((c) => c.name === name);
+  const allItems: Container[] = useMemo(
+    () =>
+      knownContainerNames.map((name) => {
+        const real = containerMap.find((c) => c.name === name);
 
-    if (real) return real;
+        if (real) return real;
 
-    const isBuilding =
-      buildingServices.has(name) ||
-      buildingOnlyItems.some((b) => b.name === name);
+        const isBuilding =
+          buildingServices.has(name) ||
+          buildingOnlyItems.some((b) => b.name === name);
 
-    return {
-      id: isBuilding ? `building_${name}` : `placeholder_${name}`,
-      name,
-      state: isBuilding ? 'building' : 'pending',
-    };
-  });
+        return {
+          id: isBuilding ? `building_${name}` : `placeholder_${name}`,
+          name,
+          state: isBuilding ? 'building' : 'pending',
+        };
+      }),
+    [containerMap, buildingServices, buildingOnlyItems],
+  );
 
   // Poll container status while any container health check is still initializing
   const hasStartingHealth = containers.some((c) => c.health === 'starting');
@@ -203,55 +215,55 @@ const Services: React.FC<ServicesProps> = ({
     }
   };
 
-  // Helper function to get display name for a container
-  const getDisplayName = (containerName: string): string => {
+  // Helper functions (stable references, no closure dependencies)
+  const getDisplayName = useCallback((containerName: string): string => {
     return (
       containerNameMapping[containerName] ||
       containerName.replace(/^devwp_/, '')
     );
-  };
+  }, []);
 
-  const getBorderClass = (
-    container: Container,
-    isBuilding: boolean,
-  ): string => {
-    if (isBuilding) return 'border-l-3 border-amber-500';
-    if (container.state === 'pending') return '';
-    if (container.state === 'running') {
-      if (container.health === 'unhealthy')
-        return 'border-l-3 border-orange-500';
-      return 'border-l-3 border-emerald-500';
-    }
-    if (container.state === 'exited' || container.state === 'stopped')
-      return 'border-l-3 border-crimson-500';
-    return '';
-  };
+  const getBorderClass = useCallback(
+    (container: Container, isBuilding: boolean): string => {
+      if (isBuilding) return 'border-l-3 border-amber-500';
+      if (container.state === 'pending') return '';
+      if (container.state === 'running') {
+        if (container.health === 'unhealthy')
+          return 'border-l-3 border-orange-500';
+        return 'border-l-3 border-emerald-500';
+      }
+      if (container.state === 'exited' || container.state === 'stopped')
+        return 'border-l-3 border-crimson-500';
+      return '';
+    },
+    [],
+  );
 
-  const getStatusText = (
-    container: Container,
-    isBuilding: boolean,
-  ): React.ReactNode => {
-    if (isBuilding) {
-      return <span className="mt-0.5 text-amber text-xs">Building...</span>;
-    }
-    if (container.state === 'pending') {
-      return (
-        <span className="mt-0.5 text-seasalt-400 text-xs">Starting...</span>
-      );
-    }
-    if (container.health === 'starting') {
-      return <span className="mt-0.5 text-amber text-xs">Starting...</span>;
-    }
-    if (container.health === 'unhealthy') {
-      return <span className="mt-0.5 text-crimson text-xs">Unhealthy</span>;
-    }
-    if (container.version) {
-      return (
-        <span className="mt-0.5 text-seasalt text-xs">{container.version}</span>
-      );
-    }
-    return null;
-  };
+  const getStatusText = useCallback(
+    (container: Container, isBuilding: boolean): React.ReactNode => {
+      if (isBuilding) {
+        return <span className="mt-0.5 text-amber text-xs">Building...</span>;
+      }
+      if (container.state === 'pending') {
+        return (
+          <span className="mt-0.5 text-seasalt-400 text-xs">Starting...</span>
+        );
+      }
+      if (container.health === 'starting') {
+        return <span className="mt-0.5 text-amber text-xs">Starting...</span>;
+      }
+      if (container.health === 'unhealthy') {
+        return <span className="mt-0.5 text-crimson text-xs">Unhealthy</span>;
+      }
+      if (container.version) {
+        return (
+          <span className="mt-0.5 text-seasalt text-xs">{container.version}</span>
+        );
+      }
+      return null;
+    },
+    [],
+  );
 
   return (
     <div className="mr-6 mb-5 rounded-lg">

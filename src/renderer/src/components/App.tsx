@@ -3,6 +3,7 @@ import { type JSX, lazy, Suspense, useState } from 'react';
 import Notifications from './Notifications';
 import Services from './Services';
 import SiteList from './SiteList';
+import Spinner from './ui/Spinner';
 import Versions from './Versions';
 
 // Lazy load the settings modal
@@ -39,7 +40,13 @@ function App(): JSX.Element {
       </div>
       <Versions isOpen={isVersionsOpen} onClose={handleCloseVersions} />
       <Notifications />
-      <Suspense fallback={null}>
+      <Suspense
+        fallback={
+          <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70">
+            <Spinner svgClass="size-8 text-pumpkin" />
+          </div>
+        }
+      >
         <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
       </Suspense>
       <footer className="mt-auto p-6 text-seasalt text-sm text-center">

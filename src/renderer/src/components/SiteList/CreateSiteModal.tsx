@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import FormInput from '../ui/FormInput';
+import ModalBase from '../ui/ModalBase';
+import Toggle from '../ui/Toggle';
 
 export interface NewSiteData {
   domain: string;
@@ -177,170 +179,169 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({
     </div>
   );
 
+  const footer = (
+    <div className="flex justify-end gap-2.5">
+      <button
+        type="button"
+        onClick={onClose}
+        className="bg-gunmetal-400 hover:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt-300 hover:text-seasalt transition-colors cursor-pointer"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={isSubmitDisabled}
+        className="bg-pumpkin hover:bg-pumpkin-600 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt-300 transition-colors cursor-pointer disabled:cursor-not-allowed"
+      >
+        Create
+      </button>
+    </div>
+  );
+
   return (
-    <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70 animate-fade-in">
-      <div className="bg-gunmetal-500 shadow-xl p-5 rounded-lg w-[90%] max-w-lg max-h-[90vh] overflow-y-auto animate-scale-in">
-        <h3 className="mt-0 mb-5">Create New Site</h3>
+    <ModalBase
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Create New Site"
+      maxWidthClass="max-w-lg"
+      footer={footer}
+    >
+      <FormInput
+        label="Domain"
+        value={newSite.domain}
+        onChange={(value) => updateSiteField('domain', value)}
+        placeholder="example.test"
+        autoFocus
+      />
 
-        <FormInput
-          label="Domain"
-          value={newSite.domain}
-          onChange={(value) => updateSiteField('domain', value)}
-          placeholder="example.test"
-          autoFocus
-        />
+      <FormInput
+        label="Aliases (optional, space-separated)"
+        value={newSite.aliases}
+        onChange={(value) => updateSiteField('aliases', value)}
+        placeholder="alias1.test alias2.test"
+      />
 
-        <FormInput
-          label="Aliases (optional, space-separated)"
-          value={newSite.aliases}
-          onChange={(value) => updateSiteField('aliases', value)}
-          placeholder="alias1.test alias2.test"
-        />
+      <FormInput
+        label={`Web Root (optional, relative to site directory e.g. "public", "dist")`}
+        value={newSite.webRoot}
+        onChange={handleWebRootChange}
+        placeholder="public (leave blank for site root)"
+        helpText={renderWebRootHelpText()}
+      />
 
-        <FormInput
-          label={`Web Root (optional, relative to site directory e.g. "public", "dist")`}
-          value={newSite.webRoot}
-          onChange={handleWebRootChange}
-          placeholder="public (leave blank for site root)"
-          helpText={renderWebRootHelpText()}
-        />
-
-        {/* Multisite section */}
-        <div className="mb-8 rounded-md">
-          <div className="flex items-center gap-2 mb-6">
-            <label className="inline-block relative mr-2 w-11 h-6">
-              <input
-                type="checkbox"
-                id="multisite-enabled"
-                checked={newSite.multisite.enabled}
-                onChange={(e) =>
-                  updateMultisiteField('enabled', e.target.checked)
-                }
-                className="peer opacity-0 w-0 h-0"
-              />
-              <span className="top-0 right-0 bottom-0 before:bottom-0.5 left-0 before:left-0.5 absolute before:absolute bg-gunmetal-400 before:bg-seasalt peer-checked:bg-pumpkin peer-focus:shadow-sm rounded-3xl before:rounded-full before:w-4.5 before:h-4.5 before:content-[''] transition-all before:transition-all peer-checked:before:translate-x-5 duration-400 before:duration-400 cursor-pointer"></span>
-            </label>
-            <label
-              htmlFor="multisite-enabled"
-              className="ml-3 font-medium text-seasalt hover:text-pumpkin transition-colors cursor-pointer"
-            >
-              Enable WordPress Multisite
-            </label>
-          </div>
-
-          {newSite.multisite.enabled && (
-            <div className="flex gap-4">
-              <MultisiteOption
-                type="subdirectory"
-                isSelected={newSite.multisite.type === 'subdirectory'}
-                onClick={() => updateMultisiteField('type', 'subdirectory')}
-                label="Subdirectory"
-                example="example.test/site2"
-              />
-              <MultisiteOption
-                type="subdomain"
-                isSelected={newSite.multisite.type === 'subdomain'}
-                onClick={() => updateMultisiteField('type', 'subdomain')}
-                label="Subdomain"
-                example="site2.example.test"
-              />
-            </div>
-          )}
+      {/* Multisite section */}
+      <div className="mb-8 rounded-md">
+        <div className="flex items-center gap-2 mb-6">
+          <Toggle
+            checked={newSite.multisite.enabled}
+            onChange={(checked) => updateMultisiteField('enabled', checked)}
+          />
+          <label
+            htmlFor="multisite-enabled-toggle"
+            className="ml-3 font-medium text-seasalt hover:text-pumpkin transition-colors cursor-pointer"
+            onClick={() =>
+              updateMultisiteField('enabled', !newSite.multisite.enabled)
+            }
+          >
+            Enable WordPress Multisite
+          </label>
         </div>
 
-        {/* WordPress Installation */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <label className="inline-block relative mr-2 w-11 h-6">
-              <input
-                type="checkbox"
-                id="wp-install-enabled"
-                checked={wpInstall.enabled}
-                onChange={(e) =>
-                  setWpInstall((prev) => ({
-                    ...prev,
-                    enabled: e.target.checked,
-                  }))
-                }
-                className="peer opacity-0 w-0 h-0"
-              />
-              <span className="top-0 right-0 bottom-0 before:bottom-0.5 left-0 before:left-0.5 absolute before:absolute bg-gunmetal-400 before:bg-seasalt peer-checked:bg-pumpkin peer-focus:shadow-sm rounded-3xl before:rounded-full before:w-4.5 before:h-4.5 before:content-[''] transition-all before:transition-all peer-checked:before:translate-x-5 duration-400 before:duration-400 cursor-pointer"></span>
-            </label>
-            <label
-              htmlFor="wp-install-enabled"
-              className="ml-3 font-medium text-seasalt hover:text-pumpkin transition-colors cursor-pointer"
-            >
-              Install WordPress
-            </label>
+        {newSite.multisite.enabled && (
+          <div className="flex gap-4">
+            <MultisiteOption
+              type="subdirectory"
+              isSelected={newSite.multisite.type === 'subdirectory'}
+              onClick={() => updateMultisiteField('type', 'subdirectory')}
+              label="Subdirectory"
+              example="example.test/site2"
+            />
+            <MultisiteOption
+              type="subdomain"
+              isSelected={newSite.multisite.type === 'subdomain'}
+              onClick={() => updateMultisiteField('type', 'subdomain')}
+              label="Subdomain"
+              example="site2.example.test"
+            />
           </div>
+        )}
+      </div>
 
-          {wpInstall.enabled && (
-            <div className="bg-gunmetal-400 mt-4 p-4 border border-gunmetal-300/30 rounded-lg">
+      {/* WordPress Installation */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-2">
+          <Toggle
+            checked={wpInstall.enabled}
+            onChange={(checked) =>
+              setWpInstall((prev) => ({
+                ...prev,
+                enabled: checked,
+              }))
+            }
+          />
+          <label
+            htmlFor="wp-install-toggle"
+            className="ml-3 font-medium text-seasalt hover:text-pumpkin transition-colors cursor-pointer"
+            onClick={() =>
+              setWpInstall((prev) => ({
+                ...prev,
+                enabled: !prev.enabled,
+              }))
+            }
+          >
+            Install WordPress
+          </label>
+        </div>
+
+        {wpInstall.enabled && (
+          <div className="bg-gunmetal-400 mt-4 p-4 border border-gunmetal-300/30 rounded-lg">
+            <FormInput
+              label="Site Title"
+              value={wpInstall.title}
+              onChange={(value) =>
+                setWpInstall((prev) => ({ ...prev, title: value }))
+              }
+              placeholder={formattedDomain}
+            />
+
+            <p className="mb-3 font-semibold text-seasalt-300 text-xs uppercase tracking-wider">
+              Admin Credentials
+            </p>
+
+            <div className="gap-3 grid grid-cols-2">
               <FormInput
-                label="Site Title"
-                value={wpInstall.title}
+                label="Username"
+                value={wpInstall.adminUser}
                 onChange={(value) =>
-                  setWpInstall((prev) => ({ ...prev, title: value }))
-                }
-                placeholder={formattedDomain}
-              />
-
-              <p className="mb-3 font-semibold text-seasalt-300 text-xs uppercase tracking-wider">
-                Admin Credentials
-              </p>
-
-              <div className="gap-3 grid grid-cols-2">
-                <FormInput
-                  label="Username"
-                  value={wpInstall.adminUser}
-                  onChange={(value) =>
-                    setWpInstall((prev) => ({ ...prev, adminUser: value }))
-                  }
-                  placeholder="root"
-                />
-                <FormInput
-                  label="Email"
-                  value={wpInstall.adminEmail}
-                  onChange={(value) =>
-                    setWpInstall((prev) => ({ ...prev, adminEmail: value }))
-                  }
-                  placeholder="root@example.com"
-                  type="email"
-                />
-              </div>
-
-              <FormInput
-                label="Password"
-                value={wpInstall.adminPassword}
-                onChange={(value) =>
-                  setWpInstall((prev) => ({ ...prev, adminPassword: value }))
+                  setWpInstall((prev) => ({ ...prev, adminUser: value }))
                 }
                 placeholder="root"
-                type="password"
+              />
+              <FormInput
+                label="Email"
+                value={wpInstall.adminEmail}
+                onChange={(value) =>
+                  setWpInstall((prev) => ({ ...prev, adminEmail: value }))
+                }
+                placeholder="root@example.com"
+                type="email"
               />
             </div>
-          )}
-        </div>
 
-        <div className="flex justify-end gap-2.5">
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-gunmetal-400 hover:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt-300 hover:text-seasalt transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={isSubmitDisabled}
-            className="bg-pumpkin hover:bg-pumpkin-600 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt-300 transition-colors cursor-pointer disabled:cursor-not-allowed"
-          >
-            Create
-          </button>
-        </div>
+            <FormInput
+              label="Password"
+              value={wpInstall.adminPassword}
+              onChange={(value) =>
+                setWpInstall((prev) => ({ ...prev, adminPassword: value }))
+              }
+              placeholder="root"
+              type="password"
+            />
+          </div>
+        )}
       </div>
-    </div>
+    </ModalBase>
   );
 };
 

@@ -16,7 +16,7 @@ export function BrandLogo({
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className={`text-seasalt-400 ${className}`}
+      className={`text-seasalt-400${className ? ` ${className}` : ''}`}
       width={size}
       height={size}
       fill="currentColor"

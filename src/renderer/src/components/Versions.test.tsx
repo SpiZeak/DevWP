@@ -58,7 +58,7 @@ describe('Versions', () => {
     });
 
     const closeBtn = component.getByRole('button', {
-      name: 'Close About modal',
+      name: 'Close About DevWP',
     });
     fireEvent.click(closeBtn);
     expect(handleClose).toHaveBeenCalledTimes(1);

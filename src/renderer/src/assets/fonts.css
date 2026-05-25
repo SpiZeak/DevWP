@@ -1,4 +1,10 @@
-/* MonaspaceNeon Nerd Font Family */
+/* MonaspaceNeon Nerd Font Family
+   ───────────────────────────────────────────────────────────
+   TODO: Switch to MonaspaceNeonVarVF[wght,wdth,slnt] variable
+   font when available. This would replace all 54 @font-face
+   blocks below with a single declaration and substantially
+   reduce download size.
+   ─────────────────────────────────────────────────────────── */
 
 /* Standard Weight Variants - Normal Width */
 @font-face {

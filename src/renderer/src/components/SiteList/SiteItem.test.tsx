@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { fireEvent, render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { SiteActionProvider } from './SiteActionContext';
 import SiteItem from './SiteItem';
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -17,32 +18,38 @@ describe('SiteItem', () => {
     status: 'running',
   };
 
-  const defaultProps = {
-    site: mockSite as any,
-    isLast: false,
+  const defaultActions = {
     onOpenUrl: vi.fn(),
     onScan: vi.fn(),
+    onComposerUpdate: vi.fn(),
     onOpenWpCli: vi.fn(),
     onEditSite: vi.fn(),
     scanningSite: null,
   };
 
+  const renderWithContext = (site = mockSite, isLast = false, actions = defaultActions) =>
+    render(
+      <SiteActionProvider value={actions as any}>
+        <SiteItem site={site as any} isLast={isLast} />
+      </SiteActionProvider>,
+    );
+
   it('renders site details', () => {
-    const { getByText } = render(<SiteItem {...defaultProps} />);
+    const { getByText } = renderWithContext();
     expect(getByText('test-site')).toBeInTheDocument();
     expect(getByText('/path/to/site')).toBeInTheDocument();
   });
 
   it('calls onOpenUrl when url button clicked', () => {
-    const { getByTitle } = render(<SiteItem {...defaultProps} />);
+    const { getByTitle } = renderWithContext();
     fireEvent.click(getByTitle('Open Site'));
-    expect(defaultProps.onOpenUrl).toHaveBeenCalledWith(
+    expect(defaultActions.onOpenUrl).toHaveBeenCalledWith(
       'http://test-site.test',
     );
   });
 
   it('calls invoke for open directory when folder button clicked', () => {
-    const { getByTitle } = render(<SiteItem {...defaultProps} />);
+    const { getByTitle } = renderWithContext();
     fireEvent.click(getByTitle('Open folder in file manager'));
     expect(invoke).toHaveBeenCalledWith('open_directory', {
       path: '/path/to/site',
@@ -50,14 +57,14 @@ describe('SiteItem', () => {
   });
 
   it('calls onOpenWpCli when terminal button clicked', () => {
-    const { getByTitle } = render(<SiteItem {...defaultProps} />);
+    const { getByTitle } = renderWithContext();
     fireEvent.click(getByTitle('Run WP-CLI Command'));
-    expect(defaultProps.onOpenWpCli).toHaveBeenCalledWith(mockSite);
+    expect(defaultActions.onOpenWpCli).toHaveBeenCalledWith(mockSite);
   });
 
   it('calls onEditSite when edit button clicked', () => {
-    const { getByTitle } = render(<SiteItem {...defaultProps} />);
+    const { getByTitle } = renderWithContext();
     fireEvent.click(getByTitle('Edit Site Settings'));
-    expect(defaultProps.onEditSite).toHaveBeenCalledWith(mockSite);
+    expect(defaultActions.onEditSite).toHaveBeenCalledWith(mockSite);
   });
 });

@@ -1,10 +1,11 @@
 import type { Site } from '@renderer/env';
 import { invoke } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../ui/Icon';
 import Spinner from '../ui/Spinner';
 import type { NewSiteData } from './CreateSiteModal';
+import { SiteActionProvider } from './SiteActionContext';
 import SiteItem from './SiteItem';
 
 // Lazy load the modals
@@ -14,6 +15,13 @@ const EditSiteModal = lazy(() => import('./EditSiteModal'));
 const ComposerModal = lazy(() => import('./ComposerModal'));
 
 const SCROLLBAR_MARGIN = 16;
+
+/** Shared suspense fallback for lazy-loaded modals */
+const ModalFallback: React.FC = () => (
+  <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70">
+    <Spinner svgClass="size-8 text-pumpkin" />
+  </div>
+);
 
 const SiteList: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([]);
@@ -51,70 +59,70 @@ const SiteList: React.FC = () => {
   const [maxHeight, setMaxHeight] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const openSiteUrl = (url: string): void => {
+  // ── action handlers (memoized for context stability) ──
+
+  const openSiteUrl = useCallback((url: string): void => {
     void invoke('open_external', { url });
-  };
+  }, []);
 
-  const handleCreateSite = (): void => {
+  const handleCreateSite = useCallback((): void => {
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleCloseModal = (): void => {
+  const handleCloseModal = useCallback((): void => {
     setIsModalOpen(false);
-  };
+  }, []);
 
-  const handleSubmitNewSite = async (
-    newSiteData: NewSiteData,
-  ): Promise<void> => {
-    const provisionalSite: Site = {
-      name: newSiteData.domain,
-      path: `www/${newSiteData.domain}`,
-      url: `https://${newSiteData.domain}`,
-      status: 'provisioning',
-    };
+  const handleSubmitNewSite = useCallback(
+    async (newSiteData: NewSiteData): Promise<void> => {
+      const provisionalSite: Site = {
+        name: newSiteData.domain,
+        path: `www/${newSiteData.domain}`,
+        url: `https://${newSiteData.domain}`,
+        status: 'provisioning',
+      };
 
-    setSites((prevSites) => [
-      provisionalSite,
-      ...prevSites.filter(
-        (existingSite) =>
-          !(
-            existingSite.name === newSiteData.domain &&
-            existingSite.status &&
-            existingSite.status === 'provisioning'
-          ),
-      ),
-    ]);
-
-    try {
-      await invoke('create_site', { site: newSiteData });
-      await fetchSites();
-      openSiteUrl(`https://${newSiteData.domain}`);
-      setIsModalOpen(false);
-    } catch (error) {
-      console.error(`Failed to create new site: ${error}`);
-      setSites((prevSites) =>
-        prevSites.filter(
-          (site) =>
+      setSites((prevSites) => [
+        provisionalSite,
+        ...prevSites.filter(
+          (existingSite) =>
             !(
-              site.name === newSiteData.domain && site.status === 'provisioning'
+              existingSite.name === newSiteData.domain &&
+              existingSite.status &&
+              existingSite.status === 'provisioning'
             ),
         ),
-      );
-      await fetchSites();
+      ]);
 
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'An unexpected error occurred.';
-      void emit('notification', {
-        type: 'error',
-        message: `Provisioning failed for ${newSiteData.domain}: ${message}`,
-      });
-      // Note: provisioning failure notification is emitted by Rust backend
-    }
-  };
+      try {
+        await invoke('create_site', { site: newSiteData });
+        await fetchSites();
+        openSiteUrl(`https://${newSiteData.domain}`);
+        setIsModalOpen(false);
+      } catch (error) {
+        console.error(`Failed to create new site: ${error}`);
+        setSites((prevSites) =>
+          prevSites.filter(
+            (s) =>
+              !(s.name === newSiteData.domain && s.status === 'provisioning'),
+          ),
+        );
+        await fetchSites();
 
-  const handleDeleteSite = async (site: Site): Promise<void> => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'An unexpected error occurred.';
+        void emit('notification', {
+          type: 'error',
+          message: `Provisioning failed for ${newSiteData.domain}: ${message}`,
+        });
+      }
+    },
+    [openSiteUrl],
+  );
+
+  const handleDeleteSite = useCallback(async (site: Site): Promise<void> => {
     const confirmed = window.confirm(
       `Are you sure you want to delete the site ${site.name}?`,
     );
@@ -127,9 +135,9 @@ const SiteList: React.FC = () => {
         console.error('Failed to delete site:', error);
       }
     }
-  };
+  }, []);
 
-  const handleScanSite = async (site: Site): Promise<void> => {
+  const handleScanSite = useCallback(async (site: Site): Promise<void> => {
     if (scanningSite) return;
     setScanningSite(site.name);
     try {
@@ -158,46 +166,49 @@ const SiteList: React.FC = () => {
     } finally {
       setScanningSite(null);
     }
-  };
+  }, [scanningSite]);
 
-  const handleComposerUpdate = (site: Site): void => {
+  const handleComposerUpdate = useCallback((site: Site): void => {
     setComposerModal({ open: true, site });
-  };
+  }, []);
 
-  const handleCloseComposerModal = (): void => {
+  const handleCloseComposerModal = useCallback((): void => {
     setComposerModal({ open: false, site: null });
-  };
+  }, []);
 
-  const handleOpenWpCliModal = (site: Site): void => {
+  const handleOpenWpCliModal = useCallback((site: Site): void => {
     setWpCliModal({ open: true, site });
-  };
+  }, []);
 
-  const handleCloseWpCliModal = (): void => {
+  const handleCloseWpCliModal = useCallback((): void => {
     setWpCliModal({ open: false, site: null });
-  };
+  }, []);
 
-  const handleOpenEditSiteModal = (site: Site): void => {
+  const handleOpenEditSiteModal = useCallback((site: Site): void => {
     setEditSiteModal({ open: true, site });
-  };
+  }, []);
 
-  const handleCloseEditSiteModal = (): void => {
+  const handleCloseEditSiteModal = useCallback((): void => {
     setEditSiteModal({ open: false, site: null });
-  };
+  }, []);
 
-  const handleUpdateSite = async (
-    site: Site,
-    data: { aliases: string; webRoot: string },
-  ): Promise<void> => {
-    try {
-      await invoke('update_site', { site, data });
-      setEditSiteModal({ open: false, site: null });
-      await fetchSites();
-    } catch (error) {
-      console.error('Failed to update site:', error);
-    }
-  };
+  const handleUpdateSite = useCallback(
+    async (
+      site: Site,
+      data: { aliases: string; webRoot: string },
+    ): Promise<void> => {
+      try {
+        await invoke('update_site', { site, data });
+        setEditSiteModal({ open: false, site: null });
+        await fetchSites();
+      } catch (error) {
+        console.error('Failed to update site:', error);
+      }
+    },
+    [],
+  );
 
-  const fetchSites = async (): Promise<void> => {
+  const fetchSites = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       const siteList = await invoke<Site[]>('get_sites');
@@ -207,24 +218,29 @@ const SiteList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const showScrollBar = (barTop: number, barHeight: number): void => {
-    setScrollBar({
-      top: barTop,
-      height: barHeight,
-      visible: true,
-    });
-    setBarEverShown(true);
-    setIsScrolling(true);
-    if (barTimeoutRef.current) clearTimeout(barTimeoutRef.current);
-    barTimeoutRef.current = setTimeout(() => {
-      setScrollBar((b) => ({ ...b, visible: false }));
-      setIsScrolling(false);
-    }, 800);
-  };
+  // ── Scrollbar helpers ──
 
-  const updateScrollBar = (): void => {
+  const showScrollBar = useCallback(
+    (barTop: number, barHeight: number): void => {
+      setScrollBar({
+        top: barTop,
+        height: barHeight,
+        visible: true,
+      });
+      setBarEverShown(true);
+      setIsScrolling(true);
+      if (barTimeoutRef.current) clearTimeout(barTimeoutRef.current);
+      barTimeoutRef.current = setTimeout(() => {
+        setScrollBar((b) => ({ ...b, visible: false }));
+        setIsScrolling(false);
+      }, 800);
+    },
+    [],
+  );
+
+  const updateScrollBar = useCallback((): void => {
     const el = sitesListRef.current;
     if (!el) return;
     const { scrollTop, scrollHeight, clientHeight } = el;
@@ -243,23 +259,24 @@ const SiteList: React.FC = () => {
       (scrollTop / (scrollHeight - clientHeight)) *
         (availableHeight - barHeight);
     showScrollBar(barTop, barHeight);
-  };
+  }, [showScrollBar]);
 
-  const updateMaxHeight = (): void => {
+  const updateMaxHeight = useCallback((): void => {
     if (containerRef.current) {
       const containerTop = containerRef.current.getBoundingClientRect().top;
-      const availableHeight = window.innerHeight - containerTop - 120; // Increased from 32px to 120px for Versions component
-      setMaxHeight(Math.max(200, availableHeight)); // Minimum 200px height
+      const availableHeight = window.innerHeight - containerTop - 120;
+      setMaxHeight(Math.max(200, availableHeight));
     }
-  };
+  }, []);
 
-  // Use a ref to always clear and restart the fade-out timer immediately on scroll
+  // ── Effects ──
+
+  // Scroll event listener for custom scrollbar
   useEffect(() => {
     const el = sitesListRef.current;
     if (!el) return;
     let ticking = false;
     const onScroll = (): void => {
-      // Always show the bar immediately on scroll
       if (!ticking) {
         ticking = true;
         window.requestAnimationFrame(() => {
@@ -273,33 +290,38 @@ const SiteList: React.FC = () => {
       el.removeEventListener('scroll', onScroll);
       if (barTimeoutRef.current) clearTimeout(barTimeoutRef.current);
     };
-  }, []);
+  }, [updateScrollBar]);
 
+  // Fetch sites on mount
   useEffect(() => {
     fetchSites();
-  }, []);
+  }, [fetchSites]);
 
+  // Consolidated: recalc scrollbar & max-height when sites/loading/search change
   useEffect(() => {
     updateScrollBar();
-  }, [sites, loading]);
+  }, [sites, loading, updateScrollBar]);
 
   useEffect(() => {
     updateMaxHeight();
+  }, [updateMaxHeight]);
 
+  // Resize listener
+  useEffect(() => {
     const handleResize = (): void => {
       updateMaxHeight();
     };
-
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [updateMaxHeight]);
 
-  // Update height when sites change (in case header content changes)
+  // Update height when sites or search change
   useEffect(() => {
     updateMaxHeight();
-  }, [sites, searchQuery]);
+  }, [sites, searchQuery, updateMaxHeight]);
 
-  // Filter sites based on search query
+  // ── Derived data ──
+
   const filteredSites = useMemo(() => {
     if (!searchQuery.trim()) return sites;
 
@@ -311,6 +333,26 @@ const SiteList: React.FC = () => {
         site.url.toLowerCase().includes(query),
     );
   }, [sites, searchQuery]);
+
+  // Context value for site actions — stable reference due to useCallback
+  const siteActions = useMemo(
+    () => ({
+      onOpenUrl: openSiteUrl,
+      onScan: handleScanSite,
+      onComposerUpdate: handleComposerUpdate,
+      onOpenWpCli: handleOpenWpCliModal,
+      onEditSite: handleOpenEditSiteModal,
+      scanningSite,
+    }),
+    [
+      openSiteUrl,
+      handleScanSite,
+      handleComposerUpdate,
+      handleOpenWpCliModal,
+      handleOpenEditSiteModal,
+      scanningSite,
+    ],
+  );
 
   return (
     <div className="w-full">
@@ -411,23 +453,19 @@ const SiteList: React.FC = () => {
                 )}
               </li>
             ) : (
-              filteredSites.map((site, index) => (
-                <SiteItem
-                  key={site.name}
-                  site={site}
-                  isLast={index === filteredSites.length - 1}
-                  onOpenUrl={openSiteUrl}
-                  onScan={handleScanSite}
-                  onComposerUpdate={handleComposerUpdate}
-                  onOpenWpCli={handleOpenWpCliModal}
-                  onEditSite={handleOpenEditSiteModal}
-                  scanningSite={scanningSite}
-                />
-              ))
+              <SiteActionProvider value={siteActions}>
+                {filteredSites.map((site, index) => (
+                  <SiteItem
+                    key={site.name}
+                    site={site}
+                    isLast={index === filteredSites.length - 1}
+                  />
+                ))}
+              </SiteActionProvider>
             )}
           </ul>
         </div>
-        <Suspense fallback={null}>
+        <Suspense fallback={<ModalFallback />}>
           <CreateSiteModal
             isOpen={isModalOpen}
             onClose={handleCloseModal}
@@ -435,7 +473,7 @@ const SiteList: React.FC = () => {
           />
         </Suspense>
         {wpCliModal.open && wpCliModal.site && (
-          <Suspense fallback={null}>
+          <Suspense fallback={<ModalFallback />}>
             <WpCliModal
               isOpen={wpCliModal.open}
               site={wpCliModal.site}
@@ -444,7 +482,7 @@ const SiteList: React.FC = () => {
           </Suspense>
         )}
         {composerModal.open && composerModal.site && (
-          <Suspense fallback={null}>
+          <Suspense fallback={<ModalFallback />}>
             <ComposerModal
               isOpen={composerModal.open}
               site={composerModal.site}
@@ -453,7 +491,7 @@ const SiteList: React.FC = () => {
           </Suspense>
         )}
         {editSiteModal.open && editSiteModal.site && (
-          <Suspense fallback={null}>
+          <Suspense fallback={<ModalFallback />}>
             <EditSiteModal
               isOpen={editSiteModal.open}
               site={editSiteModal.site}

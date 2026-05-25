@@ -1,10 +1,9 @@
 import { getTauriVersion, getVersion } from '@tauri-apps/api/app';
 import { invoke } from '@tauri-apps/api/core';
-import type { KeyboardEvent, MouseEvent } from 'react';
 import { type JSX, useEffect, useState } from 'react';
 import { siAboutdotme, siTauri, siWordpress } from 'simple-icons';
 import { BrandLogo } from './BrandLogo';
-import Icon from './ui/Icon';
+import ModalBase from './ui/ModalBase';
 
 interface VersionsProps {
   isOpen: boolean;
@@ -58,20 +57,6 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
   const devwpVersionLabel = appVersion ? `v${appVersion}` : 'Loading...';
   const tauriVersionLabel = tauriVersion ? `v${tauriVersion}` : 'Loading...';
 
-  const handleOverlayClick = (): void => {
-    onClose();
-  };
-
-  const handleOverlayKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
-    if (event.key === 'Escape') {
-      onClose();
-    }
-  };
-
-  const handleContentClick = (event: MouseEvent<HTMLDivElement>): void => {
-    event.stopPropagation();
-  };
-
   const handleInstallUpdate = async (): Promise<void> => {
     setIsInstallingUpdate(true);
     setUpdateActionMessage(null);
@@ -93,40 +78,14 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
   };
 
   return (
-    <div
-      className="z-40 fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 animate-fade-in"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="versions-modal-title"
-      onClick={handleOverlayClick}
-      onKeyDown={handleOverlayKeyDown}
+    <ModalBase
+      isOpen={isOpen}
+      onClose={onClose}
+      title="About DevWP"
+      maxWidthClass="max-w-md"
+      overlayClass="bg-black bg-opacity-50"
     >
-      <div
-        className="bg-gunmetal-400 shadow-2xl mx-4 p-6 rounded-lg w-full max-w-md animate-scale-in"
-        onClick={handleContentClick}
-        onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
-          event.stopPropagation();
-        }}
-        role="document"
-      >
-        <div className="flex justify-between items-center mb-6">
-          <h2
-            id="versions-modal-title"
-            className="font-semibold text-seasalt text-xl"
-          >
-            About DevWP
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close About modal"
-            className="flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer"
-            title="Close About modal"
-          >
-            <Icon content="✕" className="text-lg" />
-          </button>
-        </div>
-        <ul className="space-y-4">
+      <ul className="space-y-4">
           <li className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <BrandLogo icon={siWordpress} />
@@ -185,8 +144,7 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
         {updateActionMessage && (
           <p className="mt-3 text-seasalt-400 text-xs">{updateActionMessage}</p>
         )}
-      </div>
-    </div>
+    </ModalBase>
   );
 }
 

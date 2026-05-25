@@ -62,8 +62,8 @@ describe('CreateSiteModal', () => {
     );
     fireEvent.change(webRootInput, { target: { value: '/public/' } });
 
-    const multisiteCheck = getByLabelText('Enable WordPress Multisite');
-    fireEvent.click(multisiteCheck);
+    const multisiteCheckLabel = getByText('Enable WordPress Multisite');
+    fireEvent.click(multisiteCheckLabel);
 
     // Clicking subdomain
     const subdomainLabel = getByText('Subdomain');

@@ -2,6 +2,7 @@ import type { Site } from '@renderer/env';
 import { useEffect, useState } from 'react';
 import FormInput from '../ui/FormInput';
 import Icon from '../ui/Icon';
+import ModalBase from '../ui/ModalBase';
 
 interface EditSiteData {
   aliases: string;
@@ -75,83 +76,76 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({
     </div>
   );
 
-  return (
-    <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70 animate-fade-in">
-      <div className="bg-gunmetal-500 shadow-xl p-5 rounded-lg w-[90%] max-w-lg animate-scale-in">
-        <div className="flex justify-between items-center mb-5">
-          <h3 className="mt-0 mb-0 text-seasalt">Edit Site Settings</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-seasalt-400 hover:text-seasalt transition-colors"
-            title="Close"
-          >
-            <Icon className="text-xl" content="󰅖" />
-          </button>
-        </div>
-
-        <div className="bg-gunmetal-400 mb-4 p-3 border-pumpkin border-l-4 rounded-lg">
-          <div className="flex items-center gap-2 mb-1">
-            <Icon className="text-pumpkin" content="󰌨" />
-            <span className="font-semibold text-seasalt text-sm">
-              {site.name}
-            </span>
-          </div>
-          <div className="text-seasalt-400 text-xs">{site.path}</div>
-        </div>
-
-        <FormInput
-          label="Aliases (optional, space-separated)"
-          value={editData.aliases}
-          onChange={(value) => updateField('aliases', value)}
-          placeholder="alias1.test alias2.test"
-        />
-
-        <FormInput
-          label={`Web Root (optional, relative to site directory e.g. "public", "dist")`}
-          value={editData.webRoot}
-          onChange={handleWebRootChange}
-          placeholder="public (leave blank for site root)"
-          helpText={renderWebRootHelpText()}
-        />
-
-        <div className="bg-gunmetal-400/60 mt-6 px-4 py-4 border border-gunmetal-600 rounded-lg">
-          <h4 className="mb-2 font-semibold text-seasalt text-sm">
-            Danger Zone
-          </h4>
-          <p className="mb-3 text-seasalt-400 text-xs">
-            Deleting this site removes Docker containers, files, and the
-            database snapshot. This action cannot be undone.
-          </p>
-          <button
-            type="button"
-            onClick={handleDelete}
-            className="bg-crimson hover:bg-crimson/80 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt disabled:text-seasalt-400 transition-colors cursor-pointer disabled:cursor-not-allowed"
-            title="Delete Site"
-            disabled={site.status === 'provisioning'}
-          >
-            Delete Site
-          </button>
-        </div>
-
-        <div className="flex justify-end gap-2.5 mt-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="bg-gunmetal-400 hover:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt-300 hover:text-seasalt transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className="bg-pumpkin hover:bg-pumpkin-600 px-4 py-2 border-0 rounded text-warm-charcoal transition-colors cursor-pointer"
-          >
-            Save Changes
-          </button>
-        </div>
-      </div>
+  const footer = (
+    <div className="flex justify-end gap-2.5">
+      <button
+        type="button"
+        onClick={onClose}
+        className="bg-gunmetal-400 hover:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt-300 hover:text-seasalt transition-colors cursor-pointer"
+      >
+        Cancel
+      </button>
+      <button
+        type="button"
+        onClick={handleSubmit}
+        className="bg-pumpkin hover:bg-pumpkin-600 px-4 py-2 border-0 rounded text-warm-charcoal transition-colors cursor-pointer"
+      >
+        Save Changes
+      </button>
     </div>
+  );
+
+  return (
+    <ModalBase
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Edit Site Settings"
+      footer={footer}
+    >
+      <div className="bg-gunmetal-400 mb-4 p-3 border-pumpkin border-l-4 rounded-lg">
+        <div className="flex items-center gap-2 mb-1">
+          <Icon className="text-pumpkin" content="󰌨" />
+          <span className="font-semibold text-seasalt text-sm">
+            {site.name}
+          </span>
+        </div>
+        <div className="text-seasalt-400 text-xs">{site.path}</div>
+      </div>
+
+      <FormInput
+        label="Aliases (optional, space-separated)"
+        value={editData.aliases}
+        onChange={(value) => updateField('aliases', value)}
+        placeholder="alias1.test alias2.test"
+      />
+
+      <FormInput
+        label={`Web Root (optional, relative to site directory e.g. "public", "dist")`}
+        value={editData.webRoot}
+        onChange={handleWebRootChange}
+        placeholder="public (leave blank for site root)"
+        helpText={renderWebRootHelpText()}
+      />
+
+      <div className="bg-gunmetal-400/60 mt-6 px-4 py-4 border border-gunmetal-600 rounded-lg">
+        <h4 className="mb-2 font-semibold text-seasalt text-sm">
+          Danger Zone
+        </h4>
+        <p className="mb-3 text-seasalt-400 text-xs">
+          Deleting this site removes Docker containers, files, and the
+          database snapshot. This action cannot be undone.
+        </p>
+        <button
+          type="button"
+          onClick={handleDelete}
+          className="bg-crimson hover:bg-crimson/80 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt disabled:text-seasalt-400 transition-colors cursor-pointer disabled:cursor-not-allowed"
+          title="Delete Site"
+          disabled={site.status === 'provisioning'}
+        >
+          Delete Site
+        </button>
+      </div>
+    </ModalBase>
   );
 };
 

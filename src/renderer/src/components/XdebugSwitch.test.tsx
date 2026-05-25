@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { act, fireEvent, render } from '@testing-library/react';
+import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import XdebugSwitch from './XdebugSwitch';
 
@@ -17,8 +17,13 @@ describe('XdebugSwitch', () => {
     vi.clearAllMocks();
   });
 
-  it('renders initial performance mode', async () => {
-    (invoke as any).mockResolvedValueOnce(false); // Xdebug disabled
+  it('shows loading state initially then resolves to performance mode', async () => {
+    let resolveInvoke: (value: unknown) => void;
+    (invoke as any).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveInvoke = resolve;
+      }),
+    );
     (listen as any).mockResolvedValue(vi.fn());
 
     let component: any;
@@ -26,19 +31,31 @@ describe('XdebugSwitch', () => {
       component = render(<XdebugSwitch />);
     });
 
-    expect(component.getByText('Performance mode')).toBeInTheDocument();
-    expect(
-      component.getByText(/Performance mode disables Xdebug/),
-    ).toBeInTheDocument();
+    // Initially shows loading
+    expect(component.getByText('Loading mode…')).toBeInTheDocument();
+
+    // Resolve the promise
+    await act(async () => {
+      resolveInvoke!(false);
+    });
+
+    await waitFor(() => {
+      expect(component.getByText('Performance mode')).toBeInTheDocument();
+    });
   });
 
   it('toggles xdebug on click', async () => {
-    (invoke as any).mockResolvedValue(false); // Initially false
+    (invoke as any).mockResolvedValue(false);
     (listen as any).mockResolvedValue(vi.fn());
 
     let component: any;
     await act(async () => {
       component = render(<XdebugSwitch />);
+    });
+
+    // Wait for loading to resolve
+    await waitFor(() => {
+      expect(component.getByText('Performance mode')).toBeInTheDocument();
     });
 
     const toggleInput = component.container.querySelector('input');
@@ -62,6 +79,11 @@ describe('XdebugSwitch', () => {
     let component: any;
     await act(async () => {
       component = render(<XdebugSwitch />);
+    });
+
+    // Wait for loading to resolve
+    await waitFor(() => {
+      expect(component.getByText('Performance mode')).toBeInTheDocument();
     });
 
     // Simulate restarting

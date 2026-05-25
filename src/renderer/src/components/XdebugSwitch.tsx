@@ -4,7 +4,7 @@ import { type JSX, useEffect, useState } from 'react';
 import Toggle from './ui/Toggle';
 
 function XdebugSwitch(): JSX.Element {
-  const [xdebugEnabled, setXdebugEnabled] = useState<boolean>(false);
+  const [xdebugEnabled, setXdebugEnabled] = useState<boolean | null>(null);
   const [isToggling, setIsToggling] = useState<boolean>(false);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ function XdebugSwitch(): JSX.Element {
   }, []);
 
   const handleToggle = async (): Promise<void> => {
-    if (isToggling) return;
+    if (isToggling || xdebugEnabled === null) return;
 
     setIsToggling(true);
     try {
@@ -56,6 +56,24 @@ function XdebugSwitch(): JSX.Element {
       setIsToggling(false);
     }
   };
+
+  // Loading state before initial status is fetched
+  if (xdebugEnabled === null) {
+    return (
+      <div className="flex justify-between items-start mb-6 rounded-md">
+        <div className="flex flex-col flex-1 mr-4">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2">
+              <h3 className="m-0 font-medium text-seasalt-400">
+                Loading mode…
+              </h3>
+            </div>
+            <Toggle disabled />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex justify-between items-start mb-6 rounded-md">

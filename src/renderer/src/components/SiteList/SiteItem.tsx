@@ -2,28 +2,17 @@ import type { Site } from '@renderer/env';
 import { invoke } from '@tauri-apps/api/core';
 import Icon from '../ui/Icon';
 import Spinner from '../ui/Spinner';
+import { useSiteActions } from './SiteActionContext';
 
 interface SiteItemProps {
   site: Site;
   isLast: boolean;
-  onOpenUrl: (url: string) => void;
-  onScan: (site: Site) => void;
-  onComposerUpdate: (site: Site) => void;
-  onOpenWpCli: (site: Site) => void;
-  onEditSite: (site: Site) => void;
-  scanningSite: string | null;
 }
 
-const SiteItem: React.FC<SiteItemProps> = ({
-  site,
-  isLast,
-  onOpenUrl,
-  onScan,
-  onComposerUpdate,
-  onOpenWpCli,
-  onEditSite,
-  scanningSite,
-}) => {
+const SiteItem: React.FC<SiteItemProps> = ({ site, isLast }) => {
+  const { onOpenUrl, onScan, onComposerUpdate, onOpenWpCli, onEditSite, scanningSite } =
+    useSiteActions();
+
   const isProvisioning = site.status === 'provisioning';
   const handleOpenDirectory = (): void => {
     void invoke('open_directory', { path: site.path });

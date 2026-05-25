@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useEffect, useState } from 'react';
 import Icon from '../ui/Icon';
 import Spinner from '../ui/Spinner';
+import ModalBase from '../ui/ModalBase';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -86,21 +87,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="z-50 fixed inset-0 flex justify-center items-center bg-black bg-opacity-50 animate-fade-in">
-      <div className="bg-gunmetal-400 mx-4 p-6 rounded-lg w-full max-w-md animate-scale-in">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="font-semibold text-seasalt text-xl">Settings</h2>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer"
-            title="Close Settings"
-          >
-            <Icon content="✕" className="text-lg" />
-          </button>
-        </div>
-
-        {loading ? (
+    <ModalBase
+      isOpen={isOpen}
+      onClose={handleClose}
+      title="Settings"
+      maxWidthClass="max-w-md"
+      overlayClass="bg-black bg-opacity-50"
+    >
+      {loading ? (
           <div className="flex justify-center py-8">
             <Spinner title="Loading settings..." />
           </div>
@@ -157,8 +151,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </ModalBase>
   );
 };
 

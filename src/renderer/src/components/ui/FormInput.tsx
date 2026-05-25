@@ -13,6 +13,7 @@ const FormInput: React.FC<FormInputProps> = ({
   value,
   onChange,
   placeholder,
+  autoFocus,
   helpText,
   type = 'text',
 }) => {
@@ -29,6 +30,7 @@ const FormInput: React.FC<FormInputProps> = ({
         onChange={(e) => onChange(e.target.value)}
         className="bg-gunmetal-400 p-2 border border-gunmetal-500 focus:border-pumpkin rounded focus:outline-none focus:ring-1 focus:ring-pumpkin w-full text-seasalt transition-colors"
         placeholder={placeholder}
+        autoFocus={autoFocus}
       />
       {helpText && helpText}
     </div>

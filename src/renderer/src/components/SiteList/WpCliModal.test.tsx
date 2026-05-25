@@ -44,7 +44,7 @@ describe('WpCliModal', () => {
       component = render(<WpCliModal {...defaultProps} />);
     });
 
-    expect(component.getByText('test-site')).toBeInTheDocument();
+    expect(component.getByText('Run WP-CLI Command — test-site')).toBeInTheDocument();
 
     const input = component.getByPlaceholderText('e.g. plugin list');
 
