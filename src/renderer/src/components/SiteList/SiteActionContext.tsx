@@ -7,6 +7,7 @@ export interface SiteActionContextValue {
   onComposerUpdate: (site: Site) => void;
   onOpenWpCli: (site: Site) => void;
   onEditSite: (site: Site) => void;
+  onSelectSite: (site: Site) => void;
   scanningSite: string | null;
 }
 

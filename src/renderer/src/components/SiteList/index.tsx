@@ -6,6 +6,7 @@ import Icon from '../ui/Icon';
 import Spinner from '../ui/Spinner';
 import type { NewSiteData } from './CreateSiteModal';
 import { SiteActionProvider } from './SiteActionContext';
+import SiteInfo from './SiteInfo';
 import SiteItem from './SiteItem';
 
 // Lazy load the modals
@@ -46,6 +47,7 @@ const SiteList: React.FC = () => {
     open: false,
     site: null,
   });
+  const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const sitesListRef = useRef<HTMLUListElement>(null);
   const [scrollBar, setScrollBar] = useState({
@@ -63,6 +65,14 @@ const SiteList: React.FC = () => {
 
   const openSiteUrl = useCallback((url: string): void => {
     void invoke('open_external', { url });
+  }, []);
+
+  const handleSelectSite = useCallback((site: Site): void => {
+    setSelectedSite(site);
+  }, []);
+
+  const handleBackToList = useCallback((): void => {
+    setSelectedSite(null);
   }, []);
 
   const handleCreateSite = useCallback((): void => {
@@ -342,6 +352,7 @@ const SiteList: React.FC = () => {
       onComposerUpdate: handleComposerUpdate,
       onOpenWpCli: handleOpenWpCliModal,
       onEditSite: handleOpenEditSiteModal,
+      onSelectSite: handleSelectSite,
       scanningSite,
     }),
     [
@@ -350,6 +361,7 @@ const SiteList: React.FC = () => {
       handleComposerUpdate,
       handleOpenWpCliModal,
       handleOpenEditSiteModal,
+      handleSelectSite,
       scanningSite,
     ],
   );
@@ -381,139 +393,148 @@ const SiteList: React.FC = () => {
         </button>
       </div>
 
-      {/* Search Bar */}
-      {sites.length > 0 && (
-        <div className="mb-4">
-          <div className="relative">
-            <Icon
-              className="top-1/2 left-3 absolute text-seasalt-400 text-lg -translate-y-1/2 transform"
-              content="󰍉"
-            />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search sites by name, path, or URL..."
-              className="bg-gunmetal-500 py-2.5 pr-4 pl-10 border border-gunmetal-600 focus:border-pumpkin rounded-lg focus:outline-none focus:ring-1 focus:ring-pumpkin w-full text-seasalt transition-colors placeholder-seasalt-400"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="top-1/2 right-3 absolute text-seasalt-400 hover:text-seasalt transition-colors -translate-y-1/2 transform"
-                title="Clear search"
-                type="button"
-              >
-                <Icon className="text-lg" content="󰅖" />
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="relative" ref={containerRef}>
-        <div className="bg-gunmetal-500 shadow-2xl rounded-xl overflow-hidden">
-          <ul
-            className="py-2 overflow-y-auto scrollbar-hide"
-            ref={sitesListRef}
-            style={{ maxHeight: `${maxHeight}px` }}
-          >
-            {loading ? (
-              <li className="flex justify-center items-center py-12">
-                <div className="flex items-center gap-3">
-                  <Spinner svgClass="size-6 text-pumpkin" />
-                  <span className="text-seasalt-300 text-lg">
-                    Loading sites...
-                  </span>
-                </div>
-              </li>
-            ) : filteredSites.length === 0 ? (
-              <li className="flex flex-col justify-center items-center px-6 py-16 text-center">
-                <div className="flex justify-center items-center bg-gunmetal-500 mb-4 rounded-full w-16 h-16">
-                  <Icon
-                    className="text-seasalt-400 text-3xl"
-                    content={searchQuery ? '󰍉' : '󰌨'}
-                  />
-                </div>
-                <h4 className="mb-2 font-semibold text-seasalt text-xl">
-                  {searchQuery ? 'No sites found' : 'No sites yet'}
-                </h4>
-                <p className="max-w-xs text-seasalt-400 text-sm">
-                  {searchQuery
-                    ? `No sites match "${searchQuery}". Try a different search term.`
-                    : 'Create your first WordPress development site to get started'}
-                </p>
+      {selectedSite ? (
+        <SiteActionProvider value={siteActions}>
+          <SiteInfo site={selectedSite} onBack={handleBackToList} />
+        </SiteActionProvider>
+      ) : (
+        <>
+          {/* Search Bar */}
+          {sites.length > 0 && (
+            <div className="mb-4">
+              <div className="relative">
+                <Icon
+                  className="top-1/2 left-3 absolute text-seasalt-400 text-lg -translate-y-1/2 transform"
+                  content="󰍉"
+                />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search sites by name, path, or URL..."
+                  className="bg-gunmetal-500 py-2.5 pr-4 pl-10 border border-gunmetal-600 focus:border-pumpkin rounded-lg focus:outline-none focus:ring-1 focus:ring-pumpkin w-full text-seasalt transition-colors placeholder-seasalt-400"
+                />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="mt-3 text-pumpkin hover:text-pumpkin-600 text-sm underline transition-colors"
+                    className="top-1/2 right-3 absolute text-seasalt-400 hover:text-seasalt transition-colors -translate-y-1/2 transform"
+                    title="Clear search"
                     type="button"
                   >
-                    Clear search
+                    <Icon className="text-lg" content="󰅖" />
                   </button>
                 )}
-              </li>
-            ) : (
-              <SiteActionProvider value={siteActions}>
-                {filteredSites.map((site, index) => (
-                  <SiteItem
-                    key={site.name}
-                    site={site}
-                    isLast={index === filteredSites.length - 1}
-                  />
-                ))}
-              </SiteActionProvider>
-            )}
-          </ul>
-        </div>
+              </div>
+            </div>
+          )}
+
+          <div className="relative" ref={containerRef}>
+            <div className="bg-gunmetal-500 shadow-2xl rounded-xl overflow-hidden">
+              <ul
+                className="py-2 overflow-y-auto scrollbar-hide"
+                ref={sitesListRef}
+                style={{ maxHeight: `${maxHeight}px` }}
+              >
+                {loading ? (
+                  <li className="flex justify-center items-center py-12">
+                    <div className="flex items-center gap-3">
+                      <Spinner svgClass="size-6 text-pumpkin" />
+                      <span className="text-seasalt-300 text-lg">
+                        Loading sites...
+                      </span>
+                    </div>
+                  </li>
+                ) : filteredSites.length === 0 ? (
+                  <li className="flex flex-col justify-center items-center px-6 py-16 text-center">
+                    <div className="flex justify-center items-center bg-gunmetal-500 mb-4 rounded-full w-16 h-16">
+                      <Icon
+                        className="text-seasalt-400 text-3xl"
+                        content={searchQuery ? '󰍉' : '󰌨'}
+                      />
+                    </div>
+                    <h4 className="mb-2 font-semibold text-seasalt text-xl">
+                      {searchQuery ? 'No sites found' : 'No sites yet'}
+                    </h4>
+                    <p className="max-w-xs text-seasalt-400 text-sm">
+                      {searchQuery
+                        ? `No sites match "${searchQuery}". Try a different search term.`
+                        : 'Create your first WordPress development site to get started'}
+                    </p>
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="mt-3 text-pumpkin hover:text-pumpkin-600 text-sm underline transition-colors"
+                        type="button"
+                      >
+                        Clear search
+                      </button>
+                    )}
+                  </li>
+                ) : (
+                  <SiteActionProvider value={siteActions}>
+                    {filteredSites.map((site, index) => (
+                      <SiteItem
+                        key={site.name}
+                        site={site}
+                        isLast={index === filteredSites.length - 1}
+                      />
+                    ))}
+                  </SiteActionProvider>
+                )}
+              </ul>
+            </div>
+            {(scrollBar.visible ||
+              isScrolling ||
+              (!scrollBar.visible && barEverShown)) &&
+              scrollBar.height > 0 && (
+                <div
+                  className={`absolute right-2 w-1 rounded-full bg-linear-to-b from-pumpkin to-pumpkin-600 z-10 transition-opacity duration-200 ${scrollBar.visible || isScrolling ? 'opacity-80' : 'opacity-0'}`}
+                  style={{
+                    top: scrollBar.top,
+                    height: scrollBar.height,
+                  }}
+                />
+              )}
+          </div>
+        </>
+      )}
+
+      <Suspense fallback={<ModalFallback />}>
+        <CreateSiteModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          onSubmit={handleSubmitNewSite}
+        />
+      </Suspense>
+      {wpCliModal.open && wpCliModal.site && (
         <Suspense fallback={<ModalFallback />}>
-          <CreateSiteModal
-            isOpen={isModalOpen}
-            onClose={handleCloseModal}
-            onSubmit={handleSubmitNewSite}
+          <WpCliModal
+            isOpen={wpCliModal.open}
+            site={wpCliModal.site}
+            onClose={handleCloseWpCliModal}
           />
         </Suspense>
-        {wpCliModal.open && wpCliModal.site && (
-          <Suspense fallback={<ModalFallback />}>
-            <WpCliModal
-              isOpen={wpCliModal.open}
-              site={wpCliModal.site}
-              onClose={handleCloseWpCliModal}
-            />
-          </Suspense>
-        )}
-        {composerModal.open && composerModal.site && (
-          <Suspense fallback={<ModalFallback />}>
-            <ComposerModal
-              isOpen={composerModal.open}
-              site={composerModal.site}
-              onClose={handleCloseComposerModal}
-            />
-          </Suspense>
-        )}
-        {editSiteModal.open && editSiteModal.site && (
-          <Suspense fallback={<ModalFallback />}>
-            <EditSiteModal
-              isOpen={editSiteModal.open}
-              site={editSiteModal.site}
-              onClose={handleCloseEditSiteModal}
-              onSubmit={handleUpdateSite}
-              onDelete={handleDeleteSite}
-            />
-          </Suspense>
-        )}
-        {(scrollBar.visible ||
-          isScrolling ||
-          (!scrollBar.visible && barEverShown)) &&
-          scrollBar.height > 0 && (
-            <div
-              className={`absolute right-2 w-1 rounded-full bg-linear-to-b from-pumpkin to-pumpkin-600 z-10 transition-opacity duration-200 ${scrollBar.visible || isScrolling ? 'opacity-80' : 'opacity-0'}`}
-              style={{
-                top: scrollBar.top,
-                height: scrollBar.height,
-              }}
-            />
-          )}
-      </div>
+      )}
+      {composerModal.open && composerModal.site && (
+        <Suspense fallback={<ModalFallback />}>
+          <ComposerModal
+            isOpen={composerModal.open}
+            site={composerModal.site}
+            onClose={handleCloseComposerModal}
+          />
+        </Suspense>
+      )}
+      {editSiteModal.open && editSiteModal.site && (
+        <Suspense fallback={<ModalFallback />}>
+          <EditSiteModal
+            isOpen={editSiteModal.open}
+            site={editSiteModal.site}
+            onClose={handleCloseEditSiteModal}
+            onSubmit={handleUpdateSite}
+            onDelete={handleDeleteSite}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };

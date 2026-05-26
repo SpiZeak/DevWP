@@ -10,17 +10,31 @@ interface SiteItemProps {
 }
 
 const SiteItem: React.FC<SiteItemProps> = ({ site, isLast }) => {
-  const { onOpenUrl, onScan, onComposerUpdate, onOpenWpCli, onEditSite, scanningSite } =
+  const { onOpenUrl, onScan, onComposerUpdate, onOpenWpCli, onEditSite, onSelectSite, scanningSite } =
     useSiteActions();
 
   const isProvisioning = site.status === 'provisioning';
-  const handleOpenDirectory = (): void => {
+  const handleOpenDirectory = (e: React.MouseEvent): void => {
+    e.stopPropagation();
     void invoke('open_directory', { path: site.path });
+  };
+
+  const handleClick = (): void => {
+    onSelectSite(site);
   };
 
   return (
     <li
-      className={`animate-fade-in-up group relative bg-gunmetal-300 hover:bg-gunmetal-400 transition-all duration-200 rounded-lg mx-2 ${isLast ? 'mb-2' : 'mb-3'}`}
+      className={`animate-fade-in-up group relative bg-gunmetal-300 hover:bg-gunmetal-400 transition-all duration-200 rounded-lg mx-2 cursor-pointer ${isLast ? 'mb-2' : 'mb-3'}`}
+      onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
     >
       <div className="flex justify-between items-center p-4">
         <div className="flex-1 min-w-0">
@@ -43,7 +57,7 @@ const SiteItem: React.FC<SiteItemProps> = ({ site, isLast }) => {
             <Icon className="text-base" content="󰉋" />
             <button
               type="button"
-              onClick={handleOpenDirectory}
+              onClick={(e): void => handleOpenDirectory(e)}
               className="hover:text-pumpkin text-left truncate transition-colors cursor-pointer"
               title="Open folder in file manager"
             >
@@ -54,7 +68,10 @@ const SiteItem: React.FC<SiteItemProps> = ({ site, isLast }) => {
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={(): void => onOpenUrl(site.url)}
+            onClick={(e): void => {
+              e.stopPropagation();
+              onOpenUrl(site.url);
+            }}
             className="group/btn relative bg-gunmetal-500 hover:bg-pumpkin disabled:bg-gunmetal-300 hover:shadow-lg rounded-lg size-10 hover:scale-105 disabled:hover:scale-100 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
             title="Open Site"
             disabled={isProvisioning}
@@ -66,7 +83,10 @@ const SiteItem: React.FC<SiteItemProps> = ({ site, isLast }) => {
           </button>
           <button
             type="button"
-            onClick={(): void => onScan(site)}
+            onClick={(e): void => {
+              e.stopPropagation();
+              onScan(site);
+            }}
             className={`group/btn relative size-10 rounded-lg transition-all duration-200 hover:scale-105 hover:shadow-lg ${
               scanningSite === site.name || isProvisioning
                 ? 'bg-amber/20 cursor-not-allowed'
@@ -95,7 +115,10 @@ const SiteItem: React.FC<SiteItemProps> = ({ site, isLast }) => {
           </button>
           <button
             type="button"
-            onClick={(): void => onComposerUpdate(site)}
+            onClick={(e): void => {
+              e.stopPropagation();
+              onComposerUpdate(site);
+            }}
             className="group/btn relative bg-gunmetal-500 hover:bg-pumpkin disabled:bg-gunmetal-300 hover:shadow-lg rounded-lg size-10 hover:scale-105 disabled:hover:scale-100 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
             disabled={isProvisioning}
             title={
@@ -111,7 +134,10 @@ const SiteItem: React.FC<SiteItemProps> = ({ site, isLast }) => {
           </button>
           <button
             type="button"
-            onClick={(): void => onOpenWpCli(site)}
+            onClick={(e): void => {
+              e.stopPropagation();
+              onOpenWpCli(site);
+            }}
             className="group/btn relative bg-gunmetal-500 hover:bg-emerald disabled:bg-gunmetal-300 hover:shadow-lg rounded-lg size-10 hover:scale-105 disabled:hover:scale-100 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
             title="Run WP-CLI Command"
             disabled={isProvisioning}
@@ -123,7 +149,10 @@ const SiteItem: React.FC<SiteItemProps> = ({ site, isLast }) => {
           </button>
           <button
             type="button"
-            onClick={(): void => onEditSite(site)}
+            onClick={(e): void => {
+              e.stopPropagation();
+              onEditSite(site);
+            }}
             className="group/btn relative bg-gunmetal-500 hover:bg-pumpkin-500 disabled:bg-gunmetal-300 hover:shadow-lg rounded-lg size-10 hover:scale-105 disabled:hover:scale-100 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
             title="Edit Site Settings"
             disabled={isProvisioning}
