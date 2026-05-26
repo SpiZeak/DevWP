@@ -38,7 +38,7 @@
     "one-time": "^1.0.0",
     "readable-stream": "^4.7.0",
     "safe-stable-stringify": "^2.5.0",
-    "simple-icons": "^16.20.0",
+    "simple-icons": "^16.21.0",
     "stack-trace": "^1.0.0",
     "sudo-prompt": "^9.2.1",
     "tailwindcss": "^4.3.0",
@@ -60,13 +60,13 @@
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
-    "@vitest/coverage-v8": "^4.1.6",
-    "@vitest/ui": "^4.1.6",
+    "@vitest/coverage-v8": "^4.1.7",
+    "@vitest/ui": "^4.1.7",
     "jsdom": "^29.1.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "typescript": "^6.0.3",
-    "vite": "^8.0.13",
-    "vitest": "^4.1.6"
+    "vite": "^8.0.14",
+    "vitest": "^4.1.7"
   }
 }
