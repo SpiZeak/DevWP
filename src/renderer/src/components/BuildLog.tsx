@@ -58,7 +58,7 @@ const BuildLog: React.FC<BuildLogProps> = ({ isBuilding }) => {
     if (isOpen && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [logs, isOpen]);
+  }, [isOpen]);
 
   if (!isBuilding && logs.length === 0) return null;
 

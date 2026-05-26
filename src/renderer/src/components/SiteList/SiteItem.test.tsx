@@ -29,7 +29,9 @@ describe('SiteItem', () => {
 
   const renderWithContext = (site = mockSite, isLast = false, actions = defaultActions) =>
     render(
+      // biome-ignore lint/suspicious/noExplicitAny: context mock
       <SiteActionProvider value={actions as any}>
+        {/* biome-ignore lint/suspicious/noExplicitAny: mock site */}
         <SiteItem site={site as any} isLast={isLast} />
       </SiteActionProvider>,
     );

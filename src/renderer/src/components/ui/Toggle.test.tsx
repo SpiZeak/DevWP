@@ -18,8 +18,8 @@ describe('Toggle', () => {
     const { container } = render(
       <Toggle checked={false} onChange={handleChange} />,
     );
-    const input = container.querySelector('input');
-    fireEvent.click(input!);
+    const input = container.querySelector('input') as HTMLInputElement;
+    fireEvent.click(input);
     expect(handleChange).toHaveBeenCalledWith(true);
   });
 

@@ -1,5 +1,4 @@
 import {
-  type JSX,
   type KeyboardEvent,
   type MouseEvent,
   type ReactNode,

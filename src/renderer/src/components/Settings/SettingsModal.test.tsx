@@ -10,6 +10,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 describe('SettingsModal', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockImplementation((cmd: string) => {
       if (cmd === 'get_webroot_path') {
         return Promise.resolve('/initial/path');
@@ -40,6 +41,7 @@ describe('SettingsModal', () => {
   });
 
   it('handles load settings error', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockImplementation((cmd: string) => {
       if (cmd === 'get_webroot_path')
         return Promise.reject(new Error('Load failed'));
@@ -119,6 +121,7 @@ describe('SettingsModal', () => {
 
   it('handles save settings failure (success: false)', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockImplementation((cmd: string) => {
       if (cmd === 'get_webroot_path') return Promise.resolve('/path');
       if (cmd === 'save_setting')
@@ -150,6 +153,7 @@ describe('SettingsModal', () => {
 
   it('handles save settings error thrown', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockImplementation((cmd: string) => {
       if (cmd === 'get_webroot_path') return Promise.resolve('/path');
       if (cmd === 'save_setting')
@@ -181,6 +185,7 @@ describe('SettingsModal', () => {
 
   it('handles pick directory error thrown', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockImplementation((cmd: string) => {
       if (cmd === 'get_webroot_path') return Promise.resolve('/path');
       if (cmd === 'pick_directory')

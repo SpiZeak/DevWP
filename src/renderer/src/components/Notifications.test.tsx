@@ -19,13 +19,15 @@ describe('Notifications', () => {
 
   it('renders a notification and removes it after timeout', async () => {
     vi.useFakeTimers();
+    // biome-ignore lint/suspicious/noExplicitAny: mock callback
     let listenerCallback: any;
-    (listen as any).mockImplementationOnce((event: string, callback: any) => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock
+    (listen as any).mockImplementationOnce((_event: string, callback: any) => {
       listenerCallback = callback;
       return Promise.resolve(vi.fn());
     });
 
-    const { container, getByText, queryByText } = render(<Notifications />);
+    const { getByText, queryByText } = render(<Notifications />);
 
     // Simulate an event
     await act(async () => {

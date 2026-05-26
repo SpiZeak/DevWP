@@ -74,8 +74,8 @@ bun install
 # Initialize submodules for SEO analysis
 git submodule update --init --recursive
 
-# Trust the SSL certificate (eliminates browser warnings)
-./scripts/trust-certificate.sh
+# Set up trusted SSL certificates with mkcert (eliminates browser warnings)
+./scripts/setup-certs.sh
 
 # Start development (launches Tauri with hot reload)
 bun run dev

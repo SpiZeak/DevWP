@@ -1,6 +1,6 @@
 import { getTauriVersion, getVersion } from '@tauri-apps/api/app';
 import { invoke } from '@tauri-apps/api/core';
-import { act, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Versions from './Versions';
 
@@ -19,8 +19,11 @@ describe('Versions', () => {
   });
 
   const setupMocks = (isUpdateReady = false) => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (getVersion as any).mockResolvedValue('1.2.3');
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (getTauriVersion as any).mockResolvedValue('2.0.0');
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockImplementation((cmd: string) => {
       if (cmd === 'get_update_ready') return Promise.resolve(isUpdateReady);
       if (cmd === 'install_update_now')
@@ -39,6 +42,7 @@ describe('Versions', () => {
   it('renders correctly and fetches versions when isOpen is true', async () => {
     setupMocks();
 
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(<Versions isOpen={true} onClose={vi.fn()} />);
@@ -52,6 +56,7 @@ describe('Versions', () => {
   it('calls onClose when close button is clicked', async () => {
     setupMocks();
     const handleClose = vi.fn();
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(<Versions isOpen={true} onClose={handleClose} />);
@@ -66,12 +71,12 @@ describe('Versions', () => {
 
   it('stops propagation when clicking on modal content', async () => {
     setupMocks();
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(<Versions isOpen={true} onClose={vi.fn()} />);
     });
 
-    const dialog = component.getByRole('dialog');
     const documentBlock = component.getByRole('document');
 
     fireEvent.click(documentBlock);
@@ -82,6 +87,7 @@ describe('Versions', () => {
   it('closes when overlay is clicked or Escape is pressed', async () => {
     setupMocks();
     const handleClose = vi.fn();
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(<Versions isOpen={true} onClose={handleClose} />);
@@ -97,6 +103,7 @@ describe('Versions', () => {
 
   it('renders install update button when update is ready and handles click', async () => {
     setupMocks(true);
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(<Versions isOpen={true} onClose={vi.fn()} />);
@@ -114,8 +121,11 @@ describe('Versions', () => {
   });
 
   it('handles failed update installation', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (getVersion as any).mockResolvedValue('1.2.3');
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (getTauriVersion as any).mockResolvedValue('2.0.0');
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockImplementation((cmd: string) => {
       if (cmd === 'get_update_ready') return Promise.resolve(true);
       if (cmd === 'install_update_now')
@@ -123,6 +133,7 @@ describe('Versions', () => {
       return Promise.resolve();
     });
 
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(<Versions isOpen={true} onClose={vi.fn()} />);

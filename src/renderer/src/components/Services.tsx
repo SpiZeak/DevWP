@@ -61,7 +61,6 @@ const serviceToContainerName: Record<string, string> = {
 const EXCLUDED_CONTAINERS = [
   'devwp_seonaut',
   'devwp_sonarqube-scanner',
-  'devwp_certs',
 ];
 
 // Ordered list of services to always display

@@ -19,10 +19,11 @@ describe('App Integration with Tauri API mocks', () => {
     invokedCommands = [];
 
     // Return a dummy unlisten function when components call listen
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (tauriEvent.listen as any).mockResolvedValue(() => {});
 
     mockWindows('main');
-    mockIPC((cmd, args) => {
+    mockIPC((cmd, _args) => {
       invokedCommands.push(cmd);
 
       switch (cmd) {

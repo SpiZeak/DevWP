@@ -19,13 +19,16 @@ describe('XdebugSwitch', () => {
 
   it('shows loading state initially then resolves to performance mode', async () => {
     let resolveInvoke: (value: unknown) => void;
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockReturnValueOnce(
       new Promise((resolve) => {
         resolveInvoke = resolve;
       }),
     );
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (listen as any).mockResolvedValue(vi.fn());
 
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(<XdebugSwitch />);
@@ -36,7 +39,7 @@ describe('XdebugSwitch', () => {
 
     // Resolve the promise
     await act(async () => {
-      resolveInvoke!(false);
+      resolveInvoke?.(false);
     });
 
     await waitFor(() => {
@@ -45,9 +48,12 @@ describe('XdebugSwitch', () => {
   });
 
   it('toggles xdebug on click', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockResolvedValue(false);
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (listen as any).mockResolvedValue(vi.fn());
 
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(<XdebugSwitch />);
@@ -58,24 +64,28 @@ describe('XdebugSwitch', () => {
       expect(component.getByText('Performance mode')).toBeInTheDocument();
     });
 
-    const toggleInput = component.container.querySelector('input');
+    const toggleInput = component.container.querySelector('input') as HTMLInputElement;
 
     await act(async () => {
-      fireEvent.click(toggleInput!);
+      fireEvent.click(toggleInput);
     });
 
     expect(invoke).toHaveBeenCalledWith('toggle_xdebug');
   });
 
   it('updates state via events', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockResolvedValue(false);
 
+    // biome-ignore lint/suspicious/noExplicitAny: mock callback
     let listenerCallback: any;
-    (listen as any).mockImplementation((event: string, callback: any) => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock
+    (listen as any).mockImplementation((_event: string, callback: any) => {
       listenerCallback = callback;
       return Promise.resolve(vi.fn());
     });
 
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(<XdebugSwitch />);

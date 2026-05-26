@@ -3,7 +3,6 @@ import {
   debug,
   error,
   info,
-  trace,
   warn,
 } from '@tauri-apps/plugin-log';
 

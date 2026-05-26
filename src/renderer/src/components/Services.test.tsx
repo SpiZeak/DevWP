@@ -19,6 +19,7 @@ vi.mock('./XdebugSwitch', () => ({
 describe('Services', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockImplementation(async (cmd: string) => {
       if (cmd === 'get_build_status') return {};
       return undefined;
@@ -26,8 +27,10 @@ describe('Services', () => {
   });
 
   it('renders initial state with all known services', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (listen as any).mockResolvedValue(vi.fn());
 
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(
@@ -41,7 +44,9 @@ describe('Services', () => {
   });
 
   it('renders containers once loaded', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock callback
     let listenerCallback: any;
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (listen as any).mockImplementation((event: string, callback: any) => {
       if (event === 'container-status') {
         listenerCallback = callback;
@@ -49,6 +54,7 @@ describe('Services', () => {
       return Promise.resolve(vi.fn());
     });
 
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(
@@ -77,7 +83,9 @@ describe('Services', () => {
 
   it('restarts container when clicked', async () => {
     vi.useFakeTimers();
+    // biome-ignore lint/suspicious/noExplicitAny: mock callback
     let listenerCallback: any;
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (listen as any).mockImplementation((event: string, callback: any) => {
       if (event === 'container-status') {
         listenerCallback = callback;
@@ -85,6 +93,7 @@ describe('Services', () => {
       return Promise.resolve(vi.fn());
     });
 
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(
@@ -120,10 +129,12 @@ describe('Services', () => {
   });
 
   it('calls onOpenSettings and onOpenVersions when buttons clicked', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (listen as any).mockResolvedValue(vi.fn());
     const onOpenSettings = vi.fn();
     const onOpenVersions = vi.fn();
 
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(

@@ -58,7 +58,7 @@ const ComposerModal: React.FC<ComposerModalProps> = ({
     if (outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
-  }, [output, error]);
+  }, []);
 
   const handleClose = (): void => {
     if (loading) return;

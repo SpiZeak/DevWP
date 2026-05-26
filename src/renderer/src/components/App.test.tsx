@@ -7,6 +7,7 @@ vi.mock('./Notifications', () => ({
   default: () => <div data-testid="notifications" />,
 }));
 vi.mock('./Services', () => ({
+  // biome-ignore lint/suspicious/noExplicitAny: mock component
   default: ({ onOpenSettings, onOpenVersions }: any) => (
     <div>
       <button type="button" onClick={onOpenSettings}>
@@ -22,6 +23,7 @@ vi.mock('./SiteList', () => ({
   default: () => <div data-testid="sitelist" />,
 }));
 vi.mock('./Versions', () => ({
+  // biome-ignore lint/suspicious/noExplicitAny: mock component
   default: ({ isOpen, onClose }: any) =>
     isOpen ? (
       <div data-testid="versions-modal">
@@ -34,6 +36,7 @@ vi.mock('./Versions', () => ({
 
 // Mock lazy component
 vi.mock('./Settings/SettingsModal', () => ({
+  // biome-ignore lint/suspicious/noExplicitAny: mock component
   default: ({ isOpen, onClose }: any) =>
     isOpen ? (
       <div data-testid="settings-modal">
@@ -46,6 +49,7 @@ vi.mock('./Settings/SettingsModal', () => ({
 
 describe('App', () => {
   const renderApp = async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: render return type
     let component: any;
     await act(async () => {
       component = render(

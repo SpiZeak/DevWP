@@ -16,6 +16,7 @@ describe('EditSiteModal', () => {
 
   const defaultProps = {
     isOpen: true,
+    // biome-ignore lint/suspicious/noExplicitAny: mock site
     site: mockSite as any,
     onClose: vi.fn(),
     onSubmit: vi.fn(),

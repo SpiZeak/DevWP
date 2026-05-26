@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import FormInput from '../ui/FormInput';
 import ModalBase from '../ui/ModalBase';
 import Toggle from '../ui/Toggle';
@@ -79,23 +79,29 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({
   onClose,
   onSubmit,
 }) => {
-  const initialSiteData: NewSiteData = {
-    domain: 'example.test',
-    webRoot: '',
-    aliases: '',
-    multisite: {
-      enabled: false,
-      type: 'subdirectory',
-    },
-  };
+  const initialSiteData = useMemo<NewSiteData>(
+    () => ({
+      domain: 'example.test',
+      webRoot: '',
+      aliases: '',
+      multisite: {
+        enabled: false,
+        type: 'subdirectory',
+      },
+    }),
+    [],
+  );
 
-  const initialWpInstall = {
-    enabled: true,
-    title: '',
-    adminUser: '',
-    adminPassword: '',
-    adminEmail: '',
-  };
+  const initialWpInstall = useMemo(
+    () => ({
+      enabled: true,
+      title: '',
+      adminUser: '',
+      adminPassword: '',
+      adminEmail: '',
+    }),
+    [],
+  );
 
   const [newSite, setNewSite] = useState<NewSiteData>(initialSiteData);
   const [wpInstall, setWpInstall] = useState(initialWpInstall);
@@ -105,7 +111,7 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({
       setNewSite(initialSiteData);
       setWpInstall(initialWpInstall);
     }
-  }, [isOpen]);
+  }, [isOpen, initialSiteData, initialWpInstall]);
 
   if (!isOpen) return null;
 
@@ -243,6 +249,12 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({
             onClick={() =>
               updateMultisiteField('enabled', !newSite.multisite.enabled)
             }
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                updateMultisiteField('enabled', !newSite.multisite.enabled);
+              }
+            }}
           >
             Enable WordPress Multisite
           </label>
@@ -289,6 +301,15 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({
                 enabled: !prev.enabled,
               }))
             }
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setWpInstall((prev) => ({
+                  ...prev,
+                  enabled: !prev.enabled,
+                }));
+              }
+            }}
           >
             Install WordPress
           </label>

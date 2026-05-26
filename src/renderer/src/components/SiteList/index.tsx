@@ -73,6 +73,18 @@ const SiteList: React.FC = () => {
     setIsModalOpen(false);
   }, []);
 
+  const fetchSites = useCallback(async (): Promise<void> => {
+    try {
+      setLoading(true);
+      const siteList = await invoke<Site[]>('get_sites');
+      setSites(siteList);
+    } catch (error) {
+      console.error('Failed to fetch sites:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const handleSubmitNewSite = useCallback(
     async (newSiteData: NewSiteData): Promise<void> => {
       const provisionalSite: Site = {
@@ -119,7 +131,7 @@ const SiteList: React.FC = () => {
         });
       }
     },
-    [openSiteUrl],
+    [openSiteUrl, fetchSites],
   );
 
   const handleDeleteSite = useCallback(async (site: Site): Promise<void> => {
@@ -135,7 +147,7 @@ const SiteList: React.FC = () => {
         console.error('Failed to delete site:', error);
       }
     }
-  }, []);
+  }, [fetchSites]);
 
   const handleScanSite = useCallback(async (site: Site): Promise<void> => {
     if (scanningSite) return;
@@ -205,20 +217,8 @@ const SiteList: React.FC = () => {
         console.error('Failed to update site:', error);
       }
     },
-    [],
+    [fetchSites],
   );
-
-  const fetchSites = useCallback(async (): Promise<void> => {
-    try {
-      setLoading(true);
-      const siteList = await invoke<Site[]>('get_sites');
-      setSites(siteList);
-    } catch (error) {
-      console.error('Failed to fetch sites:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   // ── Scrollbar helpers ──
 
@@ -297,10 +297,10 @@ const SiteList: React.FC = () => {
     fetchSites();
   }, [fetchSites]);
 
-  // Consolidated: recalc scrollbar & max-height when sites/loading/search change
+  // Recalc scrollbar when sites/loading change
   useEffect(() => {
     updateScrollBar();
-  }, [sites, loading, updateScrollBar]);
+  }, [updateScrollBar]);
 
   useEffect(() => {
     updateMaxHeight();
@@ -315,10 +315,10 @@ const SiteList: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [updateMaxHeight]);
 
-  // Update height when sites or search change
+  // Update height when search changes
   useEffect(() => {
     updateMaxHeight();
-  }, [sites, searchQuery, updateMaxHeight]);
+  }, [updateMaxHeight]);
 
   // ── Derived data ──
 

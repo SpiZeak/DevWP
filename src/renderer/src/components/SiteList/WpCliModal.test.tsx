@@ -21,6 +21,7 @@ describe('WpCliModal', () => {
 
   const defaultProps = {
     isOpen: true,
+    // biome-ignore lint/suspicious/noExplicitAny: mock site
     site: mockSite as any,
     onClose: vi.fn(),
   };
@@ -37,8 +38,10 @@ describe('WpCliModal', () => {
   });
 
   it('renders correctly and handles input', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (listen as any).mockResolvedValue(vi.fn());
 
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(<WpCliModal {...defaultProps} />);
@@ -67,8 +70,10 @@ describe('WpCliModal', () => {
   });
 
   it('closes properly', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (listen as any).mockResolvedValue(vi.fn());
 
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(<WpCliModal {...defaultProps} />);
@@ -82,13 +87,16 @@ describe('WpCliModal', () => {
   });
 
   it('shows output and errors from invoke response', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (listen as any).mockResolvedValue(vi.fn());
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockResolvedValue({
       success: true,
       output: 'Plugin list output',
       error: 'Some warning',
     });
 
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(<WpCliModal {...defaultProps} />);
@@ -112,9 +120,12 @@ describe('WpCliModal', () => {
   });
 
   it('handles invoke throwing an error', async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (listen as any).mockResolvedValue(vi.fn());
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockRejectedValue(new Error('Invoke failed!'));
 
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(<WpCliModal {...defaultProps} />);

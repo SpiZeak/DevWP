@@ -3,6 +3,7 @@ use crate::utils::{
     emit_notification, ensure_state_root, run_command, OperationResult, DOCKER_SITE_ROOT_PATH,
 };
 use crate::wp_cli::{PHP_CONTAINER_NAME, WP_CLI_ERROR_REPORTING};
+use tauri_plugin_log::log::info;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
@@ -148,141 +149,69 @@ fn regenerate_certificate(sites: &[Site]) -> Result<(), String> {
         return Ok(());
     }
 
-    let san_lines: String = domains
-        .iter()
-        .enumerate()
-        .map(|(i, d)| format!("DNS.{} = {}", i + 1, d))
-        .collect::<Vec<_>>()
-        .join("\n");
+    // Ensure mkcert is available — look in common locations
+    let mkcert = find_mkcert()?;
 
-    let cnf = format!(
-        "[req]\n\
-         req_extensions = v3_req\n\
-         distinguished_name = req_distinguished_name\n\
-         [req_distinguished_name]\n\
-         [v3_req]\n\
-         basicConstraints = CA:FALSE\n\
-         keyUsage = nonRepudiation, digitalSignature, keyEncipherment\n\
-         extendedKeyUsage = clientAuth, serverAuth\n\
-         subjectAltName = @alt_names\n\
-         [alt_names]\n\
-         {san_lines}\n"
-    );
-
-    let tmp_conf = std::env::temp_dir().join("devwp_san.cnf");
-    fs::write(&tmp_conf, &cnf).map_err(|e| format!("Failed to write temp OpenSSL config: {e}"))?;
-
-    let ca_cert = cert_dir.join("ca.pem");
-    let ca_key = cert_dir.join("ca-key.pem");
-    let cert_key = cert_dir.join("key.pem");
-    let cert_csr = std::env::temp_dir().join("devwp_key.csr");
-    let cert_out_tmp = std::env::temp_dir().join("devwp_cert.pem");
+    // Build mkcert args: -cert-file, -key-file, then all domains
     let cert_out = cert_dir.join("cert.pem");
-    let ca_srl = cert_dir.join("ca.srl");
-    let ca_srl_tmp = std::env::temp_dir().join("devwp_ca.srl");
-    // Copy the serial file to temp so OpenSSL can update it without needing root
-    if ca_srl.exists() {
-        fs::copy(&ca_srl, &ca_srl_tmp)
-            .map_err(|e| format!("Failed to copy ca.srl to temp: {e}"))?;
-    }
-
-    let s_key = cert_key.to_str().ok_or("Non-UTF8 cert path")?.to_string();
-    let s_csr = cert_csr.to_str().ok_or("Non-UTF8 cert path")?.to_string();
-    let s_ca_cert = ca_cert.to_str().ok_or("Non-UTF8 cert path")?.to_string();
-    let s_ca_key = ca_key.to_str().ok_or("Non-UTF8 cert path")?.to_string();
-    let s_ca_srl = ca_srl_tmp.to_str().ok_or("Non-UTF8 cert path")?.to_string();
-    let s_cert_out_tmp = cert_out_tmp
-        .to_str()
-        .ok_or("Non-UTF8 cert path")?
-        .to_string();
+    let key_out = cert_dir.join("key.pem");
     let s_cert_out = cert_out.to_str().ok_or("Non-UTF8 cert path")?.to_string();
-    let s_tmp_conf = tmp_conf.to_str().ok_or("Non-UTF8 cert path")?.to_string();
+    let s_key_out = key_out.to_str().ok_or("Non-UTF8 cert path")?.to_string();
 
-    let csr_result = run_command(
-        "openssl",
-        &[
-            "req",
-            "-new",
-            "-key",
-            &s_key,
-            "-out",
-            &s_csr,
-            "-subj",
-            "/CN=DevWP Local",
-            "-config",
-            &s_tmp_conf,
-        ],
-    );
+    let mut args = vec![
+        "-cert-file",
+        &s_cert_out,
+        "-key-file",
+        &s_key_out,
+    ];
+    let domain_refs: Vec<&str> = domains.iter().map(|d| d.as_str()).collect();
+    args.extend(domain_refs);
 
-    let sign_result = csr_result.and_then(|out| {
-        if !out.status.success() {
-            let err = String::from_utf8_lossy(&out.stderr).to_string();
-            return Err(format!("openssl req failed: {err}"));
-        }
-        run_command(
-            "openssl",
-            &[
-                "x509",
-                "-req",
-                "-in",
-                &s_csr,
-                "-CA",
-                &s_ca_cert,
-                "-CAkey",
-                &s_ca_key,
-                "-CAserial",
-                &s_ca_srl,
-                "-out",
-                &s_cert_out_tmp,
-                "-days",
-                "3650",
-                "-extfile",
-                &s_tmp_conf,
-                "-extensions",
-                "v3_req",
-            ],
-        )
-    });
+    info!("Regenerating certificate with mkcert for domains: {}", domains.join(", "));
 
-    let _ = fs::remove_file(&tmp_conf);
-    let _ = fs::remove_file(&cert_csr);
-
-    let sign_output = sign_result?;
-    if !sign_output.status.success() {
-        let err = String::from_utf8_lossy(&sign_output.stderr).to_string();
-        return Err(format!("openssl x509 failed: {err}"));
+    let result = run_command(&mkcert, &args)?;
+    if !result.status.success() {
+        let stderr = String::from_utf8_lossy(&result.stderr).to_string();
+        return Err(format!("mkcert failed: {stderr}"));
     }
 
-    // Copy the new cert to the certs directory — try directly first, fall back to pkexec
-    let cert_bytes =
-        fs::read(&cert_out_tmp).map_err(|e| format!("Failed to read generated cert: {e}"))?;
-    let _ = fs::remove_file(&cert_out_tmp);
-
-    match fs::write(&cert_out, &cert_bytes) {
-        Ok(_) => {}
-        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {
-            let mut child = Command::new("pkexec")
-                .args(["tee", &s_cert_out])
-                .stdin(Stdio::piped())
-                .stdout(Stdio::null())
-                .spawn()
-                .map_err(|e| format!("Failed to launch pkexec for cert: {e}"))?;
-            if let Some(mut stdin) = child.stdin.take() {
-                stdin
-                    .write_all(&cert_bytes)
-                    .map_err(|e| format!("Failed to write cert via pkexec: {e}"))?;
-            }
-            let status = child
-                .wait()
-                .map_err(|e| format!("pkexec wait failed: {e}"))?;
-            if !status.success() {
-                return Err("Failed to write cert.pem: pkexec returned non-zero".to_string());
-            }
-        }
-        Err(e) => return Err(format!("Failed to write cert.pem: {e}")),
+    // Ensure mkcert's CA is available for nginx (ssl_trusted_certificate)
+    let caroot_output = run_command(&mkcert, &["-CAROOT"])?;
+    let caroot = String::from_utf8_lossy(&caroot_output.stdout).trim().to_string();
+    let ca_src = std::path::Path::new(&caroot).join("rootCA.pem");
+    let ca_dst = cert_dir.join("ca.pem");
+    if ca_src.exists() {
+        fs::copy(&ca_src, &ca_dst)
+            .map_err(|e| format!("Failed to copy mkcert CA: {e}"))?;
     }
 
     Ok(())
+}
+
+/// Find the mkcert binary. Checks PATH first, then common install locations.
+fn find_mkcert() -> Result<String, String> {
+    // Check PATH
+    if let Ok(paths) = std::env::var("PATH") {
+        for dir in std::env::split_paths(&paths) {
+            let candidate = dir.join("mkcert");
+            if candidate.exists() {
+                return Ok(candidate.to_string_lossy().to_string());
+            }
+        }
+    }
+    // Check common user install locations
+    let home = std::env::var("HOME").unwrap_or_default();
+    let common_locations = vec![
+        format!("{home}/.local/bin/mkcert"),
+        format!("{home}/.cargo/bin/mkcert"),
+        format!("{home}/bin/mkcert"),
+    ];
+    for loc in &common_locations {
+        if std::path::Path::new(loc).exists() {
+            return Ok(loc.clone());
+        }
+    }
+    Err("mkcert not found. Please install mkcert first:\n  https://github.com/FiloSottile/mkcert#installation\nor run: scripts/setup-certs.sh".to_string())
 }
 
 fn nginx_reload() {

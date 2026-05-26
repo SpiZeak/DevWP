@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Icon from '../ui/Icon';
 import Spinner from '../ui/Spinner';
 import ModalBase from '../ui/ModalBase';
@@ -16,7 +16,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [saving, setSaving] = useState<boolean>(false);
   const [hasChanges, setHasChanges] = useState<boolean>(false);
 
-  const loadSettings = async (): Promise<void> => {
+  const loadSettings = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       const path = await invoke<string>('get_webroot_path');
@@ -27,13 +27,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
       loadSettings();
     }
-  }, [isOpen]);
+  }, [isOpen, loadSettings]);
 
   useEffect(() => {
     setHasChanges(webrootPath !== originalWebrootPath);

@@ -24,27 +24,31 @@ const mockSiteActions = {
 };
 
 vi.mock('./SiteActionContext', () => ({
+  // biome-ignore lint/suspicious/noExplicitAny: mock
   SiteActionProvider: ({ children }: any) => <>{children}</>,
   useSiteActions: () => mockSiteActions,
 }));
 
 vi.mock('./SiteItem', () => ({
+  // biome-ignore lint/suspicious/noExplicitAny: mock
   default: ({ site }: any) => (
     <div data-testid={`site-item-${site.name}`}>
       {site.name}
-      <button onClick={() => mockSiteActions.onScan(site)}>Scan</button>
-      <button onClick={() => mockSiteActions.onOpenWpCli(site)}>CLI</button>
-      <button onClick={() => mockSiteActions.onEditSite(site)}>Edit</button>
+      <button type="button" onClick={() => mockSiteActions.onScan(site)}>Scan</button>
+      <button type="button" onClick={() => mockSiteActions.onOpenWpCli(site)}>CLI</button>
+      <button type="button" onClick={() => mockSiteActions.onEditSite(site)}>Edit</button>
     </div>
   ),
 }));
 
 vi.mock('./CreateSiteModal', () => ({
+  // biome-ignore lint/suspicious/noExplicitAny: mock
   default: ({ isOpen, onClose, onSubmit }: any) =>
     isOpen ? (
       <div data-testid="create-modal">
-        <button onClick={onClose}>Close Create</button>
+        <button type="button" onClick={onClose}>Close Create</button>
         <button
+          type="button"
           onClick={() =>
             onSubmit({
               domain: 'newsite.test',
@@ -65,25 +69,28 @@ vi.mock('./CreateSiteModal', () => ({
 }));
 
 vi.mock('./EditSiteModal', () => ({
+  // biome-ignore lint/suspicious/noExplicitAny: mock
   default: ({ isOpen, onClose, onSubmit, onDelete, site }: any) =>
     isOpen ? (
       <div data-testid="edit-modal">
-        <button onClick={onClose}>Close Edit</button>
+        <button type="button" onClick={onClose}>Close Edit</button>
         <button
+          type="button"
           onClick={() => onSubmit(site, { aliases: 'alias', webRoot: 'root' })}
         >
           Submit Edit
         </button>
-        <button onClick={() => onDelete(site)}>Delete</button>
+        <button type="button" onClick={() => onDelete(site)}>Delete</button>
       </div>
     ) : null,
 }));
 
 vi.mock('./WpCliModal', () => ({
+  // biome-ignore lint/suspicious/noExplicitAny: mock
   default: ({ isOpen, onClose }: any) =>
     isOpen ? (
       <div data-testid="cli-modal">
-        <button onClick={onClose}>Close CLI</button>
+        <button type="button" onClick={onClose}>Close CLI</button>
       </div>
     ) : null,
 }));
@@ -93,6 +100,7 @@ describe('SiteList', () => {
     vi.clearAllMocks();
     global.confirm = vi.fn(() => true);
     global.alert = vi.fn();
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockImplementation((cmd: string) => {
       if (cmd === 'get_sites') {
         return Promise.resolve([
@@ -122,6 +130,7 @@ describe('SiteList', () => {
   });
 
   const renderComponent = async () => {
+    // biome-ignore lint/suspicious/noExplicitAny: render return
     let component: any;
     await act(async () => {
       component = render(
@@ -212,6 +221,7 @@ describe('SiteList', () => {
       expect(component.getByTitle('Create a new site')).toBeInTheDocument();
     });
 
+    // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockImplementation((cmd: string) => {
       if (cmd === 'get_sites')
         return Promise.resolve([
@@ -243,7 +253,7 @@ describe('SiteList', () => {
 
   it('can delete a site', async () => {
     // Configure onEditSite to open the edit modal
-    mockSiteActions.onEditSite = vi.fn((site) => {
+    mockSiteActions.onEditSite = vi.fn((_site) => {
       // Simulate what SiteList does: trigger the edit modal state
       // We can't directly manipulate SiteList's internal state from the test,
       // but we can verify the mock was called with the correct site
@@ -256,9 +266,10 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const editBtn = Array.from(item.querySelectorAll('button')).find(
+      // biome-ignore lint/suspicious/noExplicitAny: DOM query
       (b: any) => b.textContent === 'Edit',
     );
-    fireEvent.click(editBtn as Element);
+    if (editBtn) fireEvent.click(editBtn as Element);
 
     await waitFor(() => {
       expect(mockSiteActions.onEditSite).toHaveBeenCalledWith(
@@ -275,9 +286,10 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const scanBtn = Array.from(item.querySelectorAll('button')).find(
+      // biome-ignore lint/suspicious/noExplicitAny: DOM query
       (b: any) => b.textContent === 'Scan',
     );
-    fireEvent.click(scanBtn as Element);
+    if (scanBtn) fireEvent.click(scanBtn as Element);
 
     await waitFor(() => {
       expect(mockSiteActions.onScan).toHaveBeenCalledWith(
@@ -294,9 +306,10 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const scanBtn = Array.from(item.querySelectorAll('button')).find(
+      // biome-ignore lint/suspicious/noExplicitAny: DOM query
       (b: any) => b.textContent === 'Scan',
     );
-    fireEvent.click(scanBtn as Element);
+    if (scanBtn) fireEvent.click(scanBtn as Element);
 
     await waitFor(() => {
       expect(mockSiteActions.onScan).toHaveBeenCalledWith(
@@ -313,9 +326,10 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const scanBtn = Array.from(item.querySelectorAll('button')).find(
+      // biome-ignore lint/suspicious/noExplicitAny: DOM query
       (b: any) => b.textContent === 'Scan',
     );
-    fireEvent.click(scanBtn as Element);
+    if (scanBtn) fireEvent.click(scanBtn as Element);
 
     await waitFor(() => {
       expect(mockSiteActions.onScan).toHaveBeenCalledWith(
@@ -332,9 +346,10 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const cliBtn = Array.from(item.querySelectorAll('button')).find(
+      // biome-ignore lint/suspicious/noExplicitAny: DOM query
       (b: any) => b.textContent === 'CLI',
     );
-    fireEvent.click(cliBtn as Element);
+    if (cliBtn) fireEvent.click(cliBtn as Element);
 
     await waitFor(() => {
       expect(mockSiteActions.onOpenWpCli).toHaveBeenCalledWith(
@@ -351,9 +366,10 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const editBtn = Array.from(item.querySelectorAll('button')).find(
+      // biome-ignore lint/suspicious/noExplicitAny: DOM query
       (b: any) => b.textContent === 'Edit',
     );
-    fireEvent.click(editBtn as Element);
+    if (editBtn) fireEvent.click(editBtn as Element);
 
     await waitFor(() => {
       expect(mockSiteActions.onEditSite).toHaveBeenCalledWith(
@@ -382,9 +398,10 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const editBtn = Array.from(item.querySelectorAll('button')).find(
+      // biome-ignore lint/suspicious/noExplicitAny: DOM query
       (b: any) => b.textContent === 'Edit',
     );
-    fireEvent.click(editBtn as Element);
+    if (editBtn) fireEvent.click(editBtn as Element);
 
     await waitFor(() => {
       expect(mockSiteActions.onEditSite).toHaveBeenCalledWith(
@@ -401,9 +418,10 @@ describe('SiteList', () => {
 
     const item = component.getByTestId('site-item-Site1.test');
     const editBtn = Array.from(item.querySelectorAll('button')).find(
+      // biome-ignore lint/suspicious/noExplicitAny: DOM query
       (b: any) => b.textContent === 'Edit',
     );
-    fireEvent.click(editBtn as Element);
+    if (editBtn) fireEvent.click(editBtn as Element);
 
     await waitFor(() => {
       expect(mockSiteActions.onEditSite).toHaveBeenCalledWith(

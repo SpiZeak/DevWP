@@ -84,8 +84,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      certs:
-        condition: service_completed_successfully
       mailpit:
         condition: service_healthy
     healthcheck:
@@ -94,12 +92,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  certs:
-    container_name: devwp_certs
-    image: stakater/ssl-certs-generator
-    volumes:
-      - ./config/certs:/certs
 
   mailpit:
     container_name: devwp_mailpit
