@@ -1,4 +1,4 @@
-FROM nginx:stable-alpine-slim AS builder
+FROM nginx:alpine-slim AS builder
 
 ARG LIBRESSL_VERSION=4.2.1
 
