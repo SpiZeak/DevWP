@@ -35,8 +35,7 @@ RUN curl -sSL "https://cdn.openbsd.org/pub/OpenBSD/LibreSSL/libressl-${LIBRESSL_
 
 RUN curl -sSL "http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" -o nginx.tar.gz && \
 	tar -zxf nginx.tar.gz && \
-	rm nginx.tar.gz && \
-	git clone --recurse-submodules -j"$(nproc)" https://github.com/google/ngx_brotli.git
+	rm nginx.tar.gz
 
 RUN cd nginx-${NGINX_VERSION} && \
 	./configure \
@@ -55,10 +54,8 @@ RUN cd nginx-${NGINX_VERSION} && \
 	--with-http_realip_module \
 	--with-http_addition_module \
 	--with-http_sub_module \
-	--with-http_gunzip_module \
 	--with-http_gzip_static_module \
 	--with-compat \
-	--add-dynamic-module=../ngx_brotli \
 	--with-openssl=/usr/src/libressl-${LIBRESSL_VERSION} \
 	--with-openssl-opt=enable-tls1_3 && \
 	make -j"$(nproc)" && \
@@ -70,11 +67,10 @@ ARG LIBRESSL_VERSION=4.2.1
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 
-RUN apk add --no-cache su-exec brotli-libs && \
+RUN apk add --no-cache su-exec && \
 	addgroup -g ${GROUP_ID} -S appuser && \
 	adduser -u ${USER_ID} -S -G appuser -s /bin/sh appuser
 
-COPY --from=builder /usr/lib/nginx/modules/*.so /usr/lib/nginx/modules/
 COPY --from=builder /usr/local/libressl-${LIBRESSL_VERSION} /usr/local/libressl-${LIBRESSL_VERSION}
 COPY --from=builder /usr/sbin/nginx /usr/sbin/nginx
 

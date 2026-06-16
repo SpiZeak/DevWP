@@ -1,3 +1,9 @@
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   php:
     container_name: devwp_php
@@ -15,6 +21,8 @@ services:
       - ./config/php/conf.d/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini:ro
       - ~/.ssh:/home/appuser/.ssh:ro
       - ~/.config/composer:/home/appuser/.config/composer:ro
+      - ./config/php/php-fpm.d/zz-devwp.conf:/usr/local/etc/php-fpm.d/zz-devwp.conf:ro
+    logging: *default-logging
     healthcheck:
       test: ['CMD-SHELL', 'pidof php-fpm || exit 1']
       interval: 30s
@@ -35,8 +43,11 @@ services:
       - ./config/mariadb/files:/src:ro
     ports:
       - '3306:3306'
-    command: --bind-address=0.0.0.0 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    tmpfs:
+      - /tmp
+    command: --bind-address=0.0.0.0 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --skip-name-resolve --innodb-flush-log-at-trx-commit=2 --innodb-flush-method=O_DIRECT --innodb-buffer-pool-size=512M
     restart: unless-stopped
+    logging: *default-logging
     healthcheck:
       test: ['CMD', 'mariadb-admin', 'ping', '-h', 'localhost', '-u', 'root', '-proot']
       interval: 10s
@@ -52,6 +63,7 @@ services:
     command: redis-server
     volumes:
       - redis:/data
+    logging: *default-logging
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
@@ -86,6 +98,7 @@ services:
         condition: service_healthy
       mailpit:
         condition: service_healthy
+    logging: *default-logging
     healthcheck:
       test: ['CMD', 'nginx', '-t']
       interval: 30s

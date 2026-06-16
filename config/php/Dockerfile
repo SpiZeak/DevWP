@@ -82,10 +82,11 @@ RUN pecl install imagick && \
 # Use the default production configuration
 RUN mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"
 
-# Fix permissions for FPM directories
-RUN mkdir -p /var/www/html && \
+# Fix permissions for FPM directories and create OPcache file cache directory
+RUN mkdir -p /var/www/html /tmp/opcache && \
     chown -R appuser:appuser /var/www/html && \
     chown -R appuser:appuser /home/appuser && \
+    chown -R appuser:appuser /tmp/opcache && \
     chown -R appuser:appuser $PHP_INI_DIR
 
 # Update PHP-FPM configuration to run as appuser
