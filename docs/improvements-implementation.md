@@ -87,8 +87,7 @@ This document describes the enhancements implemented to improve DevWP's reliabil
 | Redis     | `redis-cli ping`                               | 10s      | 5s      | 3       | 10s          |
 | Nginx     | `nginx -t`                                     | 30s      | 10s     | 3       | 40s          |
 | Mailpit   | `wget http://localhost:8025/api/v1/info`       | 10s      | 5s      | 3       | 10s          |
-| SonarQube | `wget http://localhost:9000/api/system/status` | 30s      | 10s     | 5       | 60s          |
-| Seonaut   | `wget http://localhost:9001`                   | 30s      | 10s     | 3       | 60s          |
+
 
 **Dependency Updates:**
 
@@ -111,9 +110,7 @@ This document describes the enhancements implemented to improve DevWP's reliabil
 
 **Sections Added:**
 
-1. **SonarQube Configuration** - Token generation instructions
-2. **Docker Environment** - UID/GID configuration for permissions
-3. **Seonaut Configuration** - Port settings
+1. **Docker Environment** - UID/GID configuration for permissions
 4. **Development Settings** - NODE_ENV and Tauri developer tooling
 5. **Database Configuration** - MariaDB credentials (advanced)
 6. **Service Ports** - Port override options (advanced)
@@ -123,7 +120,7 @@ This document describes the enhancements implemented to improve DevWP's reliabil
 **Benefits:**
 
 - Clear documentation for all configuration options
-- Step-by-step instructions for SonarQube token generation
+
 - Easy to find and modify settings
 - Prevents configuration mistakes
 

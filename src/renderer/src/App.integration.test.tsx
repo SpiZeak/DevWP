@@ -56,8 +56,6 @@ describe('App Integration with Tauri API mocks', () => {
           return '/selected/path';
         case 'get_update_ready':
           return true;
-        case 'scan_site_sonarqube':
-          return { success: true, url: 'http://localhost:9000/dashboard' };
         case 'restart_container':
         case 'run_wp_cli':
         case 'open_directory':

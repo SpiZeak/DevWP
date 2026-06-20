@@ -23,7 +23,7 @@ DevWP has been completely rewritten in Rust using the Tauri framework, replacing
 - **Easy Site Management**: Create and manage local WordPress sites with a simple GUI
 - **Docker Integration**: Isolated environments with Nginx, PHP-FPM, MariaDB, and Redis
 - **WP-CLI Support**: Run WP-CLI commands directly from the interface
-- **Development Tools**: Mailpit for email testing, SonarQube for code quality, Seonaut for SEO analysis
+- **Development Tools**: Mailpit for email testing
 - **Xdebug Support**: Toggle PHP debugging on/off
 - **Multisite Support**: WordPress multisite configurations
 - **Cross-Platform**: Windows, macOS, and Linux support
@@ -71,8 +71,7 @@ cd DevWP
 # Install dependencies
 bun install
 
-# Initialize submodules for SEO analysis
-git submodule update --init --recursive
+
 
 # Set up trusted SSL certificates with mkcert (eliminates browser warnings)
 ./scripts/setup-certs.sh
@@ -109,12 +108,10 @@ See [Certificate Trust Setup](docs/certificate-trust-setup.md) for detailed SSL 
 
 ### Available Services
 
-| Service   | Port | URL                   | Purpose       |
-| --------- | ---- | --------------------- | ------------- |
-| Nginx     | 80   | https://site.test     | Web server    |
-| Mailpit   | 8025 | http://localhost:8025 | Email testing |
-| SonarQube | 9000 | http://localhost:9000 | Code quality  |
-| Seonaut   | 9001 | http://localhost:9001 | SEO analysis  |
+| Service | Port | URL                   | Purpose       |
+| ------- | ---- | --------------------- | ------------- |
+| Nginx   | 80   | https://site.test     | Web server    |
+| Mailpit | 8025 | http://localhost:8025 | Email testing |
 
 ## Development
 
@@ -153,9 +150,7 @@ Download pre-built releases from [GitHub Releases](https://github.com/SpiZeak/De
 - **Sites not loading**: Check ports 80/443 aren't in use by other services
 - **Permission errors**: Run DevWP as administrator for hosts file modifications
 - **Container issues**: Use the container status panel to restart services
-- **Submodule problems**: Run `git submodule update --init --recursive`
 
-For SonarQube authentication, set the `SONAR_TOKEN` environment variable with a valid user token from http://localhost:9000.
 
 ## Contributing
 

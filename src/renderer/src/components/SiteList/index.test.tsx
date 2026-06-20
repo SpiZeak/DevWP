@@ -14,14 +14,13 @@ vi.mock('@tauri-apps/api/event', () => ({
   emit: vi.fn().mockResolvedValue(undefined),
 }));
 
-const mockSiteActions = {
-  onOpenUrl: vi.fn(),
-  onScan: vi.fn(),
-  onComposerUpdate: vi.fn(),
-  onOpenWpCli: vi.fn(),
-  onEditSite: vi.fn(),
-  scanningSite: null,
-};
+  const mockSiteActions = {
+    onOpenUrl: vi.fn(),
+    onComposerUpdate: vi.fn(),
+    onOpenWpCli: vi.fn(),
+    onEditSite: vi.fn(),
+    scanningSite: null,
+  };
 
 vi.mock('./SiteActionContext', () => ({
   // biome-ignore lint/suspicious/noExplicitAny: mock
@@ -34,7 +33,6 @@ vi.mock('./SiteItem', () => ({
   default: ({ site }: any) => (
     <div data-testid={`site-item-${site.name}`}>
       {site.name}
-      <button type="button" onClick={() => mockSiteActions.onScan(site)}>Scan</button>
       <button type="button" onClick={() => mockSiteActions.onOpenWpCli(site)}>CLI</button>
       <button type="button" onClick={() => mockSiteActions.onEditSite(site)}>Edit</button>
     </div>
@@ -123,8 +121,6 @@ describe('SiteList', () => {
       if (cmd === 'create_site') return Promise.resolve();
       if (cmd === 'delete_site') return Promise.resolve();
       if (cmd === 'update_site') return Promise.resolve();
-      if (cmd === 'scan_site_sonarqube')
-        return Promise.resolve({ success: true });
       return Promise.resolve();
     });
   });
@@ -273,66 +269,6 @@ describe('SiteList', () => {
 
     await waitFor(() => {
       expect(mockSiteActions.onEditSite).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'Site1.test' }),
-      );
-    });
-  });
-
-  it('can scan a site', async () => {
-    const component = await renderComponent();
-    await waitFor(() => {
-      expect(component.getByTestId('site-item-Site1.test')).toBeInTheDocument();
-    });
-
-    const item = component.getByTestId('site-item-Site1.test');
-    const scanBtn = Array.from(item.querySelectorAll('button')).find(
-      // biome-ignore lint/suspicious/noExplicitAny: DOM query
-      (b: any) => b.textContent === 'Scan',
-    );
-    if (scanBtn) fireEvent.click(scanBtn as Element);
-
-    await waitFor(() => {
-      expect(mockSiteActions.onScan).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'Site1.test' }),
-      );
-    });
-  });
-
-  it('handles scan site via context spy', async () => {
-    const component = await renderComponent();
-    await waitFor(() => {
-      expect(component.getByTestId('site-item-Site1.test')).toBeInTheDocument();
-    });
-
-    const item = component.getByTestId('site-item-Site1.test');
-    const scanBtn = Array.from(item.querySelectorAll('button')).find(
-      // biome-ignore lint/suspicious/noExplicitAny: DOM query
-      (b: any) => b.textContent === 'Scan',
-    );
-    if (scanBtn) fireEvent.click(scanBtn as Element);
-
-    await waitFor(() => {
-      expect(mockSiteActions.onScan).toHaveBeenCalledWith(
-        expect.objectContaining({ name: 'Site1.test' }),
-      );
-    });
-  });
-
-  it('handles scan site throw error via context spy', async () => {
-    const component = await renderComponent();
-    await waitFor(() => {
-      expect(component.getByTestId('site-item-Site1.test')).toBeInTheDocument();
-    });
-
-    const item = component.getByTestId('site-item-Site1.test');
-    const scanBtn = Array.from(item.querySelectorAll('button')).find(
-      // biome-ignore lint/suspicious/noExplicitAny: DOM query
-      (b: any) => b.textContent === 'Scan',
-    );
-    if (scanBtn) fireEvent.click(scanBtn as Element);
-
-    await waitFor(() => {
-      expect(mockSiteActions.onScan).toHaveBeenCalledWith(
         expect.objectContaining({ name: 'Site1.test' }),
       );
     });

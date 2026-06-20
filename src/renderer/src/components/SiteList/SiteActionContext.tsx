@@ -3,12 +3,10 @@ import { createContext, useContext } from 'react';
 
 export interface SiteActionContextValue {
   onOpenUrl: (url: string) => void;
-  onScan: (site: Site) => void;
   onComposerUpdate: (site: Site) => void;
   onOpenWpCli: (site: Site) => void;
   onEditSite: (site: Site) => void;
   onSelectSite: (site: Site) => void;
-  scanningSite: string | null;
 }
 
 const SiteActionContext = createContext<SiteActionContextValue | null>(null);

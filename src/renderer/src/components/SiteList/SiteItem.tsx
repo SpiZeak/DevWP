@@ -10,7 +10,7 @@ interface SiteItemProps {
 }
 
 const SiteItem: React.FC<SiteItemProps> = ({ site, isLast }) => {
-  const { onOpenUrl, onScan, onComposerUpdate, onOpenWpCli, onEditSite, onSelectSite, scanningSite } =
+  const { onOpenUrl, onComposerUpdate, onOpenWpCli, onEditSite, onSelectSite } =
     useSiteActions();
 
   const isProvisioning = site.status === 'provisioning';
@@ -80,38 +80,6 @@ const SiteItem: React.FC<SiteItemProps> = ({ site, isLast }) => {
               className="text-seasalt group-hover/btn:text-warm-charcoal text-2xl"
               content=""
             />
-          </button>
-          <button
-            type="button"
-            onClick={(e): void => {
-              e.stopPropagation();
-              onScan(site);
-            }}
-            className={`group/btn relative size-10 rounded-lg transition-all duration-200 hover:scale-105 hover:shadow-lg ${
-              scanningSite === site.name || isProvisioning
-                ? 'bg-amber/20 cursor-not-allowed'
-                : 'bg-gunmetal-500 hover:bg-amber cursor-pointer'
-            }`}
-            disabled={scanningSite === site.name || isProvisioning}
-            title={
-              isProvisioning
-                ? 'Site is being provisioned'
-                : scanningSite === site.name
-                  ? 'Scan in progress...'
-                  : 'Run SonarQube Scan'
-            }
-          >
-            {scanningSite === site.name ? (
-              <Spinner
-                svgClass="size-5 text-amber"
-                title="Site is being scanned"
-              />
-            ) : (
-              <Icon
-                className="text-seasalt group-hover/btn:text-warm-charcoal text-2xl"
-                content="󱉶"
-              />
-            )}
           </button>
           <button
             type="button"

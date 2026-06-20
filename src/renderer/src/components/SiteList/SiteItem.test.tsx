@@ -20,11 +20,10 @@ describe('SiteItem', () => {
 
   const defaultActions = {
     onOpenUrl: vi.fn(),
-    onScan: vi.fn(),
     onComposerUpdate: vi.fn(),
     onOpenWpCli: vi.fn(),
     onEditSite: vi.fn(),
-    scanningSite: null,
+    onSelectSite: vi.fn(),
   };
 
   const renderWithContext = (site = mockSite, isLast = false, actions = defaultActions) =>

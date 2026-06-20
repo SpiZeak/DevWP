@@ -1,6 +1,6 @@
 # DevWP - Tauri-Based WordPress Development Environment
 
-DevWP is a **Tauri desktop application** (written in Rust) for managing local WordPress development sites. It features a React/TypeScript UI and integrates with Docker services (Nginx, PHP-FPM, MariaDB, Redis, Mailpit, SonarQube, Seonaut) for isolated WordPress environments.
+DevWP is a **Tauri desktop application** (written in Rust) for managing local WordPress development sites. It features a React/TypeScript UI and integrates with Docker services (Nginx, PHP-FPM, MariaDB, Redis, Mailpit) for isolated WordPress environments.
 
 **Key Architecture**: Rust backend + React TypeScript frontend (Tauri framework)
 
@@ -28,8 +28,7 @@ DevWP is a **Tauri desktop application** (written in Rust) for managing local Wo
 bun install  # Takes ~8-12 seconds
 # NEVER CANCEL: Wait for completion even with warnings. Set timeout to 5+ minutes.
 
-# Initialize submodules (REQUIRED for Seonaut SEO tool)
-git submodule update --init --recursive  # Takes ~30 seconds
+
 ```
 
 ### Code Quality and Validation
@@ -40,11 +39,7 @@ bun run typecheck  # Takes ~4 seconds. NEVER CANCEL. Set timeout to 3+ minutes.
 
 # Code formatting
 bun run format  # Takes ~13 seconds. NEVER CANCEL. Set timeout to 3+ minutes.
-# NOTE: Shows formatting errors in seonaut submodule templates, but processes main codebase correctly
-
-# Linting (SLOWEST - many issues in submodule files)
-bun run lint  # Takes several minutes, finds ~3685 issues (mostly in config/seonaut/web/static/echarts.min.js)
-# NEVER CANCEL: Lint issues are primarily in 3rd-party seonaut submodule, not main codebase. Set timeout to 15+ minutes.
+bun run lint  # Takes several minutes
 ```
 
 ### Build Process
@@ -126,7 +121,7 @@ bun run dev
 
 - **Docker builds FAIL**: Services require unrestricted internet for package downloads
 - **Rust compilation FAILS**: In very restricted networks, Rust toolchain may need mirror configuration
-- **Seonaut build FAILS**: Go proxy certificate verification issues
+
 
 ### Known Working Alternatives
 
@@ -142,8 +137,7 @@ bun run dev
 
 ### Lint Configuration Issues
 
-- **3685+ lint errors**: Primarily in `config/seonaut/web/static/echarts.min.js` (3rd-party minified library)
-- **Focus on main codebase**: Lint errors in `src/` directory are more relevant than submodule issues
+
 
 ## Project Structure and Navigation
 
@@ -177,7 +171,6 @@ config/                 # Docker service configurations
 ├── nginx/              # Web server config
 ├── php/                # PHP-FPM config
 ├── mariadb/            # Database config
-└── seonaut/            # SEO analysis tool (submodule)
 ```
 
 ### Always check these locations after changes:
@@ -241,8 +234,7 @@ bun run dev
 | MariaDB   | 3306    | Database            | ✅ Standard image, reliable           |
 | Redis     | 6379    | Object caching      | ✅ Standard image, reliable           |
 | Mailpit   | 8025    | Email testing       | ✅ Standard image, reliable           |
-| SonarQube | 9000    | Code quality        | ✅ Standard image, reliable           |
-| Seonaut   | 9001    | SEO analysis        | ❌ Build fails in restricted networks |
+
 
 ### When Docker services are unavailable:
 
@@ -256,9 +248,7 @@ bun run dev
 ### Dependency Issues
 
 ```bash
-# Problem: Submodule not found errors
-# Solution: Initialize submodules
-git submodule update --init --recursive
+
 
 # Problem: Slow installation
 # Solution: Clear Bun cache and retry

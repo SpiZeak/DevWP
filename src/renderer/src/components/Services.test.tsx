@@ -67,7 +67,6 @@ describe('Services', () => {
         payload: [
           { id: '1', name: 'devwp_nginx', state: 'running', version: '1.2' },
           { id: '2', name: 'devwp_php', state: 'stopped', version: '8.1' },
-          { id: '3', name: 'devwp_seonaut', state: 'running' }, // should be excluded
         ],
       });
     });
@@ -78,7 +77,6 @@ describe('Services', () => {
     expect(component.getByText('Nginx')).toBeInTheDocument();
     expect(component.getByText('1.2')).toBeInTheDocument();
     expect(component.getByText('PHP')).toBeInTheDocument();
-    expect(component.queryByText('devwp_seonaut')).not.toBeInTheDocument();
   });
 
   it('restarts container when clicked', async () => {

@@ -87,7 +87,7 @@ The database storage is transparent to users. All existing functionality continu
 - Database operations are wrapped in try/catch blocks
 - Graceful fallback to filesystem-only mode if database fails
 - Detailed error logging for troubleshooting
-- Non-blocking errors for optional features (SonarQube integration)
+
 
 ## Testing
 

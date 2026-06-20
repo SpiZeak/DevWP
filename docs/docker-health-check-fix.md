@@ -18,15 +18,7 @@ Docker compose failed: Error: Docker compose exited with code 1
     at ChildProcess.<anonymous> (/home/max/Projects/DevWP/out/main/index.js:109:16)
 ```
 
-### 3. SonarQube Health Check Timeout
-
-```
-curl: (7) Failed to connect to localhost port 9000 after 0 ms: Couldn't connect to server
-```
-
-This error occurs because SonarQube takes 60-90 seconds to fully start, but containers depending on it were timing out.
-
-### 4. PHP Health Check Failing
+### 3. PHP Health Check Failing
 
 ```
 /bin/sh: php-fpm-healthcheck: not found
@@ -55,11 +47,7 @@ The application was using the deprecated `docker-compose` command (with hyphen) 
 2. The standalone `docker-compose` binary is not available
 3. Docker Desktop is configured to use the new syntax only
 
-### Issue 3: SonarQube Blocking Nginx Startup
-
-SonarQube was configured as a required healthy dependency for Nginx (`condition: service_healthy`). Since SonarQube takes 60-90 seconds to start and isn't critical for serving WordPress sites, this unnecessarily blocked the entire application startup.
-
-### Issue 4: PHP Health Check Command Missing
+### Issue 3: PHP Health Check Command Missing
 
 The health check was using `php-fpm-healthcheck` which is not a standard command in the `php:fpm-alpine` Docker image. This command needs to be installed separately (usually via composer package `renatomefi/php-fpm-healthcheck`) or replaced with a simpler check.
 
@@ -136,35 +124,7 @@ const dockerProcess = spawn(command, args)
 - Improved error messages for better debugging
 - Better success/failure status messages sent to UI
 
-### Fix 3: SonarQube Dependency Optimization
-
-**Removed SonarQube as blocking dependency for Nginx:**
-
-- Removed SonarQube from Nginx's `depends_on` list
-- SonarQube is optional for code quality scanning, not required for serving sites
-- Nginx can now start immediately once core services (PHP, MariaDB, Redis) are healthy
-
-**Increased SonarQube health check tolerances:**
-
-```yaml
-healthcheck:
-  interval: 30s
-  timeout: 10s
-  retries: 10 # Increased from 5
-  start_period: 120s # Increased from 60s
-```
-
-**Made Seonaut dependency flexible:**
-
-```yaml
-depends_on:
-  sonarqube:
-    condition: service_started # Changed from service_healthy
-```
-
-This allows Seonaut to start once SonarQube container is running, without waiting for it to be fully healthy.
-
-### Fix 4: PHP Health Check Command
+### Fix 3: PHP Health Check Command
 
 **Changed from non-existent command to simple process check:**
 
@@ -204,13 +164,6 @@ The `pidof` approach was chosen for simplicity and reliability.
 3. **Improved Error Handling** - Catches command spawn failures
 4. **Clearer Messages** - Better user feedback on success/failure
 
-### From Dependency Optimization:
-
-1. **Faster Startup** - Nginx no longer waits for SonarQube to be healthy
-2. **More Resilient** - Application works even if SonarQube fails to start
-3. **Better UX** - Sites are accessible sooner (within ~30 seconds instead of ~90 seconds)
-4. **Realistic Expectations** - Health checks allow adequate time for SonarQube initialization
-
 ### From PHP Health Check Fix:
 
 1. **Container Becomes Healthy** - PHP container now properly reports healthy status
@@ -230,8 +183,7 @@ docker compose ps
 # - redis: (healthy)
 # - nginx: (healthy)
 # - mailpit: (healthy)
-# - sonarqube: (healthy) - takes 60-90 seconds
-# - seonaut: (healthy)
+
 
 # Test PHP health check manually
 docker exec devwp_php pidof php-fpm
@@ -249,8 +201,6 @@ After these fixes:
 2. **PHP, Redis, Mailpit** start in parallel (~5-10 seconds to healthy)
 3. **Nginx** starts once core services are healthy (~30 seconds total)
 4. **Sites are accessible** at this point
-5. **SonarQube** continues starting in background (~60-90 seconds to healthy)
-6. **Seonaut** starts once SonarQube container is running
 
 ## Related Files
 
@@ -273,7 +223,6 @@ In those cases, users should:
 
 ✅ **Fixed** - Version detection now respects container state
 ✅ **Fixed** - Docker Compose commands use modern syntax
-✅ **Fixed** - SonarQube no longer blocks Nginx startup
 ✅ **Fixed** - PHP health check uses `pidof` instead of missing command
 ✅ **Tested** - Build and type checking pass successfully
 ✅ **Validated** - Docker Compose configuration is valid

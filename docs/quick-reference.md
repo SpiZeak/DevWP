@@ -153,12 +153,9 @@ NODE_ENV=development     # Enable dev features
 ```typescript
 // In TypeScript/JavaScript
 const logLevel = process.env.LOG_LEVEL || "info";
-const sonarToken = process.env.SONAR_TOKEN;
-
 // Type-safe approach (create env service)
 export const env = {
   logLevel: process.env.LOG_LEVEL || "info",
-  sonarToken: process.env.SONAR_TOKEN || "",
   nodeEnv: process.env.NODE_ENV || "production",
 };
 ```

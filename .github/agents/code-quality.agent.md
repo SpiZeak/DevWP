@@ -29,7 +29,7 @@ You are a code quality specialist for the DevWP project. Your job is to enforce 
 ### Rust
 
 - Follow `rustfmt` conventions (run via `cargo fmt` inside `src/tauri/`).
-- File-per-concern: `site.rs`, `docker.rs`, `wp_cli.rs`, `settings.rs`, `xdebug.rs`, `sonarqube.rs`, `utils.rs`.
+- File-per-concern: `site.rs`, `docker.rs`, `wp_cli.rs`, `settings.rs`, `xdebug.rs`, `utils.rs`.
 - Extract shared helpers to `utils.rs`.
 
 ### DRY Principles

@@ -1,6 +1,5 @@
 import type { Site } from '@renderer/env';
 import { invoke } from '@tauri-apps/api/core';
-import { emit } from '@tauri-apps/api/event';
 import Icon from '../ui/Icon';
 import Spinner from '../ui/Spinner';
 import { useSiteActions } from './SiteActionContext';
@@ -11,7 +10,7 @@ interface SiteInfoProps {
 }
 
 const SiteInfo: React.FC<SiteInfoProps> = ({ site, onBack }) => {
-  const { onOpenUrl, onScan, onComposerUpdate, onOpenWpCli, onEditSite, scanningSite } =
+  const { onOpenUrl, onComposerUpdate, onOpenWpCli, onEditSite } =
     useSiteActions();
 
   const isProvisioning = site.status === 'provisioning';
@@ -176,33 +175,6 @@ const SiteInfo: React.FC<SiteInfoProps> = ({ site, onBack }) => {
               >
                 <Icon className="text-seasalt group-hover/btn:text-warm-charcoal text-lg" content="" />
                 <span className="text-seasalt text-sm font-medium">Open Site</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onScan(site)}
-                disabled={scanningSite === site.name || isProvisioning}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg hover:scale-105 hover:shadow-lg transition-all duration-200 cursor-pointer disabled:cursor-not-allowed ${
-                  scanningSite === site.name || isProvisioning
-                    ? 'bg-amber/20'
-                    : 'bg-gunmetal-400 hover:bg-amber'
-                }`}
-                title={
-                  isProvisioning
-                    ? 'Site is being provisioned'
-                    : scanningSite === site.name
-                      ? 'Scan in progress...'
-                      : 'Run SonarQube Scan'
-                }
-              >
-                {scanningSite === site.name ? (
-                  <Spinner svgClass="size-4 text-amber" />
-                ) : (
-                  <Icon className="text-seasalt text-lg" content="󱉶" />
-                )}
-                <span className="text-seasalt text-sm font-medium">
-                  {scanningSite === site.name ? 'Scanning...' : 'SonarQube Scan'}
-                </span>
               </button>
 
               <button

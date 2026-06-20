@@ -28,7 +28,6 @@ const SiteList: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [scanningSite, setScanningSite] = useState<string | null>(null);
   const [composerModal, setComposerModal] = useState<{
     open: boolean;
     site: Site | null;
@@ -158,37 +157,6 @@ const SiteList: React.FC = () => {
       }
     }
   }, [fetchSites]);
-
-  const handleScanSite = useCallback(async (site: Site): Promise<void> => {
-    if (scanningSite) return;
-    setScanningSite(site.name);
-    try {
-      const result = await invoke<{
-        success: boolean;
-        error?: string;
-      }>('scan_site_sonarqube', { site_name: site.name });
-      if (result.success) {
-        // Scan initiated; backend emits a notification
-      } else {
-        console.error(`SonarQube scan failed for ${site.name}:`, result.error);
-        void emit('notification', {
-          type: 'error',
-          message: `SonarQube scan failed for ${site.name}: ${result.error}`,
-        });
-      }
-    } catch (error) {
-      console.error(
-        `Failed to trigger SonarQube scan for ${site.name}:`,
-        error,
-      );
-      void emit('notification', {
-        type: 'error',
-        message: `Failed to trigger SonarQube scan for ${site.name}.`,
-      });
-    } finally {
-      setScanningSite(null);
-    }
-  }, [scanningSite]);
 
   const handleComposerUpdate = useCallback((site: Site): void => {
     setComposerModal({ open: true, site });
@@ -348,22 +316,12 @@ const SiteList: React.FC = () => {
   const siteActions = useMemo(
     () => ({
       onOpenUrl: openSiteUrl,
-      onScan: handleScanSite,
       onComposerUpdate: handleComposerUpdate,
       onOpenWpCli: handleOpenWpCliModal,
       onEditSite: handleOpenEditSiteModal,
       onSelectSite: handleSelectSite,
-      scanningSite,
     }),
-    [
-      openSiteUrl,
-      handleScanSite,
-      handleComposerUpdate,
-      handleOpenWpCliModal,
-      handleOpenEditSiteModal,
-      handleSelectSite,
-      scanningSite,
-    ],
+    [openSiteUrl, handleComposerUpdate, handleOpenWpCliModal, handleOpenEditSiteModal, handleSelectSite],
   );
 
   return (

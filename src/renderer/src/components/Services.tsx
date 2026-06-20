@@ -8,7 +8,6 @@ import {
   siNginx,
   siPhp,
   siRedis,
-  siSonarqubeserver,
 } from 'simple-icons';
 import { BrandLogo } from './BrandLogo';
 import BuildLog from './BuildLog';
@@ -36,7 +35,6 @@ const containerNameMapping: Record<string, string> = {
   devwp_mariadb: 'MariaDB',
   devwp_redis: 'Redis',
   devwp_mailpit: 'Mailpit',
-  devwp_sonarqube: 'SonarQube',
 };
 
 const containerIconMapping: Record<string, React.ReactNode> = {
@@ -45,7 +43,6 @@ const containerIconMapping: Record<string, React.ReactNode> = {
   devwp_mariadb: <BrandLogo icon={siMariadb} />,
   devwp_redis: <BrandLogo icon={siRedis} />,
   devwp_mailpit: <BrandLogo icon={siDocker} />,
-  devwp_sonarqube: <BrandLogo icon={siSonarqubeserver} />,
 };
 
 // Maps Docker Compose service names → container names for build-status events
@@ -55,13 +52,9 @@ const serviceToContainerName: Record<string, string> = {
   mariadb: 'devwp_mariadb',
   redis: 'devwp_redis',
   mailpit: 'devwp_mailpit',
-  sonarqube: 'devwp_sonarqube',
 };
 
-const EXCLUDED_CONTAINERS = [
-  'devwp_seonaut',
-  'devwp_sonarqube-scanner',
-];
+const EXCLUDED_CONTAINERS: string[] = [];
 
 // Ordered list of services to always display
 const knownContainerNames = [
@@ -70,7 +63,6 @@ const knownContainerNames = [
   'devwp_mariadb',
   'devwp_redis',
   'devwp_mailpit',
-  // 'devwp_sonarqube',
 ];
 
 const Services: React.FC<ServicesProps> = ({

@@ -1,7 +1,6 @@
 pub mod docker;
 pub mod settings;
 pub mod site;
-pub mod sonarqube;
 pub mod system;
 pub mod utils;
 pub mod wp_cli;
@@ -48,7 +47,6 @@ pub fn run() {
             system::install_update_now,
             system::open_external,
             system::open_directory,
-            sonarqube::scan_site_sonarqube,
             wp_cli::run_wp_cli,
             wp_cli::run_composer_update,
         ])
