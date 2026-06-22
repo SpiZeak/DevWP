@@ -28,6 +28,7 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({
     aliases: '',
     webRoot: '',
   });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen && site) {
@@ -35,12 +36,21 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({
         aliases: site.aliases || '',
         webRoot: site.webRoot || '',
       });
+      setSubmitting(false);
     }
   }, [isOpen, site]);
 
   if (!isOpen || !site) {
     return null;
   }
+
+  const originalData: EditSiteData = {
+    aliases: site?.aliases || '',
+    webRoot: site?.webRoot || '',
+  };
+  const hasChanges =
+    editData.aliases !== originalData.aliases ||
+    editData.webRoot !== originalData.webRoot;
 
   const updateField = (field: keyof EditSiteData, value: string): void => {
     setEditData((prev) => ({ ...prev, [field]: value }));
@@ -51,6 +61,8 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({
   };
 
   const handleSubmit = (): void => {
+    if (submitting || !hasChanges) return;
+    setSubmitting(true);
     onSubmit(site, editData);
   };
 
@@ -88,9 +100,10 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({
       <button
         type="button"
         onClick={handleSubmit}
-        className="bg-pumpkin hover:bg-pumpkin-600 px-4 py-2 border-0 rounded text-warm-charcoal transition-colors cursor-pointer"
+        disabled={!hasChanges || submitting}
+        className="bg-pumpkin hover:bg-pumpkin-600 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt-400 transition-colors cursor-pointer disabled:cursor-not-allowed"
       >
-        Save Changes
+        {submitting ? 'Saving...' : 'Save Changes'}
       </button>
     </div>
   );
@@ -128,12 +141,10 @@ const EditSiteModal: React.FC<EditSiteModalProps> = ({
       />
 
       <div className="bg-gunmetal-400/60 mt-6 px-4 py-4 border border-gunmetal-600 rounded-lg">
-        <h4 className="mb-2 font-semibold text-seasalt text-sm">
-          Danger Zone
-        </h4>
+        <h4 className="mb-2 font-semibold text-seasalt text-sm">Danger Zone</h4>
         <p className="mb-3 text-seasalt-400 text-xs">
-          Deleting this site removes Docker containers, files, and the
-          database snapshot. This action cannot be undone.
+          Deleting this site removes Docker containers, files, and the database
+          snapshot. This action cannot be undone.
         </p>
         <button
           type="button"

@@ -155,29 +155,46 @@ pub fn run() {
                         message: "Stopping services...".to_string(),
                     },
                 );
-                let result = run_command("docker", &["compose", "down"]);
-                match result {
-                    Ok(_) => {
-                        info!("Docker services stopped successfully.");
-                        let _ = app_handle.emit(
-                            "docker-status",
-                            DockerStatusPayload {
-                                status: "stopped".to_string(),
-                                message: "Services stopped".to_string(),
-                            },
-                        );
+                let app_handle_for_blocking = app_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    let result = tauri::async_runtime::spawn_blocking(move || {
+                        run_command("docker", &["compose", "down"])
+                    })
+                    .await;
+
+                    match result {
+                        Ok(Ok(_)) => {
+                            info!("Docker services stopped successfully.");
+                            let _ = app_handle_for_blocking.emit(
+                                "docker-status",
+                                DockerStatusPayload {
+                                    status: "stopped".to_string(),
+                                    message: "Services stopped".to_string(),
+                                },
+                            );
+                        }
+                        Ok(Err(e)) => {
+                            error!("Failed to stop Docker services: {}", e);
+                            let _ = app_handle_for_blocking.emit(
+                                "docker-status",
+                                DockerStatusPayload {
+                                    status: "error".to_string(),
+                                    message: format!("Failed to stop Docker services: {}", e),
+                                },
+                            );
+                        }
+                        Err(e) => {
+                            error!("Failed to stop Docker services: {}", e);
+                            let _ = app_handle_for_blocking.emit(
+                                "docker-status",
+                                DockerStatusPayload {
+                                    status: "error".to_string(),
+                                    message: format!("Failed to stop Docker services: {}", e),
+                                },
+                            );
+                        }
                     }
-                    Err(e) => {
-                        error!("Failed to stop Docker services: {}", e);
-                        let _ = app_handle.emit(
-                            "docker-status",
-                            DockerStatusPayload {
-                                status: "error".to_string(),
-                                message: format!("Failed to stop Docker services: {}", e),
-                            },
-                        );
-                    }
-                };
+                });
             }
         })
         .run(tauri::generate_context!())

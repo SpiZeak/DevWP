@@ -59,7 +59,9 @@ const SiteInfo: React.FC<SiteInfoProps> = ({ site, onBack }) => {
           {/* Site name & status */}
           <div className="flex justify-between items-start">
             <div>
-              <h4 className="font-semibold text-seasalt text-lg">{site.name}</h4>
+              <h4 className="font-semibold text-seasalt text-lg">
+                {site.name}
+              </h4>
               <p className="text-seasalt-400 text-xs mt-0.5">Site Name</p>
             </div>
             <div className="flex items-center gap-2">
@@ -121,14 +123,17 @@ const SiteInfo: React.FC<SiteInfoProps> = ({ site, onBack }) => {
                 <span>Aliases</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {site.aliases.split(/[\s,]+/).filter(Boolean).map((alias) => (
-                  <span
-                    key={alias}
-                    className="bg-gunmetal-400 px-2.5 py-1 rounded-md text-seasalt-300 text-xs font-mono"
-                  >
-                    {alias}
-                  </span>
-                ))}
+                {site.aliases
+                  .split(/[\s,]+/)
+                  .filter(Boolean)
+                  .map((alias) => (
+                    <span
+                      key={alias}
+                      className="bg-gunmetal-400 px-2.5 py-1 rounded-md text-seasalt-300 text-xs font-mono"
+                    >
+                      {alias}
+                    </span>
+                  ))}
               </div>
             </div>
           )}
@@ -173,8 +178,13 @@ const SiteInfo: React.FC<SiteInfoProps> = ({ site, onBack }) => {
                 className="flex items-center gap-2 bg-gunmetal-400 hover:bg-pumpkin disabled:bg-gunmetal-300 hover:shadow-lg px-4 py-2.5 rounded-lg hover:scale-105 disabled:hover:scale-100 transition-all duration-200 cursor-pointer disabled:cursor-not-allowed"
                 title="Open Site"
               >
-                <Icon className="text-seasalt group-hover/btn:text-warm-charcoal text-lg" content="" />
-                <span className="text-seasalt text-sm font-medium">Open Site</span>
+                <Icon
+                  className="text-seasalt group-hover/btn:text-warm-charcoal text-lg"
+                  content=""
+                />
+                <span className="text-seasalt text-sm font-medium">
+                  Open Site
+                </span>
               </button>
 
               <button
@@ -185,7 +195,9 @@ const SiteInfo: React.FC<SiteInfoProps> = ({ site, onBack }) => {
                 title="Run Composer Update"
               >
                 <Icon className="text-seasalt text-lg" content="󰏗" />
-                <span className="text-seasalt text-sm font-medium">Composer Update</span>
+                <span className="text-seasalt text-sm font-medium">
+                  Composer Update
+                </span>
               </button>
 
               <button

@@ -64,7 +64,9 @@ describe('XdebugSwitch', () => {
       expect(component.getByText('Performance mode')).toBeInTheDocument();
     });
 
-    const toggleInput = component.container.querySelector('input') as HTMLInputElement;
+    const toggleInput = component.container.querySelector(
+      'input',
+    ) as HTMLInputElement;
 
     await act(async () => {
       fireEvent.click(toggleInput);

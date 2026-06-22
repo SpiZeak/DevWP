@@ -1,10 +1,15 @@
 import { invoke } from '@tauri-apps/api/core';
+import { emit } from '@tauri-apps/api/event';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SettingsModal from './SettingsModal';
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
+}));
+
+vi.mock('@tauri-apps/api/event', () => ({
+  emit: vi.fn(),
 }));
 
 describe('SettingsModal', () => {
@@ -47,17 +52,15 @@ describe('SettingsModal', () => {
         return Promise.reject(new Error('Load failed'));
       return Promise.resolve();
     });
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     render(<SettingsModal isOpen={true} onClose={vi.fn()} />);
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Failed to load settings:',
-        expect.any(Error),
-      );
+      expect(emit).toHaveBeenCalledWith('notification', {
+        type: 'error',
+        message: 'Failed to load settings',
+      });
     });
-    consoleSpy.mockRestore();
   });
 
   it('allows picking a directory and changing settings', async () => {
@@ -120,7 +123,6 @@ describe('SettingsModal', () => {
   });
 
   it('handles save settings failure (success: false)', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockImplementation((cmd: string) => {
       if (cmd === 'get_webroot_path') return Promise.resolve('/path');
@@ -143,16 +145,14 @@ describe('SettingsModal', () => {
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Failed to save settings:',
-        'Save failed!',
-      );
+      expect(emit).toHaveBeenCalledWith('notification', {
+        type: 'error',
+        message: 'Save failed!',
+      });
     });
-    consoleSpy.mockRestore();
   });
 
   it('handles save settings error thrown', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockImplementation((cmd: string) => {
       if (cmd === 'get_webroot_path') return Promise.resolve('/path');
@@ -175,16 +175,14 @@ describe('SettingsModal', () => {
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Failed to save settings:',
-        expect.any(Error),
-      );
+      expect(emit).toHaveBeenCalledWith('notification', {
+        type: 'error',
+        message: 'Failed to save settings',
+      });
     });
-    consoleSpy.mockRestore();
   });
 
   it('handles pick directory error thrown', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     // biome-ignore lint/suspicious/noExplicitAny: mock
     (invoke as any).mockImplementation((cmd: string) => {
       if (cmd === 'get_webroot_path') return Promise.resolve('/path');
@@ -203,11 +201,10 @@ describe('SettingsModal', () => {
     fireEvent.click(browseBtn);
 
     await waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Failed to select directory:',
-        expect.any(Error),
-      );
+      expect(emit).toHaveBeenCalledWith('notification', {
+        type: 'error',
+        message: 'Failed to select directory',
+      });
     });
-    consoleSpy.mockRestore();
   });
 });

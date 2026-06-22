@@ -54,54 +54,58 @@ const BuildLog: React.FC<BuildLogProps> = ({ isBuilding }) => {
   }, []);
 
   // Auto-scroll to bottom when new lines arrive
+  // biome-ignore lint/correctness/useExhaustiveDependencies: logs intentional for auto-scroll
   useEffect(() => {
     if (isOpen && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [isOpen]);
+  }, [isOpen, logs]);
 
   if (!isBuilding && logs.length === 0) return null;
 
   return (
-    isBuilding && (
-      <div className="bg-gunmetal-600 mt-4 rounded-lg overflow-hidden animate-fade-in-up">
-        <button
-          type="button"
-          className="flex justify-between items-center hover:bg-gunmetal-500 px-3 py-2 w-full text-left transition-colors"
-          onClick={() => setIsOpen((prev) => !prev)}
-        >
-          <span className="font-medium text-seasalt text-sm">Build Output</span>
-          <span
-            className="text-seasalt-400 text-xs transition-transform duration-200"
-            style={{
-              display: 'inline-block',
-              transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
-            }}
-          >
-            ▾
-          </span>
-        </button>
-        <div
-          ref={scrollRef}
-          className="overflow-y-auto font-mono text-green-400 text-xs leading-relaxed transition-[max-height,padding] duration-300 ease-in-out"
+    <div className="bg-gunmetal-600 mt-4 rounded-lg overflow-hidden animate-fade-in-up">
+      <button
+        type="button"
+        className="flex justify-between items-center hover:bg-gunmetal-500 px-3 py-2 w-full text-left transition-colors"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+        aria-controls="build-log-content"
+      >
+        <span className="font-medium text-seasalt text-sm">
+          {isBuilding ? 'Build Output' : 'Build Output (complete)'}
+        </span>
+        <span
+          className="text-seasalt-400 text-xs transition-transform duration-200"
           style={{
-            maxHeight: isOpen ? '13rem' : '0',
-            padding: isOpen ? '0.5rem 0.75rem' : '0 0.75rem',
+            display: 'inline-block',
+            transform: isOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
           }}
         >
-          {logs.length === 0 ? (
-            <span className="text-seasalt-400">Waiting for output…</span>
-          ) : (
-            logs.map((line, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: log lines have no stable id
-              <div key={i} className="break-all whitespace-pre-wrap">
-                {line}
-              </div>
-            ))
-          )}
-        </div>
+          ▾
+        </span>
+      </button>
+      <div
+        ref={scrollRef}
+        id="build-log-content"
+        className="overflow-y-auto font-mono text-green-400 text-xs leading-relaxed transition-[max-height,padding] duration-300 ease-in-out"
+        style={{
+          maxHeight: isOpen ? '13rem' : '0',
+          padding: isOpen ? '0.5rem 0.75rem' : '0 0.75rem',
+        }}
+      >
+        {logs.length === 0 ? (
+          <span className="text-seasalt-400">Waiting for output…</span>
+        ) : (
+          logs.map((line, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: log lines have no stable id
+            <div key={i} className="break-all whitespace-pre-wrap">
+              {line}
+            </div>
+          ))
+        )}
       </div>
-    )
+    </div>
   );
 };
 

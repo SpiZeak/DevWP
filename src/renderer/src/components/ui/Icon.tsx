@@ -6,7 +6,9 @@ type IconProps = {
 };
 
 const Icon = ({ className, content }: IconProps): JSX.Element => (
-  <span className={`font-mono ${className || ''}`}>{content || '󰖟'}</span>
+  <span className={`font-mono ${className || ''}`} aria-hidden="true">
+    {content || '󰖟'}
+  </span>
 );
 
 export default Icon;

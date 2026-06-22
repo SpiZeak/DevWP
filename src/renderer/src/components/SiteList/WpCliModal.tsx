@@ -1,6 +1,6 @@
 import type { Site } from '@renderer/env';
 import { invoke } from '@tauri-apps/api/core';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ModalBase from '../ui/ModalBase';
 import Spinner from '../ui/Spinner';
 
@@ -16,6 +16,14 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
   const [wpCliError, setWpCliError] = useState<string>('');
   const [wpCliLoading, setWpCliLoading] = useState<boolean>(false);
   const outputRef = useRef<HTMLPreElement>(null);
+
+  // Auto-scroll output as new lines arrive
+  // biome-ignore lint/correctness/useExhaustiveDependencies: wpCliOutput/wpCliError intentional for auto-scroll
+  useEffect(() => {
+    if (outputRef.current) {
+      outputRef.current.scrollTop = outputRef.current.scrollHeight;
+    }
+  }, [wpCliOutput, wpCliError]);
 
   if (!isOpen || !site) return null;
 
@@ -127,9 +135,7 @@ const WpCliModal: React.FC<WpCliModalProps> = ({ isOpen, site, onClose }) => {
             ref={outputRef}
             className="bg-warm-charcoal-200 p-2.5 border border-gunmetal-600 rounded max-h-75 overflow-auto font-mono text-seasalt text-xs wrap-break-word whitespace-pre-wrap"
           >
-            {wpCliOutput && (
-              <span className="text-emerald">{wpCliOutput}</span>
-            )}
+            {wpCliOutput && <span className="text-emerald">{wpCliOutput}</span>}
             {wpCliError && <span className="text-crimson">{wpCliError}</span>}
             {wpCliLoading && <span className="text-amber">▊</span>}
           </pre>

@@ -1,7 +1,15 @@
 import type { Site } from '@renderer/env';
 import { invoke } from '@tauri-apps/api/core';
 import { emit } from '@tauri-apps/api/event';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import Icon from '../ui/Icon';
 import Spinner from '../ui/Spinner';
 import type { NewSiteData } from './CreateSiteModal';
@@ -143,20 +151,23 @@ const SiteList: React.FC = () => {
     [openSiteUrl, fetchSites],
   );
 
-  const handleDeleteSite = useCallback(async (site: Site): Promise<void> => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete the site ${site.name}?`,
-    );
-    if (confirmed) {
-      try {
-        await invoke('delete_site', { site });
-        setEditSiteModal({ open: false, site: null });
-        await fetchSites();
-      } catch (error) {
-        console.error('Failed to delete site:', error);
+  const handleDeleteSite = useCallback(
+    async (site: Site): Promise<void> => {
+      const confirmed = window.confirm(
+        `Are you sure you want to delete the site ${site.name}?`,
+      );
+      if (confirmed) {
+        try {
+          await invoke('delete_site', { site });
+          setEditSiteModal({ open: false, site: null });
+          await fetchSites();
+        } catch (error) {
+          console.error('Failed to delete site:', error);
+        }
       }
-    }
-  }, [fetchSites]);
+    },
+    [fetchSites],
+  );
 
   const handleComposerUpdate = useCallback((site: Site): void => {
     setComposerModal({ open: true, site });
@@ -188,7 +199,17 @@ const SiteList: React.FC = () => {
       data: { aliases: string; webRoot: string },
     ): Promise<void> => {
       try {
-        await invoke('update_site', { site, data });
+        const result = await invoke<{ success: boolean; error?: string }>(
+          'update_site',
+          { site, data },
+        );
+        if (!result.success) {
+          void emit('notification', {
+            type: 'error',
+            message: result.error || 'Failed to update site',
+          });
+          return;
+        }
         setEditSiteModal({ open: false, site: null });
         await fetchSites();
       } catch (error) {
@@ -275,14 +296,12 @@ const SiteList: React.FC = () => {
     fetchSites();
   }, [fetchSites]);
 
-  // Recalc scrollbar when sites/loading change
+  // Recalc scrollbar and height when data changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sites/loading/searchQuery intentional for recalc
   useEffect(() => {
     updateScrollBar();
-  }, [updateScrollBar]);
-
-  useEffect(() => {
     updateMaxHeight();
-  }, [updateMaxHeight]);
+  }, [sites, loading, searchQuery, updateScrollBar, updateMaxHeight]);
 
   // Resize listener
   useEffect(() => {
@@ -291,11 +310,6 @@ const SiteList: React.FC = () => {
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [updateMaxHeight]);
-
-  // Update height when search changes
-  useEffect(() => {
-    updateMaxHeight();
   }, [updateMaxHeight]);
 
   // ── Derived data ──
@@ -321,7 +335,13 @@ const SiteList: React.FC = () => {
       onEditSite: handleOpenEditSiteModal,
       onSelectSite: handleSelectSite,
     }),
-    [openSiteUrl, handleComposerUpdate, handleOpenWpCliModal, handleOpenEditSiteModal, handleSelectSite],
+    [
+      openSiteUrl,
+      handleComposerUpdate,
+      handleOpenWpCliModal,
+      handleOpenEditSiteModal,
+      handleSelectSite,
+    ],
   );
 
   return (
@@ -370,6 +390,7 @@ const SiteList: React.FC = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search sites by name, path, or URL..."
+                  aria-label="Search sites"
                   className="bg-gunmetal-500 py-2.5 pr-4 pl-10 border border-gunmetal-600 focus:border-pumpkin rounded-lg focus:outline-none focus:ring-1 focus:ring-pumpkin w-full text-seasalt transition-colors placeholder-seasalt-400"
                 />
                 {searchQuery && (

@@ -34,7 +34,7 @@ services:
     container_name: devwp_mariadb
     image: mariadb:13.0-rc
     environment:
-      MARIADB_ROOT_HOST: '%'
+      MARIADB_ROOT_HOST: 'localhost'
       MARIADB_ROOT_PASSWORD: root
       MARIADB_AUTO_UPGRADE: true
       TZ: Europe/Stockholm

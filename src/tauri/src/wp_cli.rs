@@ -119,7 +119,9 @@ pub async fn run_wp_cli(request: WpCliRequest) -> Result<serde_json::Value, Stri
         format!("{}/{}", DOCKER_SITE_ROOT_PATH, site_name)
     };
 
-    let cmd_parts: Vec<&str> = request.command.split_whitespace().collect();
+    let cmd_parts: Vec<String> =
+        shell_words::split(&request.command).map_err(|e| format!("Invalid command: {e}"))?;
+    let cmd_parts: Vec<&str> = cmd_parts.iter().map(|s| s.as_str()).collect();
     let args = build_wp_args(&work_dir, &cmd_parts);
     let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     let output = run_command("docker", &arg_refs)?;

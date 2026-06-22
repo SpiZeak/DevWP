@@ -25,28 +25,12 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false"
   },
   "dependencies": {
-    "@colors/colors": "^1.6.0",
-    "@dabh/diagnostics": "^2.0.8",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-log": "~2",
     "@tauri-apps/plugin-opener": "~2",
-    "async": "^3.2.6",
-    "fecha": "^4.2.3",
-    "inherits": "^2.0.4",
-    "is-stream": "^4.0.1",
-    "logform": "^2.7.0",
-    "one-time": "^1.0.0",
-    "readable-stream": "^4.7.0",
-    "safe-stable-stringify": "^2.5.0",
     "simple-icons": "^16.23.0",
-    "stack-trace": "^1.0.0",
     "sudo-prompt": "^9.2.1",
     "tailwindcss": "^4.3.1",
-    "triple-beam": "^1.4.1",
-    "util-deprecate": "^1.0.2",
-    "winston": "^3.19.0",
-    "winston-daily-rotate-file": "^5.0.0",
-    "winston-transport": "^4.9.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

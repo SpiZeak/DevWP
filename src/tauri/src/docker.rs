@@ -4,6 +4,20 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager};
 
+const ALLOWED_SERVICES: &[&str] = &["nginx", "php", "mariadb", "redis", "mailpit"];
+
+fn validate_service_name(service_name: &str) -> Result<(), String> {
+    if ALLOWED_SERVICES.contains(&service_name) {
+        Ok(())
+    } else {
+        Err(format!(
+            "Unknown service '{}'. Allowed services: {}",
+            service_name,
+            ALLOWED_SERVICES.join(", ")
+        ))
+    }
+}
+
 pub struct BuildState(pub Mutex<HashMap<String, bool>>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -192,6 +206,7 @@ pub async fn restart_container(
 
 #[tauri::command]
 pub async fn start_service(app: tauri::AppHandle, service_name: String) -> Result<(), String> {
+    validate_service_name(&service_name)?;
     {
         let build_state = app.state::<BuildState>();
         let mut map = build_state.0.lock().map_err(|e| e.to_string())?;
@@ -276,6 +291,7 @@ pub async fn get_build_status(
 
 #[tauri::command]
 pub async fn stop_service(app: tauri::AppHandle, service_name: String) -> Result<(), String> {
+    validate_service_name(&service_name)?;
     let svc = service_name.clone();
     let output = tauri::async_runtime::spawn_blocking(move || {
         run_command("docker", &["compose", "stop", &svc])

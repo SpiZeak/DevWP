@@ -1,3 +1,4 @@
+import { emit } from '@tauri-apps/api/event';
 import { useEffect, useMemo, useState } from 'react';
 import FormInput from '../ui/FormInput';
 import ModalBase from '../ui/ModalBase';
@@ -105,11 +106,13 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({
 
   const [newSite, setNewSite] = useState<NewSiteData>(initialSiteData);
   const [wpInstall, setWpInstall] = useState(initialWpInstall);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       setNewSite(initialSiteData);
       setWpInstall(initialWpInstall);
+      setSubmitting(false);
     }
   }, [isOpen, initialSiteData, initialWpInstall]);
 
@@ -141,6 +144,21 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({
   };
 
   const handleSubmit = (): void => {
+    if (submitting) return;
+
+    // Validate email format if WordPress install is enabled
+    if (wpInstall.enabled && wpInstall.adminEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(wpInstall.adminEmail)) {
+        void emit('notification', {
+          type: 'error',
+          message: 'Please enter a valid email address',
+        });
+        return;
+      }
+    }
+
+    setSubmitting(true);
     const formattedDomain = formatDomain(newSite.domain);
     const siteDataToSend: NewSiteData = {
       ...newSite,
@@ -163,7 +181,7 @@ const CreateSiteModal: React.FC<CreateSiteModalProps> = ({
   };
 
   const formattedDomain = formatDomain(newSite.domain);
-  const isSubmitDisabled = !newSite.domain.replace('.test', '');
+  const isSubmitDisabled = submitting || !newSite.domain.replace('.test', '');
 
   const renderWebRootHelpText = () => (
     <div className="mt-2 text-seasalt text-xs">

@@ -86,64 +86,64 @@ function Versions({ isOpen, onClose }: VersionsProps): JSX.Element | null {
       overlayClass="bg-black bg-opacity-50"
     >
       <ul className="space-y-4">
-          <li className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <BrandLogo icon={siWordpress} />
-              <span className="text-seasalt-400 text-xs uppercase tracking-wide">
-                DevWP
-              </span>
-            </div>
-            <span className="font-semibold text-seasalt text-sm">
-              {devwpVersionLabel}
+        <li className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <BrandLogo icon={siWordpress} />
+            <span className="text-seasalt-400 text-xs uppercase tracking-wide">
+              DevWP
             </span>
-          </li>
-          <li className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <BrandLogo icon={siTauri} />
-              <span className="text-seasalt-400 text-xs uppercase tracking-wide">
-                Tauri
-              </span>
-            </div>
-            <span className="font-semibold text-seasalt text-sm">
-              {tauriVersionLabel}
-            </span>
-          </li>
-          <li className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <BrandLogo icon={siAboutdotme} />
-              <span className="text-seasalt-400 text-xs uppercase tracking-wide">
-                Developer
-              </span>
-            </div>
-            <a
-              href="https://trewhitt.au"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-pumpkin text-sm hover:underline no-underline"
-            >
-              Trewhitt
-            </a>
-          </li>
-        </ul>
-
-        {updateReady && (
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={() => {
-                handleInstallUpdate().catch(() => {});
-              }}
-              disabled={isInstallingUpdate}
-              className="bg-pumpkin hover:bg-pumpkin/90 disabled:opacity-60 px-4 py-2 rounded-md font-semibold text-gunmetal-500 text-sm transition-colors"
-            >
-              {isInstallingUpdate ? 'Installing update…' : 'Install update now'}
-            </button>
           </div>
-        )}
+          <span className="font-semibold text-seasalt text-sm">
+            {devwpVersionLabel}
+          </span>
+        </li>
+        <li className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <BrandLogo icon={siTauri} />
+            <span className="text-seasalt-400 text-xs uppercase tracking-wide">
+              Tauri
+            </span>
+          </div>
+          <span className="font-semibold text-seasalt text-sm">
+            {tauriVersionLabel}
+          </span>
+        </li>
+        <li className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <BrandLogo icon={siAboutdotme} />
+            <span className="text-seasalt-400 text-xs uppercase tracking-wide">
+              Developer
+            </span>
+          </div>
+          <a
+            href="https://trewhitt.au"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-pumpkin text-sm hover:underline no-underline"
+          >
+            Trewhitt
+          </a>
+        </li>
+      </ul>
 
-        {updateActionMessage && (
-          <p className="mt-3 text-seasalt-400 text-xs">{updateActionMessage}</p>
-        )}
+      {updateReady && (
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={() => {
+              handleInstallUpdate().catch(() => {});
+            }}
+            disabled={isInstallingUpdate}
+            className="bg-pumpkin hover:bg-pumpkin/90 disabled:opacity-60 px-4 py-2 rounded-md font-semibold text-gunmetal-500 text-sm transition-colors"
+          >
+            {isInstallingUpdate ? 'Installing update…' : 'Install update now'}
+          </button>
+        </div>
+      )}
+
+      {updateActionMessage && (
+        <p className="mt-3 text-seasalt-400 text-xs">{updateActionMessage}</p>
+      )}
     </ModalBase>
   );
 }

@@ -21,6 +21,7 @@ const Toggle = (props: ToggleProps): JSX.Element => (
       className="sr-only peer"
     />
     <div
+      aria-hidden="true"
       className={`peer after:top-[2px] after:absolute relative bg-emerald-700 after:bg-seasalt peer-checked:bg-amber-600 after:border after:border-emerald-600 peer-checked:after:border-seasalt rounded-full after:rounded-full peer-focus:outline-none peer-focus:ring-amber-800 w-11 after:w-5 h-6 after:h-5 after:content-[''] after:transition-all rtl:peer-checked:after:-translate-x-full peer-checked:after:translate-x-full after:start-[2px] ${props.disabled ? 'pointer-events-none' : ''}`}
     ></div>
   </label>

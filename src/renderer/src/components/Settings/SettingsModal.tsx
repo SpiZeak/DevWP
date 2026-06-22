@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { emit } from '@tauri-apps/api/event';
 import { useCallback, useEffect, useState } from 'react';
 import Icon from '../ui/Icon';
 import Spinner from '../ui/Spinner';
@@ -14,7 +15,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [originalWebrootPath, setOriginalWebrootPath] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
-  const [hasChanges, setHasChanges] = useState<boolean>(false);
+
+  const hasChanges = webrootPath !== originalWebrootPath;
 
   const loadSettings = useCallback(async (): Promise<void> => {
     try {
@@ -22,8 +24,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
       const path = await invoke<string>('get_webroot_path');
       setWebrootPath(path);
       setOriginalWebrootPath(path);
-    } catch (error) {
-      console.error('Failed to load settings:', error);
+    } catch (_error) {
+      void emit('notification', {
+        type: 'error',
+        message: 'Failed to load settings',
+      });
     } finally {
       setLoading(false);
     }
@@ -34,10 +39,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
       loadSettings();
     }
   }, [isOpen, loadSettings]);
-
-  useEffect(() => {
-    setHasChanges(webrootPath !== originalWebrootPath);
-  }, [webrootPath, originalWebrootPath]);
 
   const handleSaveSettings = async (): Promise<void> => {
     try {
@@ -52,12 +53,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
       if (result.success) {
         setOriginalWebrootPath(webrootPath);
-        console.log('Settings saved successfully');
+        void emit('notification', {
+          type: 'success',
+          message: 'Settings saved successfully',
+        });
       } else {
-        console.error('Failed to save settings:', result.error);
+        void emit('notification', {
+          type: 'error',
+          message: result.error || 'Failed to save settings',
+        });
       }
-    } catch (error) {
-      console.error('Failed to save settings:', error);
+    } catch (_error) {
+      void emit('notification', {
+        type: 'error',
+        message: 'Failed to save settings',
+      });
     } finally {
       setSaving(false);
     }
@@ -79,8 +89,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
       if (selectedPath) {
         setWebrootPath(selectedPath);
       }
-    } catch (error) {
-      console.error('Failed to select directory:', error);
+    } catch (_error) {
+      void emit('notification', {
+        type: 'error',
+        message: 'Failed to select directory',
+      });
     }
   };
 
@@ -95,62 +108,62 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
       overlayClass="bg-black bg-opacity-50"
     >
       {loading ? (
-          <div className="flex justify-center py-8">
-            <Spinner title="Loading settings..." />
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <div>
-              <label
-                htmlFor="webroot-path"
-                className="block mb-2 font-medium text-seasalt text-sm"
+        <div className="flex justify-center py-8">
+          <Spinner title="Loading settings..." />
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div>
+            <label
+              htmlFor="webroot-path"
+              className="block mb-2 font-medium text-seasalt text-sm"
+            >
+              Webroot Path
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="webroot-path"
+                type="text"
+                className="flex-1 bg-gunmetal-500 p-3 border border-gunmetal-600 focus:border-pumpkin-500 rounded focus:outline-none text-seasalt"
+                value={webrootPath}
+                onChange={(e): void => setWebrootPath(e.target.value)}
+                placeholder="/path/to/webroot"
+              />
+              <button
+                type="button"
+                onClick={handleSelectDirectory}
+                className="bg-gunmetal-500 hover:bg-gunmetal-600 px-3 py-3 border border-gunmetal-600 rounded text-seasalt-400 hover:text-seasalt transition-colors"
+                title="Browse for directory"
               >
-                Webroot Path
-              </label>
-              <div className="flex gap-2">
-                <input
-                  id="webroot-path"
-                  type="text"
-                  className="flex-1 bg-gunmetal-500 p-3 border border-gunmetal-600 focus:border-pumpkin-500 rounded focus:outline-none text-seasalt"
-                  value={webrootPath}
-                  onChange={(e): void => setWebrootPath(e.target.value)}
-                  placeholder="/path/to/webroot"
-                />
-                <button
-                  type="button"
-                  onClick={handleSelectDirectory}
-                  className="bg-gunmetal-500 hover:bg-gunmetal-600 px-3 py-3 border border-gunmetal-600 rounded text-seasalt-400 hover:text-seasalt transition-colors"
-                  title="Browse for directory"
-                >
-                  <Icon content="📁" className="text-sm" />
-                </button>
-              </div>
-              <div className="mt-1 text-seasalt-400 text-xs">
-                Default path where WordPress sites will be created. Default:{' '}
-                <code className="bg-gunmetal-500 px-1 rounded">$HOME/www</code>
-              </div>
+                <Icon content="📁" className="text-sm" />
+              </button>
             </div>
+            <div className="mt-1 text-seasalt-400 text-xs">
+              Default path where WordPress sites will be created. Default:{' '}
+              <code className="bg-gunmetal-500 px-1 rounded">$HOME/www</code>
+            </div>
+          </div>
 
-            <div className="flex justify-end gap-2.5 pt-4 border-gunmetal-600 border-t">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="bg-gunmetal-500 hover:bg-gunmetal-600 px-4 py-2 border-0 rounded text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveSettings}
-                disabled={!hasChanges || saving}
-                className="flex items-center gap-2 bg-pumpkin hover:bg-pumpkin-600 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt-400 transition-colors cursor-pointer disabled:cursor-not-allowed"
-              >
-                {saving && <Spinner svgClass="size-4" />}
-                {saving ? 'Saving...' : 'Save Settings'}
-              </button>
-            </div>
+          <div className="flex justify-end gap-2.5 pt-4 border-gunmetal-600 border-t">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="bg-gunmetal-500 hover:bg-gunmetal-600 px-4 py-2 border-0 rounded text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveSettings}
+              disabled={!hasChanges || saving}
+              className="flex items-center gap-2 bg-pumpkin hover:bg-pumpkin-600 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt-400 transition-colors cursor-pointer disabled:cursor-not-allowed"
+            >
+              {saving && <Spinner svgClass="size-4" />}
+              {saving ? 'Saving...' : 'Save Settings'}
+            </button>
           </div>
-        )}
+        </div>
+      )}
     </ModalBase>
   );
 };

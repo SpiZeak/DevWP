@@ -26,7 +26,11 @@ describe('SiteItem', () => {
     onSelectSite: vi.fn(),
   };
 
-  const renderWithContext = (site = mockSite, isLast = false, actions = defaultActions) =>
+  const renderWithContext = (
+    site = mockSite,
+    isLast = false,
+    actions = defaultActions,
+  ) =>
     render(
       // biome-ignore lint/suspicious/noExplicitAny: context mock
       <SiteActionProvider value={actions as any}>

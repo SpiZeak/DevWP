@@ -4,7 +4,13 @@ export interface Site {
   name: string;
   path: string;
   url: string;
-  status: string;
+  status:
+    | 'active'
+    | 'provisioning'
+    | 'building'
+    | 'exited'
+    | 'stopped'
+    | 'pending';
   aliases?: string;
   webRoot?: string;
   multisite?: {

@@ -54,11 +54,12 @@ const ComposerModal: React.FC<ComposerModalProps> = ({
   }, [isOpen, site, confirmed]);
 
   // Auto-scroll output as new lines arrive
+  // biome-ignore lint/correctness/useExhaustiveDependencies: output/error intentional for auto-scroll
   useEffect(() => {
     if (outputRef.current) {
       outputRef.current.scrollTop = outputRef.current.scrollHeight;
     }
-  }, []);
+  }, [output, error]);
 
   const handleClose = (): void => {
     if (loading) return;
@@ -77,7 +78,16 @@ const ComposerModal: React.FC<ComposerModalProps> = ({
       onClose={handleClose}
       title={`Composer Update — ${site.name}`}
       footer={
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2.5">
+          {hasOutput && !loading && (
+            <button
+              type="button"
+              onClick={() => setConfirmed(false)}
+              className="bg-gunmetal-400 hover:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt-300 hover:text-seasalt transition-colors cursor-pointer"
+            >
+              Run Again
+            </button>
+          )}
           <button
             type="button"
             onClick={handleClose}

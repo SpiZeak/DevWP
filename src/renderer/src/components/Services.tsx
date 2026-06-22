@@ -2,13 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type React from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  siDocker,
-  siMariadb,
-  siNginx,
-  siPhp,
-  siRedis,
-} from 'simple-icons';
+import { siDocker, siMariadb, siNginx, siPhp, siRedis } from 'simple-icons';
 import { BrandLogo } from './BrandLogo';
 import BuildLog from './BuildLog';
 import Icon from './ui/Icon';
@@ -54,8 +48,6 @@ const serviceToContainerName: Record<string, string> = {
   mailpit: 'devwp_mailpit',
 };
 
-const EXCLUDED_CONTAINERS: string[] = [];
-
 // Ordered list of services to always display
 const knownContainerNames = [
   'devwp_nginx',
@@ -75,12 +67,7 @@ const Services: React.FC<ServicesProps> = ({
     new Set(),
   );
   const containerMap = useMemo(
-    () =>
-      containers.filter(
-        (container) =>
-          container.name.includes('devwp_') &&
-          !EXCLUDED_CONTAINERS.includes(container.name),
-      ),
+    () => containers.filter((container) => container.name.includes('devwp_')),
     [containers],
   );
 
@@ -248,7 +235,9 @@ const Services: React.FC<ServicesProps> = ({
       }
       if (container.version) {
         return (
-          <span className="mt-0.5 text-seasalt text-xs">{container.version}</span>
+          <span className="mt-0.5 text-seasalt text-xs">
+            {container.version}
+          </span>
         );
       }
       return null;

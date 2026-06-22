@@ -14,13 +14,13 @@ vi.mock('@tauri-apps/api/event', () => ({
   emit: vi.fn().mockResolvedValue(undefined),
 }));
 
-  const mockSiteActions = {
-    onOpenUrl: vi.fn(),
-    onComposerUpdate: vi.fn(),
-    onOpenWpCli: vi.fn(),
-    onEditSite: vi.fn(),
-    scanningSite: null,
-  };
+const mockSiteActions = {
+  onOpenUrl: vi.fn(),
+  onComposerUpdate: vi.fn(),
+  onOpenWpCli: vi.fn(),
+  onEditSite: vi.fn(),
+  scanningSite: null,
+};
 
 vi.mock('./SiteActionContext', () => ({
   // biome-ignore lint/suspicious/noExplicitAny: mock
@@ -33,8 +33,12 @@ vi.mock('./SiteItem', () => ({
   default: ({ site }: any) => (
     <div data-testid={`site-item-${site.name}`}>
       {site.name}
-      <button type="button" onClick={() => mockSiteActions.onOpenWpCli(site)}>CLI</button>
-      <button type="button" onClick={() => mockSiteActions.onEditSite(site)}>Edit</button>
+      <button type="button" onClick={() => mockSiteActions.onOpenWpCli(site)}>
+        CLI
+      </button>
+      <button type="button" onClick={() => mockSiteActions.onEditSite(site)}>
+        Edit
+      </button>
     </div>
   ),
 }));
@@ -44,7 +48,9 @@ vi.mock('./CreateSiteModal', () => ({
   default: ({ isOpen, onClose, onSubmit }: any) =>
     isOpen ? (
       <div data-testid="create-modal">
-        <button type="button" onClick={onClose}>Close Create</button>
+        <button type="button" onClick={onClose}>
+          Close Create
+        </button>
         <button
           type="button"
           onClick={() =>
@@ -71,14 +77,18 @@ vi.mock('./EditSiteModal', () => ({
   default: ({ isOpen, onClose, onSubmit, onDelete, site }: any) =>
     isOpen ? (
       <div data-testid="edit-modal">
-        <button type="button" onClick={onClose}>Close Edit</button>
+        <button type="button" onClick={onClose}>
+          Close Edit
+        </button>
         <button
           type="button"
           onClick={() => onSubmit(site, { aliases: 'alias', webRoot: 'root' })}
         >
           Submit Edit
         </button>
-        <button type="button" onClick={() => onDelete(site)}>Delete</button>
+        <button type="button" onClick={() => onDelete(site)}>
+          Delete
+        </button>
       </div>
     ) : null,
 }));
@@ -88,7 +98,9 @@ vi.mock('./WpCliModal', () => ({
   default: ({ isOpen, onClose }: any) =>
     isOpen ? (
       <div data-testid="cli-modal">
-        <button type="button" onClick={onClose}>Close CLI</button>
+        <button type="button" onClick={onClose}>
+          Close CLI
+        </button>
       </div>
     ) : null,
 }));

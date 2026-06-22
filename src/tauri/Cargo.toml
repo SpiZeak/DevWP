@@ -19,3 +19,4 @@ tauri = { version = "2.0.0", features = [] }
 tauri-plugin-opener = "2"
 rfd = "0.17.2"
 tauri-plugin-log = "2"
+shell-words = "1"

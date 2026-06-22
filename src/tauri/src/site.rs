@@ -9,6 +9,9 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::Mutex;
+
+static SITES_LOCK: Mutex<()> = Mutex::new(());
 
 pub fn nginx_template_path() -> std::path::PathBuf {
     crate::utils::project_root().join("config/nginx/template-site.conf")
@@ -72,7 +75,7 @@ pub fn sites_file() -> Result<PathBuf, String> {
     Ok(ensure_state_root()?.join("sites.json"))
 }
 
-pub fn read_sites() -> Vec<Site> {
+fn read_sites_unchecked() -> Vec<Site> {
     let path = match sites_file() {
         Ok(path) => path,
         Err(_) => return Vec::new(),
@@ -84,11 +87,25 @@ pub fn read_sites() -> Vec<Site> {
     }
 }
 
-pub fn write_sites(sites: &[Site]) -> Result<(), String> {
+fn write_sites_unchecked(sites: &[Site]) -> Result<(), String> {
     let path = sites_file()?;
     let content =
         serde_json::to_string_pretty(sites).map_err(|e| format!("Serialize sites: {e}"))?;
     fs::write(path, content).map_err(|e| format!("Write sites: {e}"))
+}
+
+pub fn read_sites() -> Vec<Site> {
+    read_sites_unchecked()
+}
+
+pub fn write_sites(sites: &[Site]) -> Result<(), String> {
+    write_sites_unchecked(sites)
+}
+
+fn acquire_sites_lock() -> Result<std::sync::MutexGuard<'static, ()>, String> {
+    SITES_LOCK
+        .lock()
+        .map_err(|e| format!("Sites lock poisoned: {e}"))
 }
 
 pub fn update_or_insert_site(sites: &mut Vec<Site>, site: Site) {
@@ -353,17 +370,28 @@ fn elevate_append_hosts(content: &str) -> Result<(), String> {
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .spawn()
-            .map_err(|e| format!("Failed to launch pkexec: {e}"))?;
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin
-                .write_all(content.as_bytes())
+            .map_err(|_| {
+                format!(
+                    "pkexec not available. Run manually:\n  echo '127.0.0.1 <domain>' | sudo tee -a {}",
+                    HOSTS_FILE_PATH
+                )
+            })?;
+        {
+            let mut stdin = child.stdin.take().ok_or_else(|| {
+                format!("pkexec closed stdin. Run manually:\n  echo '127.0.0.1 <domain>' | sudo tee -a {}", HOSTS_FILE_PATH)
+            })?;
+            stdin.write_all(content.as_bytes())
                 .map_err(|e| format!("Failed to write to pkexec stdin: {e}"))?;
         }
-        let status = child
-            .wait()
+        // stdin dropped — tee sees EOF and can exit
+        let status = child.wait()
             .map_err(|e| format!("pkexec wait failed: {e}"))?;
         if !status.success() {
-            return Err("Failed to add hosts entry: pkexec returned non-zero".to_string());
+            return Err(format!(
+                "pkexec exited with code {:?}. Run manually:\n  echo '127.0.0.1 <domain>' | sudo tee -a {}",
+                status.code(),
+                HOSTS_FILE_PATH
+            ));
         }
         return Ok(());
     }
@@ -457,17 +485,28 @@ fn elevate_write_hosts(content: &str) -> Result<(), String> {
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .spawn()
-            .map_err(|e| format!("Failed to launch pkexec: {e}"))?;
-        if let Some(mut stdin) = child.stdin.take() {
-            stdin
-                .write_all(content.as_bytes())
+            .map_err(|_| {
+                format!(
+                    "pkexec not available. Run manually:\n  echo '{}' | sudo tee {}",
+                    content.lines().next().unwrap_or("<content>"),
+                    HOSTS_FILE_PATH
+                )
+            })?;
+        {
+            let mut stdin = child.stdin.take().ok_or_else(|| {
+                "pkexec closed stdin before receiving data".to_string()
+            })?;
+            stdin.write_all(content.as_bytes())
                 .map_err(|e| format!("Failed to write to pkexec stdin: {e}"))?;
         }
-        let status = child
-            .wait()
+        // stdin dropped — tee sees EOF and can exit
+        let status = child.wait()
             .map_err(|e| format!("pkexec wait failed: {e}"))?;
         if !status.success() {
-            return Err("Failed to remove hosts entry: pkexec returned non-zero".to_string());
+            return Err(format!(
+                "pkexec exited with code {:?}. Run the sudo command manually.",
+                status.code()
+            ));
         }
         return Ok(());
     }
@@ -511,7 +550,8 @@ fn elevate_write_hosts(content: &str) -> Result<(), String> {
 
 #[tauri::command]
 pub fn get_sites() -> Vec<Site> {
-    let mut sites = read_sites();
+    let _lock = acquire_sites_lock().ok();
+    let mut sites = read_sites_unchecked();
     let webroot = get_webroot_from_settings();
 
     if let Ok(entries) = fs::read_dir(webroot) {
@@ -539,7 +579,7 @@ pub fn get_sites() -> Vec<Site> {
         }
     }
 
-    let _ = write_sites(&sites);
+    let _ = write_sites_unchecked(&sites);
     sites
 }
 
@@ -684,7 +724,8 @@ pub fn create_site(app: tauri::AppHandle, site: SiteCreateRequest) -> Result<(),
             .map_err(|e| format!("Failed to create site webroot directory: {e}"))?;
     }
 
-    let mut sites = read_sites();
+    let _lock = acquire_sites_lock()?;
+    let mut sites = read_sites_unchecked();
     update_or_insert_site(
         &mut sites,
         Site {
@@ -698,8 +739,28 @@ pub fn create_site(app: tauri::AppHandle, site: SiteCreateRequest) -> Result<(),
         },
     );
 
-    write_sites(&sites)?;
-    regenerate_certificate(&sites)?;
+    write_sites_unchecked(&sites)?;
+    drop(_lock);
+
+    // Regenerate TLS certificate in background — this can be slow with many sites
+    let app_for_cert = app.clone();
+    let sites_for_cert = sites.clone();
+    std::thread::spawn(move || {
+        if let Err(e) = regenerate_certificate(&sites_for_cert) {
+            emit_notification(
+                &app_for_cert,
+                "warning",
+                format!("Certificate regeneration failed: {e}"),
+            );
+        } else {
+            emit_notification(
+                &app_for_cert,
+                "success",
+                "TLS certificates regenerated for all sites",
+            );
+        }
+    });
+
     generate_nginx_config(
         &site.domain,
         site.aliases.as_deref(),
@@ -707,7 +768,15 @@ pub fn create_site(app: tauri::AppHandle, site: SiteCreateRequest) -> Result<(),
         site.multisite.as_ref(),
     )?;
     nginx_reload();
-    add_hosts_entry(&site.domain, site.aliases.as_deref())?;
+    if let Err(e) = add_hosts_entry(&site.domain, site.aliases.as_deref()) {
+        emit_notification(
+            &app,
+            "warning",
+            format!(
+                "Site created but hosts entry not added: {e}\nSite is accessible via URL but domain won't resolve without a hosts entry."
+            ),
+        );
+    }
 
     if let Some(wp_config) = &site.wordpress {
         install_wordpress(&app, &site.domain, site.web_root.as_deref(), wp_config)?;
@@ -719,10 +788,24 @@ pub fn create_site(app: tauri::AppHandle, site: SiteCreateRequest) -> Result<(),
 
 #[tauri::command]
 pub fn delete_site(app: tauri::AppHandle, site: Site) -> Result<(), String> {
-    let mut sites = read_sites();
+    let _lock = acquire_sites_lock()?;
+    let mut sites = read_sites_unchecked();
     sites.retain(|existing| existing.name != site.name);
-    write_sites(&sites)?;
-    let _ = regenerate_certificate(&sites);
+    write_sites_unchecked(&sites)?;
+    drop(_lock);
+
+    // Regenerate TLS certificate in background
+    let app_for_cert = app.clone();
+    let sites_for_cert = sites.clone();
+    std::thread::spawn(move || {
+        if let Err(e) = regenerate_certificate(&sites_for_cert) {
+            emit_notification(
+                &app_for_cert,
+                "warning",
+                format!("Certificate regeneration failed: {e}"),
+            );
+        }
+    });
 
     let path = if site.path.trim().is_empty() {
         get_webroot_from_settings().join(&site.name)
@@ -752,7 +835,8 @@ pub fn update_site(
     site: Site,
     data: SiteUpdateRequest,
 ) -> Result<OperationResult, String> {
-    let mut sites = read_sites();
+    let _lock = acquire_sites_lock()?;
+    let mut sites = read_sites_unchecked();
 
     let existing = sites
         .iter()
@@ -775,7 +859,8 @@ pub fn update_site(
     };
 
     update_or_insert_site(&mut sites, updated.clone());
-    write_sites(&sites)?;
+    write_sites_unchecked(&sites)?;
+    drop(_lock);
 
     // Remove old alias hosts entries, regenerate cert and nginx config, add new ones
     let _ = remove_hosts_entry(&existing.name, old_aliases.as_deref());

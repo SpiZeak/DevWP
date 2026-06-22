@@ -4,10 +4,10 @@ import Notifications from './Notifications';
 import Services from './Services';
 import SiteList from './SiteList';
 import Spinner from './ui/Spinner';
-import Versions from './Versions';
 
-// Lazy load the settings modal
+// Lazy load the modals
 const SettingsModal = lazy(() => import('./Settings/SettingsModal'));
+const Versions = lazy(() => import('./Versions'));
 
 function App(): JSX.Element {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -31,6 +31,7 @@ function App(): JSX.Element {
 
   return (
     <>
+      <h1 className="sr-only">DevWP</h1>
       <div className="grid grid-cols-[40%_60%] p-6 w-full">
         <Services
           onOpenSettings={handleOpenSettings}
@@ -38,7 +39,15 @@ function App(): JSX.Element {
         />
         <SiteList />
       </div>
-      <Versions isOpen={isVersionsOpen} onClose={handleCloseVersions} />
+      <Suspense
+        fallback={
+          <div className="z-50 fixed inset-0 flex justify-center items-center bg-warm-charcoal/70">
+            <Spinner svgClass="size-8 text-pumpkin" />
+          </div>
+        }
+      >
+        <Versions isOpen={isVersionsOpen} onClose={handleCloseVersions} />
+      </Suspense>
       <Notifications />
       <Suspense
         fallback={
@@ -50,7 +59,7 @@ function App(): JSX.Element {
         <SettingsModal isOpen={isSettingsOpen} onClose={handleCloseSettings} />
       </Suspense>
       <footer className="mt-auto p-6 text-seasalt text-sm text-center">
-        <h6 className="inline-block opacity-25 hover:opacity-100 m-0 font-medium transition-opacity">
+        <p className="inline-block opacity-25 hover:opacity-100 m-0 font-medium transition-opacity">
           Crafted by{' '}
           <a
             href="https://github.com/SpiZeak"
@@ -67,7 +76,7 @@ function App(): JSX.Element {
               ↗
             </span>
           </a>
-        </h6>
+        </p>
       </footer>
     </>
   );
