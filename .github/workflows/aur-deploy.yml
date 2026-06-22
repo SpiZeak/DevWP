@@ -7,7 +7,7 @@ on:
     # Allow manual triggering
     inputs:
       version:
-        description: 'Version to deploy (e.g., 0.3.1)'
+        description: 'Version to deploy (e.g., 0.3.2)'
         required: true
         type: string
 
