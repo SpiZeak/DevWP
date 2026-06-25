@@ -30,6 +30,12 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": {
+      "../../compose.yml": "compose.yml",
+      "../../config/nginx": "config/nginx",
+      "../../config/php": "config/php",
+      "../../config/mariadb": "config/mariadb"
+    }
   }
 }
