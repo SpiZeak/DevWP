@@ -1,6 +1,6 @@
 FROM nginx:alpine-slim AS builder
 
-ARG LIBRESSL_VERSION=4.2.1
+ARG LIBRESSL_VERSION=4.3.2
 
 # For latest build deps, see https://github.com/nginxinc/docker-nginx/blob/master/mainline/alpine/Dockerfile
 RUN apk add --no-cache --virtual .build-deps \
@@ -63,7 +63,7 @@ RUN cd nginx-${NGINX_VERSION} && \
 
 FROM nginx:stable-alpine-slim
 
-ARG LIBRESSL_VERSION=4.2.1
+ARG LIBRESSL_VERSION=4.3.2
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 
