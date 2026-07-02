@@ -55,7 +55,7 @@ cp ../DevWP/aur/PKGBUILD .
 cp ../DevWP/aur/.SRCINFO .
 cp ../DevWP/aur/devwp.install .
 git add PKGBUILD .SRCINFO devwp.install
-git commit -m "Initial commit: DevWP v0.3.2"
+git commit -m "Initial commit: DevWP v0.3.3"
 git push origin master
 ```
 
@@ -65,11 +65,11 @@ git push origin master
 
 ```bash
 # 1. Bump version in package.json
-vim package.json  # Change version: "0.3.2" → "0.3.2"
+vim package.json  # Change version: "0.3.3" → "0.3.3"
 
 # 2. Commit and tag
-git commit -am "Bump version to 0.3.2"
-git tag v0.3.2
+git commit -am "Bump version to 0.3.3"
+git tag v0.3.3
 git push && git push --tags
 
 # 3. Wait for workflows to complete
@@ -85,7 +85,7 @@ git push && git push --tags
 
 ```bash
 # Go to: GitHub → Actions → Deploy to AUR → Run workflow
-# Enter version: 0.3.2
+# Enter version: 0.3.3
 # Click: Run workflow
 # Wait ~2-3 minutes
 ```
