@@ -15,7 +15,7 @@ const Toggle = (props: ToggleProps): JSX.Element => (
   >
     <input
       type="checkbox"
-      checked={props.checked}
+      checked={props.checked ?? false}
       onChange={(e) => props.onChange?.(e.target.checked)}
       disabled={props.disabled}
       className="sr-only peer"

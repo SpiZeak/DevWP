@@ -68,7 +68,7 @@ function XdebugSwitch(): JSX.Element {
                 Loading mode…
               </h3>
             </div>
-            <Toggle disabled />
+            <Toggle key="loading" checked={false} disabled />
           </div>
         </div>
       </div>
@@ -86,6 +86,7 @@ function XdebugSwitch(): JSX.Element {
             </h3>
           </div>
           <Toggle
+            key="loaded"
             checked={xdebugEnabled}
             onChange={handleToggle}
             disabled={isToggling}
