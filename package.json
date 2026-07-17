@@ -30,12 +30,12 @@
     "@tauri-apps/plugin-opener": "~2",
     "simple-icons": "^16.26.0",
     "sudo-prompt": "^9.2.1",
-    "tailwindcss": "^4.3.2",
+    "tailwindcss": "^4.3.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.4",
-    "@tailwindcss/vite": "^4.3.2",
+    "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.11.4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -50,7 +50,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "typescript": "^7.0.2",
-    "vite": "^8.1.4",
+    "vite": "^8.1.5",
     "vitest": "^4.1.10"
   }
 }
