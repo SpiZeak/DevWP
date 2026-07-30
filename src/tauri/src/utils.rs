@@ -2,7 +2,10 @@ use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::OnceLock;
 use tauri::Emitter;
+
+static PROJECT_ROOT: OnceLock<PathBuf> = OnceLock::new();
 
 pub const DOCKER_SITE_ROOT_PATH: &str = "/src/www";
 
@@ -20,9 +23,21 @@ pub struct NotificationPayload {
     pub message: String,
 }
 
+/// Set the project root once (called during app setup with the app data directory).
+/// Subsequent calls are no-ops.
+pub fn init_project_root(path: PathBuf) {
+    PROJECT_ROOT.get_or_init(|| path);
+}
+
 /// Walk up from CWD until we find the directory containing `compose.yml`.
 /// Falls back to CWD if not found.
 pub fn project_root() -> PathBuf {
+    // If the project root was initialized during app setup, use it.
+    if let Some(root) = PROJECT_ROOT.get() {
+        return root.clone();
+    }
+
+    // Fall back to the walk-up algorithm (used in development / tests).
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let mut dir = cwd.clone();
     loop {
