@@ -14,6 +14,7 @@ fn main() {
 
     let window_builder = WindowBuilder::new()
         .with_title("DevWP")
+        .with_decorations(false)
         .with_inner_size(LogicalSize::new(1200.0, 800.0))
         .with_min_inner_size(LogicalSize::new(800.0, 600.0));
 

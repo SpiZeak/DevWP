@@ -1,5 +1,5 @@
 use crate::backend::lifecycle;
-use crate::components::{Notifications, Services, SettingsModal, SiteList, Versions};
+use crate::components::{Notifications, Services, SettingsModal, SiteList, TitleBar, Versions};
 use crate::state;
 use dioxus::desktop::{
     tao::event::{Event, WindowEvent},
@@ -59,11 +59,7 @@ fn AppRoot() -> Element {
                 ..
             } = event
             {
-                if !SHUTDOWN_REQUESTED.swap(true, Ordering::SeqCst) {
-                    spawn(async move {
-                        lifecycle::stop_services().await;
-                    });
-                }
+                request_shutdown();
             }
         });
     });
@@ -81,6 +77,7 @@ fn AppRoot() -> Element {
     let versions_is_open = versions_open.read().clone();
 
     rsx! {
+        TitleBar {}
         ErrorBoundary {
             handle_error: move |errors: ErrorContext| {
                 rsx! {
@@ -151,5 +148,16 @@ fn AppRoot() -> Element {
                 }
             }
         }
+    }
+}
+
+/// Start the shutdown sequence (docker compose down) on demand. Called both
+/// from the native CloseRequested handler and the custom title bar's close
+/// button; guarded so the compose-down runs at most once.
+pub(crate) fn request_shutdown() {
+    if !SHUTDOWN_REQUESTED.swap(true, Ordering::SeqCst) {
+        spawn(async move {
+            lifecycle::stop_services().await;
+        });
     }
 }
