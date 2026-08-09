@@ -1,4 +1,4 @@
-name: Build and Release Tauri App
+name: Build and Release DevWP
 
 on:
   push:
@@ -10,30 +10,21 @@ permissions:
   contents: write
 
 jobs:
-  publish-tauri:
-    permissions:
-      contents: write
+  package:
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest' # for Arm based macs (M1 and above)
-            args: '--target aarch64-apple-darwin'
-            rust-targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
-          - platform: 'macos-latest' # for Intel based macs
-            args: '--target x86_64-apple-darwin'
-            rust-targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
-          - platform: 'ubuntu-24.04'
-            args: ''
-            rust-targets: ''
-          - platform: 'ubuntu-24.04-arm'
-            args: ''
-            rust-targets: ''
-          - platform: 'windows-latest'
-            args: ''
-            rust-targets: ''
-          - platform: 'windows-latest' # for ARM based Windows
-            args: '--target aarch64-pc-windows-msvc'
-            rust-targets: 'aarch64-pc-windows-msvc'
+          - name: macos-aarch64
+            platform: macos-14 # Apple Silicon
+          - name: macos-x86_64
+            platform: macos-13 # Intel
+          - name: linux-x86_64
+            platform: ubuntu-24.04
+          - name: linux-aarch64
+            platform: ubuntu-24.04-arm
+          - name: windows-x86_64
+            platform: windows-latest
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -42,84 +33,93 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.rust-targets }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src/tauri -> target'
+          workspaces: '. -> target'
 
-      - name: Cache Tauri bundler tools
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cache/tauri
-            ~/AppData/Local/tauri
-          key: ${{ runner.os }}-tauri-tools-v2
-
-      - name: Install dependencies (ubuntu only)
+      - name: Install Linux dependencies
         if: startsWith(matrix.platform, 'ubuntu-')
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils libfuse2 file wget desktop-file-utils
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils file desktop-file-utils
 
-      - name: Install frontend dependencies
-        run: bun install --frozen-lockfile
+      - name: Install cargo-packager
+        run: cargo install cargo-packager --locked
+        timeout-minutes: 20
 
-      - uses: tauri-apps/tauri-action@v0
+      - name: Package application
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPIMAGE_EXTRACT_AND_RUN: 1
-          # Use ad-hoc signing on macOS when no Apple Developer certificate is available.
-          # Replace '-' with a real Developer ID to enable notarization for Gatekeeper compliance.
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
+        run: cargo packager --release
+        timeout-minutes: 30
+
+      - name: List packaged artifacts
+        run: ls -lh target/release/*.AppImage target/release/*.deb target/release/*.dmg target/release/*-setup.exe target/release/*.msi 2>/dev/null || ls -lh target/release/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v6
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'DevWP ${{ github.ref_name }}'
-          releaseBody: |
+          name: devwp-${{ matrix.name }}
+          path: |
+            target/release/*.AppImage
+            target/release/*.deb
+            target/release/*.dmg
+            target/release/*-setup.exe
+            target/release/*.msi
+          if-no-files-found: error
+
+  publish:
+    permissions:
+      contents: write
+    needs: [package]
+    runs-on: ubuntu-latest
+    # Only tag pushes produce releases; dispatching on a branch would create a
+    # release named after the branch and cascade into a broken AUR deploy.
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      # Artifacts are named with the plain package version (e.g.
+      # devwp_0.3.3_x86_64.AppImage), so strip the v prefix from the tag.
+      - name: Set version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: List artifacts
+        run: ls -lh release-artifacts/
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: DevWP ${{ github.ref_name }}
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          files: release-artifacts/*
+          body: |
             ## Installation
 
             ### Windows
-            - **x64 installer**: Download `DevWP_x.x.x_x64-setup.exe` and run it.
-            - **x64 MSI**: Download `DevWP_x.x.x_x64.msi` and run it.
-            - **ARM64 installer**: Download `DevWP_x.x.x_arm64-setup.exe` and run it.
-            - **ARM64 MSI**: Download `DevWP_x.x.x_arm64.msi` and run it.
+            - **x64 installer**: Download `devwp_${{ steps.version.outputs.VERSION }}_x64-setup.exe` and run it.
+            - **x64 MSI**: Download `devwp_${{ steps.version.outputs.VERSION }}_x64_en-US.msi` and run it.
 
             ### macOS
-            - **Apple Silicon (M1/M2/M3)**: Download `DevWP_x.x.x_aarch64.dmg`, open it, and drag DevWP to Applications.
-            - **Intel**: Download `DevWP_x.x.x_x64.dmg`, open it, and drag DevWP to Applications.
+            - **Apple Silicon (M1/M2/M3)**: Download `DevWP_${{ steps.version.outputs.VERSION }}_aarch64.dmg`, open it, and drag DevWP to Applications.
+            - **Intel**: Download `DevWP_${{ steps.version.outputs.VERSION }}_x64.dmg`, open it, and drag DevWP to Applications.
 
             ### Linux
-            - **AppImage (x86_64)**: Download `DevWP_x.x.x_amd64.AppImage`, make it executable (`chmod +x`), and run it.
-            - **RPM (x86_64)**: Download `DevWP_x.x.x-1.x86_64.rpm` and install with `sudo rpm -i DevWP_x.x.x-1.x86_64.rpm`.
-            - **Tarball (x86_64)**: Download `DevWP_x.x.x-x86_64.tar.gz` and extract with `tar -xzf DevWP_x.x.x-x86_64.tar.gz`.
-            - **AppImage (ARM64)**: Download `DevWP_x.x.x_aarch64.AppImage`, make it executable (`chmod +x`), and run it.
-            - **RPM (ARM64)**: Download `DevWP_x.x.x-1.aarch64.rpm` and install with `sudo rpm -i DevWP_x.x.x-1.aarch64.rpm`.
-            - **Tarball (ARM64)**: Download `DevWP_x.x.x-aarch64.tar.gz` and extract with `tar -xzf DevWP_x.x.x-aarch64.tar.gz`.
+            - **AppImage (x86_64)**: Download `devwp_${{ steps.version.outputs.VERSION }}_x86_64.AppImage`, make it executable (`chmod +x`), and run it.
+            - **Deb (x86_64)**: Download `devwp_${{ steps.version.outputs.VERSION }}_amd64.deb` and install with `sudo dpkg -i devwp_${{ steps.version.outputs.VERSION }}_amd64.deb`.
+            - **AppImage (ARM64)**: Download `devwp_${{ steps.version.outputs.VERSION }}_aarch64.AppImage`, make it executable (`chmod +x`), and run it.
+            - **Deb (ARM64)**: Download `devwp_${{ steps.version.outputs.VERSION }}_arm64.deb` and install with `sudo dpkg -i devwp_${{ steps.version.outputs.VERSION }}_arm64.deb`.
 
             > **Requirement**: [Docker Desktop](https://www.docker.com/products/docker-desktop/) must be installed and running.
-          releaseDraft: false
-          generateReleaseNotes: true
-          prerelease:
-            ${{ contains(github.ref_name, '-beta') || contains(github.ref_name,
-            '-alpha') }}
-          args: ${{ matrix.args }}
-          projectPath: src/tauri

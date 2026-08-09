@@ -14,25 +14,24 @@ Added database storage for the Xdebug toggle state to persist user preferences a
 
 ### 2. Backend Services
 
-- **Database Functions** (`src/tauri/src/settings.rs`):
+- **Database Functions** (`src/backend/settings.rs`):
   - `getXdebugEnabledSetting()`: Get Xdebug setting with default fallback
   - Updated `initializeDefaultSettings()`: Initialize Xdebug setting on first run
 
-- **Xdebug Service Updates** (`src/tauri/src/xdebug.rs`):
+- **Xdebug Service Updates** (`src/backend/xdebug.rs`):
   - `initializeXdebugStatus()`: Initialize status from database on startup
   - Updated `getXdebugStatus()`: Save current status to database
   - Updated `toggleXdebug()`: Save new status after successful toggle
 
-- **Tauri Commands** (`src/tauri/src/main.rs`):
+- **Backend functions** (`src/backend/xdebug.rs`):
   - `get-xdebug-enabled-setting`: Get the Xdebug preference from database
 
-### 3. Frontend API
+### 3. UI Integration
 
-- **Type Definitions** (`src/renderer/src/env.d.ts`):
-  - Added `getXdebugEnabledSetting()` to the Tauri-facing frontend interface
-
-- **Frontend Integration** (`src/renderer/src/`):
-  - Added `getXdebugEnabledSetting` invocation through the Tauri bridge
+- **Xdebug switch** (`src/components/xdebug_switch.rs`):
+  - Calls `xdebug::get_xdebug_status()` directly to read the current state
+  - Runs `xdebug::toggle_xdebug()` on toggle; state flows back through the
+    `XDEBUG_ENABLED` / `XDEBUG_TOGGLING` signals in `src/state.rs`
 
 ### 4. Initialization Process
 
@@ -63,59 +62,4 @@ await saveSetting("xdebug_enabled", "true");
 ### Frontend Access
 
 ```typescript
-import { invoke } from "@tauri-apps/api/core";
-
-// Get current Xdebug preference
-const isEnabled = await invoke("get_xdebug_enabled_setting");
-```
-
-## Database Verification
-
-```bash
-# View Xdebug setting
-docker exec devwp_mariadb mariadb -u root -proot -D devwp_config -e "SELECT * FROM settings WHERE key_name = 'xdebug_enabled';"
-
-# Example output:
-# key_name        value_text      updated_at
-# xdebug_enabled  false           2025-08-12 15:30:10
-```
-
-## Behavior
-
-### On Application Startup
-
-1. Database is initialized with default settings
-2. Xdebug service reads saved preference from database
-3. If no setting exists, current file state is read and saved
-4. Global state is synchronized with database value
-
-### On Xdebug Toggle
-
-1. Configuration file is updated (existing behavior)
-2. PHP container is restarted (existing behavior)
-3. New status is verified by reading configuration file
-4. **New**: Verified status is saved to database for persistence
-
-### Error Handling
-
-- Database failures fall back to file-based status checking
-- Missing settings initialize with default values
-- Non-critical errors don't prevent application functionality
-
-## Technical Details
-
-- **Persistence**: Settings survive application restarts and container recreations
-- **Fallback Strategy**: File-based → Database → Memory → Default (false)
-- **Type Safety**: Full TypeScript support with proper interfaces
-- **Error Handling**: Graceful degradation on database failures
-- **Initialization Order**: Database → Xdebug → Window creation
-
-## Future Enhancements
-
-The implementation enables future Xdebug-related settings:
-
-- Xdebug mode preferences (debug, develop, profile, trace)
-- IDE configuration settings
-- Remote debugging host/port settings
-- Profiling output preferences
-- Breakpoint management
+// No bridge: components call backend functions directly (see src/components/xdebug_switch.rs)

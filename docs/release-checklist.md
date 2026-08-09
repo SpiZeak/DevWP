@@ -4,10 +4,10 @@ Use this checklist when preparing a new DevWP release.
 
 ## Pre-Release
 
-- [ ] All tests passing (`bun run test:all`)
-- [ ] Code formatted (`bun run format`)
-- [ ] Type checking passes (`bun run typecheck`)
-- [ ] Update `package.json` version
+- [ ] All tests passing (`cargo test`)
+- [ ] Code formatted (`cargo fmt --check`)
+- [ ] Clippy clean (`cargo clippy --all-targets -- -D warnings`)
+- [ ] Update `version` in `Cargo.toml` (crate + `[package.metadata.packager]`)
 - [ ] Update `CHANGELOG.md` (if exists) or release notes
 - [ ] All commits pushed to master
 - [ ] No uncommitted changes
@@ -97,12 +97,12 @@ If critical issues are found:
 
 ```bash
 # Development build
-bun run build
+cargo build --release
 
 # Platform-specific builds
-bun run build:linux
-bun run build:win
-bun run build:mac
+cargo packager --release   # Linux (deb + AppImage)
+cargo packager --release   # Windows (NSIS + MSI)
+cargo packager --release   # macOS (DMG)
 
 # Create tag
 git tag v0.0.X

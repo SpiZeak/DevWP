@@ -1,0 +1,102 @@
+use crate::backend::settings::{read_settings, write_settings};
+use crate::backend::utils::{emit_notification, project_root, run_command};
+use crate::state;
+use std::fs;
+use std::path::PathBuf;
+
+pub fn xdebug_config_path() -> PathBuf {
+    project_root().join("config/php/conf.d/xdebug.ini")
+}
+
+pub fn get_xdebug_status() -> bool {
+    let config_path = xdebug_config_path();
+    let content = match fs::read_to_string(&config_path) {
+        Ok(content) => content,
+        Err(_) => {
+            return read_settings()
+                .get("xdebug_enabled")
+                .map(|v| v == "true")
+                .unwrap_or(false);
+        }
+    };
+
+    let mut found = false;
+    let mut enabled = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim().to_lowercase();
+        if trimmed.starts_with(';') || trimmed.starts_with('#') {
+            continue;
+        }
+
+        if trimmed.starts_with("xdebug.mode") {
+            if let Some((key, value)) = trimmed.split_once('=') {
+                if key.trim() == "xdebug.mode" {
+                    let mode = value.trim();
+                    found = true;
+                    enabled = mode != "off" && !mode.is_empty();
+                }
+            }
+        }
+    }
+
+    if !found {
+        return read_settings()
+            .get("xdebug_enabled")
+            .map(|v| v == "true")
+            .unwrap_or(false);
+    }
+
+    enabled
+}
+
+pub async fn toggle_xdebug() -> Result<bool, String> {
+    let target_enabled = !get_xdebug_status();
+    state::set_xdebug_toggling(true);
+    state::set_xdebug_enabled(Some(target_enabled));
+
+    let config_path = xdebug_config_path();
+    let current = fs::read_to_string(&config_path).unwrap_or_default();
+    let mut lines: Vec<String> = current
+        .lines()
+        .filter(|line| !line.trim().starts_with("xdebug.mode"))
+        .map(str::to_string)
+        .collect();
+    lines.push(if target_enabled {
+        "xdebug.mode = develop,debug".to_string()
+    } else {
+        "xdebug.mode = off".to_string()
+    });
+
+    fs::write(config_path, format!("{}\n", lines.join("\n")))
+        .map_err(|e| format!("Failed to update xdebug.ini: {e}"))?;
+
+    let restart =
+        tokio::task::spawn_blocking(|| run_command("docker", &["compose", "restart", "php"]))
+            .await
+            .map_err(|e| format!("Task join error: {e}"))?;
+
+    let restart_failed = match &restart {
+        Err(e) => Some(e.clone()),
+        Ok(output) if !output.status.success() => {
+            Some(String::from_utf8_lossy(&output.stderr).trim().to_string())
+        }
+        Ok(_) => None,
+    };
+    if let Some(error) = restart_failed {
+        state::set_xdebug_toggling(false);
+        state::set_xdebug_enabled(Some(get_xdebug_status()));
+        emit_notification("error", format!("Xdebug toggle failed: {error}"));
+        return Err(error);
+    }
+
+    let final_status = target_enabled;
+    state::set_xdebug_toggling(false);
+    state::set_xdebug_enabled(Some(final_status));
+
+    let mut settings = read_settings();
+    settings.insert("xdebug_enabled".to_string(), final_status.to_string());
+    let _ = write_settings(&settings);
+
+    Ok(final_status)
+}

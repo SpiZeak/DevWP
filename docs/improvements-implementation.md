@@ -111,7 +111,7 @@ This document describes the enhancements implemented to improve DevWP's reliabil
 **Sections Added:**
 
 1. **Docker Environment** - UID/GID configuration for permissions
-4. **Development Settings** - NODE_ENV and Tauri developer tooling
+4. **Development Settings** - logging and developer tooling
 5. **Database Configuration** - MariaDB credentials (advanced)
 6. **Service Ports** - Port override options (advanced)
 7. **Logging Configuration** - Log level and retention
@@ -133,8 +133,8 @@ This document describes the enhancements implemented to improve DevWP's reliabil
 **Jobs Implemented:**
 
 1. **Validate** (validate)
-   - Type checking with `bun run typecheck`
-   - Linting with `bun run lint`
+   - Unit tests with `cargo test --lib --bins`
+   - Linting with `cargo clippy --all-targets -- -D warnings`
    - Code formatting verification
    - Build verification
    - Console.log detection (warning only)
@@ -144,7 +144,7 @@ This document describes the enhancements implemented to improve DevWP's reliabil
    - Nginx and PHP Docker image builds
 
 3. **Security Check** (security-check)
-   - Bun security audit
+   - Rust security audit (`cargo audit`)
    - TruffleHog secret scanning
 
 4. **Size Check** (size-check)
@@ -186,7 +186,7 @@ None. All changes are backward compatible.
 1. **Install new dependencies:**
 
    ```bash
-   bun install
+   cargo build --release
    ```
 
 2. **Create .env file:**
@@ -212,15 +212,15 @@ No action required. All changes are transparent to end users.
 
 ## Testing Performed
 
-- ✅ TypeScript compilation (`bun run typecheck`)
-- ✅ Code formatting (`bun run format`)
-- ✅ Application build (`bun run build`)
+- ✅ Unit tests (`cargo test --lib --bins`)
+- ✅ Code formatting (`cargo fmt --check`)
+- ✅ Clippy clean (`cargo clippy --all-targets -- -D warnings`)
 - ✅ Docker Compose validation (`docker compose config`)
 - ✅ Health check configuration validated
 
 ## Next Steps (Future Improvements)
 
-1. **Add Unit Tests** - Implement Vitest for service testing
+1. **Add Unit Tests** - cargo unit tests for backend functions
 2. **Add Integration Tests** - Test IPC handlers and Docker operations
 3. **Implement Backup/Restore** - Site backup and restore functionality
 4. **Add Performance Monitoring** - Track operation timing

@@ -23,78 +23,36 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src/tauri -> target'
+          workspaces: '. -> target'
 
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Install dependencies
-        run: bun install
-        timeout-minutes: 5
-
-      - name: Run type checking
-        run: bun run typecheck
-        timeout-minutes: 3
-
-      - name: Run unit tests
-        run: bun run test:run
-        timeout-minutes: 10
-
-      - name: Generate coverage report
-        run: bun run test:coverage
-        timeout-minutes: 10
+      - name: Check code formatting
+        run: cargo fmt --all -- --check
 
       - name: Run linting
-        run: bun run lint -- src/renderer src/tauri
-        continue-on-error: true
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Run unit tests
+        run: cargo test --lib --bins
         timeout-minutes: 10
 
-      - name: Check code formatting
+      - name: Check for debug statements
         run: |
-          bun run format
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "Code formatting issues detected. Run 'bun run format' locally."
-            git diff
-            exit 1
+          if grep -rE "dbg!|println!|eprintln!|console\.log" src --include='*.rs'; then
+            echo "Warning: Found debug statements. Consider using the tracing logger."
           fi
-
-      - name: Build application
-        run: bun run build
-        timeout-minutes: 10
-
-      - name: Check for console.log statements
-        run: |
-          if grep -r "console\.log" src/renderer --exclude-dir=node_modules; then
-            echo "Warning: Found console.log statements. Consider using the logger service."
-          fi
-        continue-on-error: true
-
-      - name: Check Rust code
-        run: |
-          cd src/tauri
-          cargo check
-          cargo clippy -- -D warnings
         continue-on-error: true
 
   integration-tests:
@@ -107,38 +65,39 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Bun dependencies
-        uses: actions/cache@v5
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
+          workspaces: '. -> target'
 
-      - name: Install dependencies
-        run: bun install
-        timeout-minutes: 5
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Start Docker services
-        run: docker compose up -d mariadb
+        run: docker compose up -d nginx
+        timeout-minutes: 30
+
+      - name: Wait for services to be healthy
+        run: |
+          timeout 300 bash -c 'until docker compose ps | grep -q "healthy"; do sleep 5; done'
         timeout-minutes: 5
 
-      - name: Wait for MariaDB
-        run: |
-          timeout 60 bash -c 'until docker compose exec -T mariadb mariadb-admin ping -h localhost -u root -proot; do sleep 1; done'
-
       - name: Run integration tests
-        run: bun run test:integration
+        run: cargo test --test integration
         timeout-minutes: 15
+
+      - name: Docker logs on failure
+        if: failure()
+        run: docker compose logs
 
       - name: Stop Docker services
         if: always()
-        run: docker compose down
+        run: docker compose down -v
 
   test-docker:
     name: Test Docker Configuration
@@ -149,17 +108,6 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: recursive
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Cache Docker layers
-        uses: actions/cache@v5
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
 
       - name: Validate docker-compose.yml
         run: docker compose config
@@ -178,21 +126,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src/tauri -> target'
+          workspaces: '. -> target'
 
       - name: Run Rust security audit
         run: |
-          cd src/tauri
-          cargo install cargo-audit
+          cargo install cargo-audit --locked
           cargo audit
         continue-on-error: true
 
@@ -203,44 +147,11 @@ jobs:
           base: ${{ github.event.repository.default_branch }}
           head: HEAD
 
-  size-check:
-    name: Check Bundle Size
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Install dependencies
-        run: bun install
-
-      - name: Build and check size
-        run: |
-          bun run build:web
-          echo "## Build Output Size" >> $GITHUB_STEP_SUMMARY
-          du -sh dist/ >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Detailed Breakdown" >> $GITHUB_STEP_SUMMARY
-          du -sh dist/* >> $GITHUB_STEP_SUMMARY
-
   pr-comment:
     name: Post PR Summary
     runs-on: ubuntu-latest
     needs:
-      [validate, integration-tests, test-docker, security-check, size-check]
+      [validate, integration-tests, test-docker, security-check]
     if: always()
 
     steps:

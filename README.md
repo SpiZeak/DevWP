@@ -4,17 +4,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/SpiZeak)
 
-A Tauri desktop application for simplified local WordPress development using Docker, Nginx, and PHP-FPM.
+A pure-Rust desktop application (Dioxus) for simplified local WordPress development using Docker, Nginx, and PHP-FPM.
 
-## <img src="https://skillicons.dev/icons?i=rust" alt="Rust" width="26" height="26"> Now rewritten in Rust!
+## What changed in the Dioxus migration
 
-DevWP has been completely rewritten in Rust using the Tauri framework, replacing the previous JavaScript desktop implementation. This transition has resulted in significant improvements in performance, stability, and resource efficiency.
+DevWP was previously a Tauri app (Rust backend + React/TypeScript renderer). It is now a **single Rust binary** built with [Dioxus](https://dioxuslabs.com) desktop:
 
-- Enhanced security features and stability due to Rust's memory safety guarantees
-- Smaller application size compared to the legacy desktop build (~96% reduction in bundle size), leading to faster downloads and reduced disk space usage
-- More efficient resource usage (~58% less memory usage), resulting in faster load times and smoother user experience
-- Native integration with the operating system, providing a more seamless and responsive interface
-- Simpler binary distribution without the need for bundling a separate runtime, making it easier to install and update
+- All React components became Dioxus RSX components; there is no Node/TypeScript toolchain (no Vite, bun, vitest, biome) and no IPC — the UI calls the backend functions directly.
+- All shared state lives in process-wide `SyncSignal`s so background threads (docker streaming, certificate regeneration) can safely mutate it.
+- The Tailwind v4 CSS bundle is **prebuilt and committed** (`src/assets/style.css`); rebuild with `scripts/build-css.sh` after changing classes.
+- All fonts are embedded in the binary (no external asset loading, identical behaviour in dev and packaged builds).
+- Packaging uses [cargo-packager](https://github.com/crabnebula-dev/cargo-packager) instead of Tauri bundling.
 
 <img width="2770" height="1856" alt="image" src="https://github.com/user-attachments/assets/10c22380-77e9-4702-b6a2-8b23dab4b064" />
 
@@ -27,7 +27,7 @@ DevWP has been completely rewritten in Rust using the Tauri framework, replacing
 - **Xdebug Support**: Toggle PHP debugging on/off
 - **Multisite Support**: WordPress multisite configurations
 - **Cross-Platform**: Windows, macOS, and Linux support
-- **ARM Support**: Native ARM builds for Windows (ARM64), Apple Silicon (M1/M2/M3), and Linux (ARM64)
+- **ARM Support**: Native ARM builds for Apple Silicon and Linux (ARM64)
 
 ## Prerequisites
 
@@ -38,8 +38,8 @@ DevWP has been completely rewritten in Rust using the Tauri framework, replacing
 ### For Development (Building from Source)
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [Bun](https://bun.sh/) - JavaScript runtime and package manager
-- [Rust](https://rustup.rs/) - Required for Tauri framework and native compilation
+- [Rust](https://rustup.rs/) - stable toolchain
+- Linux: `libwebkit2gtk-4.1-dev` (and `libappindicator3-dev`, `librsvg2-dev`, `patchelf` for packaging)
 
 ## Installation
 
@@ -64,32 +64,59 @@ makepkg -si
 ### Quick Start
 
 ```bash
-# Clone and setup
 git clone https://github.com/SpiZeak/DevWP.git
 cd DevWP
-
-# Install dependencies
-bun install
-
-
 
 # Set up trusted SSL certificates with mkcert (eliminates browser warnings)
 ./scripts/setup-certs.sh
 
-# Start development (launches Tauri with hot reload)
-bun run dev
+# Run the app (starts Docker services on launch)
+cargo run
 ```
 
-### Building for Distribution
+### Commands
 
-```bash
-# Build the production app (creates native executable)
-bun run build:tauri
+| Task              | Command                                        |
+| ----------------- | ---------------------------------------------- |
+| Run (dev)         | `cargo run`                                    |
+| Build (release)   | `cargo build --release`                        |
+| Test              | `cargo test`                                   |
+| Integration tests | `cargo test --test integration` (needs Docker) |
+| Lint              | `cargo clippy --all-targets -- -D warnings`    |
+| Format            | `cargo fmt --all -- --check` / `cargo fmt`     |
+| Rebuild CSS       | `scripts/build-css.sh`                         |
+| Package installers| `cargo install cargo-packager --locked && cargo packager --release` |
+
+### Architecture
+
+```
+┌────────────────────────────┐
+│  Dioxus RSX UI (Rust)      │
+│  components/ …             │
+│  reads/writes SyncSignals  │
+└─────────────┬──────────────┘
+              │ direct function calls (no IPC)
+┌─────────────┴──────────────┐
+│  backend/ (pure Rust fns)  │
+│  docker, site, settings,   │
+│  wp_cli, xdebug, lifecycle │
+└─────────────┬──────────────┘
+              │ docker / filesystem
+┌─────────────┴──────────────┐
+│  compose stack (nginx/php/ │
+│  mariadb/redis/mailpit)    │
+└────────────────────────────┘
 ```
 
-Built binaries are created in `src-tauri/target/release/bundle/`
+State files live in `.devwp-tauri/` (sites.json, settings.json); the webroot defaults to `~/www`.
 
-See [Certificate Trust Setup](docs/certificate-trust-setup.md) for detailed SSL configuration instructions.
+### Packaging
+
+[cargo-packager](https://github.com/crabnebula-dev/cargo-packager) produces the release artifacts; configuration lives in `[package.metadata.packager]` in `Cargo.toml`. Artifact naming (single `devwp` name everywhere):
+
+- Linux: `devwp_<version>_x86_64.AppImage`, `devwp_<version>_amd64.deb` (+ `_aarch64`/`_arm64` variants)
+- Windows: `devwp_<version>_x64-setup.exe`, `devwp_<version>_x64_en-US.msi`
+- macOS: `DevWP_<version>_aarch64.dmg`, `DevWP_<version>_x86_64.dmg`
 
 ## Usage
 
@@ -113,35 +140,6 @@ See [Certificate Trust Setup](docs/certificate-trust-setup.md) for detailed SSL 
 | Nginx   | 80   | https://site.test     | Web server    |
 | Mailpit | 8025 | http://localhost:8025 | Email testing |
 
-## Development
-
-```bash
-# Start development server
-bun run dev
-
-# Enable verbose container logs
-bun run dev -- --verbose
-
-# Other commands
-bun run lint      # Check code quality
-bun run format    # Format code
-bun run typecheck # Type checking
-bun run build     # Build frontend assets for production
-bun run build:tauri # Build desktop app bundles with Tauri
-
-# Verbose logging (any command)
-DEVWP_VERBOSE=true bun run dev
-```
-
-## Building
-
-```bash
-# Build desktop app bundles with Tauri
-bun run build:tauri
-```
-
-Download pre-built releases from [GitHub Releases](https://github.com/SpiZeak/DevWP/releases).
-
 ## Troubleshooting
 
 ### Common Issues
@@ -150,7 +148,7 @@ Download pre-built releases from [GitHub Releases](https://github.com/SpiZeak/De
 - **Sites not loading**: Check ports 80/443 aren't in use by other services
 - **Permission errors**: Run DevWP as administrator for hosts file modifications
 - **Container issues**: Use the container status panel to restart services
-
+- **UI doesn't reflect CSS changes**: run `scripts/build-css.sh` and commit `src/assets/style.css`
 
 ## Contributing
 
@@ -159,6 +157,8 @@ Download pre-built releases from [GitHub Releases](https://github.com/SpiZeak/De
 3. Commit changes (`git commit -m 'Add amazing feature'`)
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+CI runs `cargo fmt --check`, `cargo clippy -- -D warnings` and `cargo test` (unit + integration against the real compose stack).
 
 [![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/SpiZeak)
 

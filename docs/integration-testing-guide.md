@@ -2,233 +2,61 @@
 
 ## Overview
 
-Integration tests verify that different parts of DevWP work together correctly, especially interactions with Docker and databases.
+Integration tests (`tests/integration.rs`) exercise the backend directly — no IPC — against the real compose stack. They use `devwp::backend::*` functions the same way the UI does.
 
 ## Running Integration Tests
 
 ```bash
-# Run integration tests once
-bun run test:integration
+# Start the stack (from the repo root)
+docker compose up -d nginx
 
-# Run in watch mode
-bun run test:integration:watch
+# Wait until services are healthy, then run
+cargo test --test integration
+```
 
-# Run all tests (unit + integration)
-bun run test:all
+With Docker unavailable, tests print `SKIP` and pass. Unit tests run without Docker:
+
+```bash
+cargo test --lib --bins
 ```
 
 ## Prerequisites
 
 Integration tests require:
 
-- Docker Desktop running
-- MariaDB container available
-- Network access for Docker
+- Docker with the DevWP compose stack running
+- The default webroot (`~/www`) writable (one test creates a throwaway dir)
 
 ## What Integration Tests Cover
 
-- **Database Operations**: Real database queries and transactions
-- **Docker Commands**: Actual container management
-- **File System**: Real file creation and permissions
-- **Multi-Service Interactions**: nginx + php + database coordination
+- **Container status**: `docker compose ps` parsing and versions (`docker::get_container_status`)
+- **Settings CRUD**: settings.json roundtrip in a temp state dir (`DEVWP_TEST_MODE`)
+- **Xdebug toggle**: flips `config/php/conf.d/xdebug.ini` and restarts php
+- **WP-CLI**: `wp --info` runs inside the php container
+- **Global signals**: build-log formatting/ANSI stripping, building flags, notifications
+
+Side-effectful flows that mutate the host (create/delete site → nginx configs,
+`/etc/hosts`, certs) are intentionally **not** covered; `DEVWP_TEST_MODE`
+redirects `state_root()` to a temp dir so tests never touch your real
+`.devwp-tauri` state.
 
 ## Writing Integration Tests
 
-```typescript
-import { describe, it, expect } from 'vitest'
-import { initializeConfigDatabase, saveSiteConfiguration } from './database'
-
-describe('Database Integration', () => {
-  it('should persist site configuration', async () => {
-    await initializeConfigDatabase()
-
-    const site = {
-      domain: 'test.local',
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-
-    await saveSiteConfiguration(site)
-    const retrieved = await getSiteConfiguration('test.local')
-
-    expect(retrieved).toBeDefined()
-    expect(retrieved?.domain).toBe('test.local')
-  })
-})
+```rust
+#[test]
+fn settings_crud_roundtrip_in_test_state() {
+    with_test_state(|| {
+        settings::save_setting("webroot_path".to_string(), "/tmp/devwp-www".to_string());
+        assert_eq!(settings::get_setting("webroot_path".to_string()).as_deref(), Some("/tmp/devwp-www"));
+    });
+}
 ```
 
-## Test Isolation
+Two helpers are provided:
 
-Each integration test:
+- `with_runtime(...)` — runs the closure inside a Dioxus runtime so global signal writes work.
+- `with_test_state(...)` — redirects the state dir to a temp location.
 
-1. Uses a fresh database state
-2. Cleans up after itself
-3. Doesn't depend on other tests
-4. Uses unique identifiers to avoid conflicts
-
-## Troubleshooting
-
-### Docker Not Available
-
-If Docker isn't running, integration tests are skipped automatically with a warning.
-
-### Database Connection Failures
-
-Check that MariaDB is healthy:
-
-```bash
-docker compose ps mariadb
-docker compose logs mariadb
-```
-
-### Timeout Errors
-
-Integration tests have longer timeouts (30s). If tests still timeout:
-
-```typescript
-it('slow test', async () => {
-  // test code
-}, 60000) // 60 second timeout
-```
-
-## CI/CD Integration
-
-Integration tests run in GitHub Actions with:
-
-- Docker Compose setup
-- MariaDB health checks
-- Automatic cleanup
-- Separate job from unit tests
-
-## Best Practices
-
-1. **Use Real Services**: Don't mock Docker or databases in integration tests
-2. **Clean Up**: Always clean up test data
-3. **Isolated Data**: Use unique names/IDs for test resources
-4. **Health Checks**: Wait for services to be ready
-5. **Timeouts**: Set appropriate timeouts for slow operations
-6. **Environment Variables**: Use test-specific configuration
-7. **Parallel Execution**: Ensure tests can run in parallel safely
-
-## Test Structure
-
-```
-src/
-├── main/
-│   └── services/
-│       ├── docker.test.ts              # Unit tests
-│       ├── docker.integration.test.ts   # Integration tests
-│       └── docker.ts                    # Implementation
-└── test/
-    ├── integration-setup.ts             # Integration test setup
-    └── test-utils.tsx                   # Test utilities
-```
-
-## Environment Configuration
-
-Integration tests use environment variables:
-
-- `TEST_DATABASE`: Database name for tests
-- `TEST_DOCKER_TIMEOUT`: Timeout for Docker operations
-- `SKIP_DOCKER_TESTS`: Skip tests requiring Docker
-
-## Continuous Integration
-
-GitHub Actions workflow includes:
-
-```yaml
-integration-tests:
-  runs-on: ubuntu-latest
-  steps:
-    - name: Start Docker services
-      run: docker compose up -d mariadb
-
-    - name: Wait for MariaDB
-      run: timeout 30 bash -c 'until docker exec devwp_mariadb mariadb-admin ping; do sleep 1; done'
-
-    - name: Run integration tests
-      run: bun run test:integration
-```
-
-## Coverage Goals
-
-- **Services**: 80%+ coverage
-- **IPC Handlers**: 75%+ coverage
-- **Database Operations**: 85%+ coverage
-- **Docker Integration**: 70%+ coverage
-
-## Common Patterns
-
-### Testing Database Operations
-
-```typescript
-it('should save configuration', async () => {
-  await saveSiteConfiguration(config)
-  const result = await getSiteConfiguration(config.domain)
-  expect(result).toEqual(expect.objectContaining(config))
-})
-```
-
-### Testing Docker Commands
-
-```typescript
-it('should start container', async () => {
-  const result = await startContainer('devwp_nginx')
-  expect(result.success).toBe(true)
-
-  const status = await getContainerStatus('devwp_nginx')
-  expect(status).toBe('running')
-})
-```
-
-### Testing File Operations
-
-```typescript
-it('should create nginx config', async () => {
-  await createNginxConfig('example.test', config)
-
-  const exists = await fs.access(configPath)
-  expect(exists).toBe(true)
-
-  const content = await fs.readFile(configPath, 'utf-8')
-  expect(content).toContain('server_name example.test')
-})
-```
-
-## Performance Considerations
-
-- Integration tests are slower than unit tests (expected)
-- Use `beforeAll` for expensive setup operations
-- Clean up in `afterEach` to avoid state pollution
-- Use test.concurrent sparingly (may cause race conditions)
-
-## Debugging Integration Tests
-
-```bash
-# Run single integration test
-bun run test:integration -t "should persist site configuration"
-
-# Run with verbose logging
-DEBUG=* bun run test:integration
-
-# Keep Docker containers after test failure
-KEEP_CONTAINERS=1 bun run test:integration
-```
-
-## Migration from Unit to Integration Tests
-
-When to use integration tests instead of unit tests:
-
-- Testing actual Docker interactions
-- Verifying database schema and queries
-- Testing file system permissions
-- Multi-service coordination
-- End-to-end workflows
-
-When to keep unit tests:
-
-- Business logic validation
-- Input sanitization
-- Error handling
-- Schema validation
-- Pure functions
+Async backend functions are called through the local `block_on` helper (a
+current-thread tokio runtime); do **not** use `#[tokio::test]` here to avoid
+clashing with dioxus's own runtime.

@@ -9,19 +9,11 @@ out
 .DS_Store
 *.log*
 !.gitkeep
-test-database.js
-test-integration.js
 
-# Test coverage
-coverage
-.vitest
+# Rust build output
+target/
 
 # AUR publishing directory
 aur-publish/
 
-tsconfig.node.tsbuildinfo
-tsconfig.web.tsbuildinfo
-
 .devwp-tauri
-src/tauri/target
-src/tauri/gen/schemas

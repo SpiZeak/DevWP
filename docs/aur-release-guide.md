@@ -220,7 +220,7 @@ If you want to create a source-based package (`devwp`) instead of binary:
 
 1. Create new `PKGBUILD` that builds from source
 2. Clone from GitHub in the `source` array
-3. Run `bun install --frozen-lockfile` and `bun run build:linux:verified`
+3. Build with `cargo build --release` and package with `cargo packager --release` (produces `devwp_<version>_x86_64.AppImage`); run `scripts/build-css.sh` first if CSS changed.
 4. Package the built files
 
 The `build:linux:verified` script runs a post-build check against `dist/linux-unpacked/resources/app.asar` to ensure transitive runtime dependencies are present. This prevents “Cannot find module …” errors after installation.

@@ -1,309 +1,107 @@
-# Quick Reference: Using New DevWP Features
+# DevWP Quick Reference
 
-## Validation with Zod
+## Commands
 
-### Validating Site Configuration
+| Task                  | Command                                     |
+| --------------------- | ------------------------------------------- |
+| Run the app           | `cargo run`                                 |
+| Build (release)       | `cargo build --release`                     |
+| Format check          | `cargo fmt --all -- --check`                |
+| Lint                  | `cargo clippy --all-targets -- -D warnings` |
+| Unit tests            | `cargo test --lib --bins`                   |
+| Integration tests     | `cargo test --test integration` (needs Docker) |
+| Rebuild CSS bundle    | `scripts/build-css.sh`                      |
+| Package installers    | `cargo install cargo-packager --locked && cargo packager --release` |
 
-```typescript
-import { SiteConfigSchema } from "../validation/schemas";
+## Layout
 
-// Validate user input
-try {
-  const validatedData = SiteConfigSchema.parse(userInput);
-  // Use validatedData safely
-} catch (error) {
-  // Handle validation error with user-friendly message
-  console.error("Invalid input:", error.errors);
-}
+```
+src/
+├── main.rs          # window config, icon, custom asset protocol
+├── lib.rs           # re-exports (integration tests use `devwp::…`)
+├── app.rs           # root component: compose-up on launch, close interception
+├── state.rs         # global SyncSignals (cross-thread safe)
+├── assets.rs        # embedded CSS/fonts served via the devwp:// scheme
+├── assets/          # tailwind sources, prebuilt style.css, fonts
+├── backend/         # docker, site, settings, wp_cli, xdebug, system, lifecycle
+└── components/      # RSX components + ui primitives
+tests/integration.rs # tests against the real compose stack
 ```
 
-### Creating Custom Schemas
+## State & Threading Rules
 
-```typescript
-import { z } from "zod";
-
-const MySchema = z.object({
-  name: z.string().min(3),
-  email: z.string().email(),
-  age: z.number().min(0).max(120),
-});
-
-type MyType = z.infer<typeof MySchema>;
-```
-
-## Structured Logging
-
-### Basic Logging
-
-```typescript
-import { logger } from "../services/logger";
-
-logger.info("Operation completed");
-logger.warn("Potential issue detected");
-logger.error("Operation failed", { context: "additional data" });
-logger.debug("Debug information");
-```
-
-### Context-Specific Logging
-
-```typescript
-import {
-  logSiteOperation,
-  logDockerOperation,
-  logError,
-  logWpCliCommand,
-} from "../services/logger";
-
-// Site operations
-logSiteOperation("create_start", "example.test", {
-  webRoot: "public",
-  multisite: true,
-});
-
-// Docker operations
-logDockerOperation("container_start", "devwp_nginx", {
-  image: "custom-nginx",
-  ports: [80, 443],
-});
-
-// Error logging with context
-try {
-  await riskyOperation();
-} catch (error) {
-  logError("operation_context", error as Error, {
-    userId: 123,
-    action: "specific_action",
-  });
-  throw error;
-}
-
-// WP-CLI commands
-logWpCliCommand("example.test", "plugin list", {
-  user: "admin",
-  duration: 1234,
-});
-```
-
-### Log Levels
-
-Use appropriate log levels:
-
-- **error**: Operation failures, exceptions
-- **warn**: Potential issues, deprecations
-- **info**: Important events, user actions
-- **http**: HTTP requests (if applicable)
-- **debug**: Detailed information for debugging
-
-## Docker Health Checks
-
-### Checking Service Health
-
-```bash
-# View health status of all services
-docker compose ps
-
-# View detailed health check logs
-docker inspect devwp_nginx --format='{{.State.Health.Status}}'
-
-# View last 5 health check results
-docker inspect devwp_nginx --format='{{json .State.Health}}' | jq
-```
-
-### Waiting for Healthy Services
-
-```yaml
-# In compose.yml
-services:
-  my-service:
-    depends_on:
-      mariadb:
-        condition: service_healthy
-```
-
-### Custom Health Checks
-
-```yaml
-healthcheck:
-  test: ["CMD", "curl", "-f", "http://localhost/health"]
-  interval: 30s
-  timeout: 10s
-  retries: 3
-  start_period: 40s
-```
-
-## Environment Configuration
-
-### Setting Up Environment
-
-```bash
-# Copy example file
-cp .env.example .env
-
-# Edit with your settings
-nano .env
-
-# Common settings
-LOG_LEVEL=debug          # For development
-LOG_LEVEL=info           # For production
-NODE_ENV=development     # Enable dev features
-```
-
-### Reading Environment Variables
-
-```typescript
-// In TypeScript/JavaScript
-const logLevel = process.env.LOG_LEVEL || "info";
-// Type-safe approach (create env service)
-export const env = {
-  logLevel: process.env.LOG_LEVEL || "info",
-  nodeEnv: process.env.NODE_ENV || "production",
-};
-```
-
-## GitHub Actions & PR Workflow
-
-### Running Checks Locally
-
-```bash
-# Type checking
-bun run typecheck
-
-# Formatting
-bun run format
-
-# Linting
-bun run lint -- src/
-
-# Build
-bun run build
-
-# Docker validation
-docker compose config
-docker compose build nginx
-docker compose build php
-```
-
-### Bypassing Checks (Emergency Only)
-
-```bash
-# Skip CI checks (not recommended)
-git commit --no-verify
-
-# Force merge (requires admin access)
-# Only use in emergencies
-```
-
-### Viewing Check Results
-
-1. Go to PR page on GitHub
-2. Scroll to checks section at bottom
-3. Click "Details" next to failed check
-4. View logs and error messages
+- Every piece of state that a background thread writes (docker log streaming,
+  certificate threads, tokio tasks) must be a `SyncSignal` from `state.rs`.
+  `run_command_streaming` callbacks and `std::thread::spawn` bodies may ONLY
+  mutate `SyncSignal` state.
+- UI-only state uses local `use_signal` handles.
+- `rfd` dialogs (`pick_directory`) must run synchronously on the main thread —
+  call them directly from click handlers, never inside `spawn`.
 
 ## Common Patterns
 
-### Service Function with Validation and Logging
-
-```typescript
-import { z } from "zod";
-import { logger, logError } from "../services/logger";
-
-const InputSchema = z.object({
-  domain: z.string(),
-  port: z.number().min(1).max(65535),
-});
-
-export async function myService(input: unknown): Promise<void> {
-  try {
-    // Validate input
-    const validated = InputSchema.parse(input);
-
-    logger.info("Service started", { domain: validated.domain });
-
-    // Perform operation
-    await performOperation(validated);
-
-    logger.info("Service completed", { domain: validated.domain });
-  } catch (error) {
-    logError("my-service", error as Error, { input });
-    throw error;
-  }
-}
-```
-
-### Tauri Command with Full Error Handling
+### Backend command (async, runs in a blocking task)
 
 ```rust
-#[tauri::command]
-async fn my_action(data: MyInput) -> Result<MyResult, String> {
-  let validated = validate_input(data).map_err(|e| e.to_string())?;
-  process_data(validated).await.map_err(|e| e.to_string())
+pub async fn restart_container(container_id: String) -> Result<bool, String> {
+    let output = tokio::task::spawn_blocking(move || run_command("docker", &["restart", &container_id]))
+        .await
+        .map_err(|e| format!("Task join error: {e}"))??;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+    let _ = get_container_status();
+    Ok(true)
 }
 ```
+
+### Streaming docker output into state
+
+```rust
+let svc = service_name.clone();
+let svc_for_log = svc.clone();
+let success = tokio::task::spawn_blocking(move || {
+    run_command_streaming("docker", &["compose", "up", "-d", "--build", &svc], move |line| {
+        state::push_build_log(&svc_for_log, &line);
+    })
+})
+.await
+.map_err(|e| format!("Task join error: {e}"))??;
+```
+
+### Notifications from the backend
+
+```rust
+crate::state::push_notification("success", format!("Site {} created", site.domain));
+```
+
+The UI auto-dismisses notifications; no event plumbing needed.
+
+### From a component
+
+```rust
+spawn(async move {
+    let _ = backend::docker::restart_container(id).await;
+});
+```
+
+## Close Lifecycle
+
+- The window starts with `WindowCloseBehaviour::WindowHides`.
+- On `CloseRequested` (intercepted via `use_wry_event_handler`) the app runs
+  `docker compose down` in the background.
+- When it completes, `state::shutdown_done()` flips and the app switches the
+  window to `WindowCloses` and closes it — compose-down always finishes before
+  the process exits.
 
 ## Troubleshooting
 
-### Validation Errors
-
-```typescript
-// Zod error contains detailed information
-try {
-  MySchema.parse(data);
-} catch (error) {
-  if (error instanceof z.ZodError) {
-    console.log("Validation errors:", error.errors);
-    // error.errors is an array of specific issues
-  }
-}
-```
-
-### Viewing Logs
-
-```bash
-# Linux
-tail -f ~/.config/DevWP/logs/devwp-$(date +%Y-%m-%d).log
-
-# View errors only
-tail -f ~/.config/DevWP/logs/devwp-error-$(date +%Y-%m-%d).log
-
-# Search logs
-grep "error" ~/.config/DevWP/logs/devwp-*.log
-```
-
-### Health Check Issues
-
-```bash
-# View failing health checks
-docker compose ps | grep unhealthy
-
-# Check specific service logs
-docker compose logs mariadb --tail=50
-
-# Restart unhealthy service
-docker compose restart mariadb
-```
-
-## Best Practices
-
-1. **Always validate external input** - Use Zod schemas for user input, API responses
-2. **Use structured logging** - Prefer `logger.info()` over `console.log()`
-3. **Include context in logs** - Add relevant data to help debugging
-4. **Handle errors gracefully** - Use try-catch and logError()
-5. **Test locally before PR** - Run all checks before pushing
-6. **Update .env.example** - Document new environment variables
-7. **Write meaningful health checks** - Ensure they actually verify service health
-8. **Review PR checks** - Don't merge with failing checks
-
-## Performance Tips
-
-1. **Validate once** - Don't re-validate already validated data
-2. **Use appropriate log levels** - Debug logs in production slow down app
-3. **Batch Docker operations** - Start multiple containers together
-4. **Monitor log file sizes** - Ensure rotation is working
-
-## Resources
-
-- [Zod Documentation](https://zod.dev/)
-- [Winston Documentation](https://github.com/winstonjs/winston)
-- [Docker Health Checks](https://docs.docker.com/compose/compose-file/05-services/#healthcheck)
-- [DevWP Full Implementation Docs](./improvements-implementation.md)
+- **Signal writes panic off-thread**: you touched an unsync signal from a task.
+  Move the value into a `SyncSignal` (see `state.rs`).
+- **UI doesn't reflect CSS changes**: rebuild and commit the CSS:
+  `scripts/build-css.sh`.
+- **"Copy Value hoisted" warnings**: a global signal was first created in a
+  child component scope — call `state::init_globals()` at the root (already
+  wired in `app.rs`).
+- **Fonts missing in a packaged build**: everything is embedded via
+  `include_bytes!`; if a font is absent, `assets.rs` is missing an entry.

@@ -8,6 +8,7 @@ on:
 # Add permissions block to allow pushing changes
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   update-deps:
@@ -19,85 +20,39 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
-
-      - name: Cache Bun dependencies
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './src/tauri -> target'
+          workspaces: '. -> target'
 
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Update JavaScript dependencies
-        run: bunx npm-check-updates -u
-
-      - name: Update Rust dependencies
-        run: |
-          cd src/tauri
-          cargo update
-
-      - name: Install updated dependencies and generate bun.lock
-        run: bun install
+      - name: Update Cargo dependencies
+        run: cargo update
 
       - name: Run unit tests
-        run: bun run test:run
+        run: cargo test --lib --bins
         timeout-minutes: 10
 
-      - name: Generate coverage report
-        run: bun run test:coverage
-        timeout-minutes: 10
-        continue-on-error: true
-
-      - name: Start Docker services for integration tests
-        run: docker compose up -d mariadb
-        timeout-minutes: 5
-
-      - name: Wait for MariaDB
-        run: |
-          timeout 60 bash -c 'until docker compose exec -T mariadb mariadb-admin ping -h localhost -u root -proot; do sleep 1; done'
-
-      - name: Run integration tests
-        run: bun run test:integration
-        timeout-minutes: 15
-
-      - name: Stop Docker services
-        if: always()
-        run: docker compose down
+      - name: Run clippy
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: Run test build
-        run: bun run build
-        timeout-minutes: 10
-
-      - name: Check Rust code
-        run: |
-          cd src/tauri
-          cargo check
-          cargo clippy -- -D warnings
-        continue-on-error: true
+        run: cargo build --release
+        timeout-minutes: 20
 
       - name: Commit changes
-        id: commit # Add an id to check output later
+        id: commit
         run: |
           git config --global user.name "${{ github.actor }}"
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-          git add package.json bun.lock src/tauri/Cargo.toml src/tauri/Cargo.lock # Be specific about files to add
+          git add Cargo.toml Cargo.lock # Be specific about files to add
           # Check if there are staged changes before committing
           if git diff --staged --quiet; then
             echo "No changes to commit"

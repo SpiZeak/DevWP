@@ -5,19 +5,18 @@ on:
     branches: [master, develop, feature/*]
     paths:
       - 'src/**'
-      - 'package.json'
-      - 'vitest.config*.ts'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
       - '.github/workflows/test.yml'
   pull_request:
     branches: [master, develop]
     paths:
       - 'src/**'
-      - 'package.json'
-      - 'vitest.config*.ts'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   unit-tests:
@@ -30,83 +29,22 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Bun dependencies
-        uses: actions/cache@v5
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
+          workspaces: '. -> target'
 
-      - name: Install dependencies
-        run: bun install
-        timeout-minutes: 5
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Run tests
-        run: bun run test:run
+        run: cargo test --lib --bins
         timeout-minutes: 10
-
-      - name: Generate coverage report
-        run: bun run test:coverage
-        timeout-minutes: 10
-
-      - name: Comment coverage on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const fs = require('fs');
-
-            // Read coverage summary
-            let coverageData;
-            try {
-              coverageData = JSON.parse(fs.readFileSync('./coverage/coverage-summary.json', 'utf8'));
-            } catch (error) {
-              console.log('No coverage summary found');
-              return;
-            }
-
-            const total = coverageData.total;
-            const coverage = `
-            ## Test Coverage Report
-
-            | Metric | Coverage |
-            |--------|----------|
-            | Lines | ${total.lines.pct}% |
-            | Statements | ${total.statements.pct}% |
-            | Functions | ${total.functions.pct}% |
-            | Branches | ${total.branches.pct}% |
-
-            <details>
-            <summary>View detailed coverage</summary>
-
-            ### Covered Files
-            ${Object.entries(coverageData)
-              .filter(([key]) => key !== 'total')
-              .map(([file, data]) => `- ${file}: ${data.lines.pct}%`)
-              .join('\n')}
-            </details>
-            `;
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: coverage
-            });
-        continue-on-error: true
-
-      - name: Archive coverage artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 30
 
   integration-tests:
     name: Integration Tests (Docker)
@@ -119,44 +57,21 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Bun dependencies
-        uses: actions/cache@v5
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.bun/install/cache
-            node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
+          workspaces: '. -> target'
 
-      - name: Install dependencies
-        run: bun install
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Build cached Docker images
-        uses: docker/bake-action@v6
-        with:
-          files: compose.yml
-          targets: |
-            php
-            nginx
-          set: |
-            php.cache-from=type=gha,scope=devwp-integration-php
-            php.cache-to=type=gha,mode=max,scope=devwp-integration-php
-            php.output=type=docker
-            php.tags=devwp-php:latest
-            nginx.cache-from=type=gha,scope=devwp-integration-nginx
-            nginx.cache-to=type=gha,mode=max,scope=devwp-integration-nginx
-            nginx.output=type=docker
-            nginx.tags=devwp-nginx:latest
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Start Docker services
-        run: docker compose up -d --no-build nginx
+        run: docker compose up -d nginx
         timeout-minutes: 30
 
       - name: Wait for services to be healthy
@@ -165,7 +80,7 @@ jobs:
         timeout-minutes: 5
 
       - name: Run integration tests
-        run: bun run test:integration
+        run: cargo test --test integration
         timeout-minutes: 15
 
       - name: Docker logs on failure

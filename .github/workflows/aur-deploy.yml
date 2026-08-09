@@ -40,9 +40,9 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.VERSION }}"
 
-          # Tauri produces AppImages with lowercase name and architecture suffix
-          # Format: {productName}_{version}_{arch}.AppImage
-          APPIMAGE_NAME="dev-wp_${VERSION}_amd64.AppImage"
+          # cargo-packager produces AppImages named after the package name
+          # Format: {name}_{version}_{arch}.AppImage
+          APPIMAGE_NAME="devwp_${VERSION}_x86_64.AppImage"
 
           # Download the AppImage from the GitHub release
           curl -L -o devwp-${VERSION}.AppImage \
@@ -77,7 +77,7 @@ jobs:
           chmod 600 ~/.ssh/aur
 
           # Add AUR to known hosts
-          ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts
+          ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
 
           # Configure SSH to use the AUR key
           cat >> ~/.ssh/config << EOF
@@ -110,9 +110,9 @@ jobs:
           # Reset pkgrel to 1 for new version
           sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
 
-          # Update source URL to use Tauri naming convention
-          # Tauri produces: dev-wp_{version}_amd64.AppImage
-          sed -i "s|source=([^)]*)|source=(\"https://github.com/${{ github.repository }}/releases/download/v\${pkgver}/dev-wp_\${pkgver}_amd64.AppImage\")|" PKGBUILD
+          # Update source URL to the cargo-packager naming convention:
+          # {name}_{version}_{arch}.AppImage
+          sed -i "s|source=([^)]*)|source=(\"https://github.com/${{ github.repository }}/releases/download/v\${pkgver}/devwp_\${pkgver}_x86_64.AppImage\")|" PKGBUILD
 
           # Update sha256sum
           sed -i "s/sha256sums=('[^']*'/sha256sums=('${SHA256}'/" PKGBUILD
@@ -126,7 +126,7 @@ jobs:
           cd aur-repo
 
           # Install tools needed to generate .SRCINFO
-          sudo pacman -Sy --noconfirm binutils fakeroot
+          sudo pacman -Sy --noconfirm binutils fakeroot || true
 
           # Generate .SRCINFO from PKGBUILD
           makepkg --printsrcinfo > .SRCINFO
@@ -165,7 +165,7 @@ jobs:
 
           **Version:** ${VERSION}
           **Package:** devwp
-          **AppImage:** dev-wp_${VERSION}_amd64.AppImage
+          **AppImage:** devwp_${VERSION}_x86_64.AppImage
           **SHA256:** \`${SHA256}\`
 
           ## Next Steps
@@ -182,7 +182,7 @@ jobs:
 
           Check the AUR page: https://aur.archlinux.org/packages/devwp
 
-          **Note:** This package uses Tauri-built AppImages with the naming format: \`dev-wp_{version}_amd64.AppImage\`
+          **Note:** This package uses cargo-packager AppImages with the naming format: \`devwp_{version}_x86_64.AppImage\`
           EOF
 
       - name: Cleanup

@@ -1,0 +1,42 @@
+[package]
+name = "devwp"
+version = "0.3.3"
+description = "DevWP – simplified local WordPress development with Docker, Nginx, and PHP-FPM"
+authors = ["Trewhitt"]
+repository = "https://github.com/SpiZeak/DevWP"
+license = "MIT"
+edition = "2021"
+rust-version = "1.83"
+
+[lib]
+name = "devwp"
+path = "src/lib.rs"
+
+[[bin]]
+name = "devwp"
+path = "src/main.rs"
+
+[dependencies]
+dioxus = { version = "0.7.10", features = ["desktop"] }
+rfd = "0.17"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+shell-words = "1"
+tokio = { version = "1", features = ["rt"] }
+tracing = "0.1"
+
+# cargo-packager (see https://docs.rs/cargo-packager/latest/cargo_packager/config/struct.Config.html)
+# Artifact naming (binary name "devwp", product name "DevWP"):
+#   AppImage: devwp_<version>_x86_64.AppImage   deb: devwp_<version>_amd64.deb
+#   NSIS:     devwp_<version>_x64-setup.exe     MSI: devwp_<version>_x64_en-US.msi
+#   DMG:      DevWP_<version>_aarch64.dmg
+[package.metadata.packager]
+name = "devwp"
+version = "0.3.3"
+description = "DevWP – simplified local WordPress development with Docker, Nginx, and PHP-FPM"
+homepage = "https://github.com/SpiZeak/DevWP"
+authors = ["Trewhitt"]
+identifier = "com.devwp.app"
+product_name = "DevWP"
+before_packaging_command = "cargo build --release"
+icons = ["resources/icon.png", "build/icon.icns", "build/icon.ico"]

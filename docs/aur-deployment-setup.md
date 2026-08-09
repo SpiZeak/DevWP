@@ -64,7 +64,7 @@ cp /path/to/DevWP/aur/devwp.install .
 
 # Commit and push
 git add PKGBUILD .SRCINFO devwp.install
-git commit -m "Initial commit: DevWP Tauri application"
+git commit -m "Initial commit: DevWP application"
 git push origin master
 ```
 
