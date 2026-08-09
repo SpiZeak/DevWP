@@ -1,11 +1,14 @@
-//! Embedded application assets served through the `devwp://` custom scheme.
+//! Embedded application assets.
 //!
-//! Keeping assets embedded (instead of relying on filesystem layout next to
-//! the executable) makes `cargo run` and every packaged bundle behave
-//! identically. Fonts are the full static MonaspaceNeon NF set (~52 MB);
+//! Assets are served through dioxus-desktop's own `dioxus://` scheme under the
+//! `/assets/*` path (via `use_asset_handler`), so the webview loads them
+//! same-origin. Keeping everything embedded (instead of relying on filesystem
+//! layout next to the executable) makes `cargo run` and every packaged bundle
+//! behave identically. Fonts are the full static MonaspaceNeon NF set (~52 MB);
 //! switching to the variable font later would shrink the binary a lot.
 
 use dioxus::desktop::wry::http::{Request, Response};
+use dioxus::desktop::RequestAsyncResponder;
 use std::borrow::Cow;
 
 pub static STYLE_CSS: &str = include_str!("assets/style.css");
@@ -143,11 +146,10 @@ fn font_bytes(name: &str) -> Option<&'static [u8]> {
     }
 }
 
-/// Serve a request for the `devwp://` scheme. URLs look like
-/// `devwp:///assets/style.css` and relative font urls inside the CSS
-/// resolve to `devwp:///assets/fonts/…`.
-pub fn serve(request: &Request<Vec<u8>>) -> Response<Cow<'static, [u8]>> {
-    let path = request.uri().path();
+/// Build a response for a request path, or `None` when the path is unknown.
+/// Paths look like `/assets/style.css` and `/assets/fonts/…` (the latter are
+/// the relative font URLs inside the stylesheet).
+fn response_for_path(path: &str) -> Option<Response<Cow<'static, [u8]>>> {
     let rel = path.strip_prefix('/').unwrap_or(path);
     let rel = rel.strip_prefix("assets/").unwrap_or(rel);
     let rel = percent_decode(rel);
@@ -159,26 +161,28 @@ pub fn serve(request: &Request<Vec<u8>>) -> Response<Cow<'static, [u8]>> {
         ),
         path if path.starts_with("fonts/") => {
             let name = &path["fonts/".len()..];
-            match font_bytes(name) {
-                Some(bytes) => ("font/woff2", Cow::Borrowed(bytes)),
-                None => return not_found(),
-            }
+            ("font/woff2", Cow::Borrowed(font_bytes(name)?))
         }
-        _ => return not_found(),
+        _ => return None,
     };
 
     Response::builder()
         .header("Content-Type", mime)
         .header("Access-Control-Allow-Origin", "*")
         .body(bytes)
-        .unwrap_or_else(|_| not_found())
+        .ok()
 }
 
-fn not_found() -> Response<Cow<'static, [u8]>> {
-    Response::builder()
-        .status(404)
-        .body(Cow::Borrowed(b"Not Found".as_slice()))
-        .unwrap()
+/// Handle a request for a `/assets/*` path on the dioxus scheme.
+pub fn handle_asset_request(request: Request<Vec<u8>>, responder: RequestAsyncResponder) {
+    tracing::debug!(uri = %request.uri(), "serving embedded asset");
+    let response = response_for_path(request.uri().path()).unwrap_or_else(|| {
+        Response::builder()
+            .status(404)
+            .body(Cow::Borrowed(b"Not Found".as_slice()))
+            .unwrap()
+    });
+    responder.respond(response);
 }
 
 /// Minimal percent-decoding for asset URLs (enough for our fixed paths).

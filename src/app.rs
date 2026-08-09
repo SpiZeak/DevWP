@@ -3,9 +3,9 @@ use crate::components::{Notifications, Services, SettingsModal, SiteList, Versio
 use crate::state;
 use dioxus::desktop::{
     tao::event::{Event, WindowEvent},
-    use_window, use_wry_event_handler, window as desktop_window, WindowCloseBehaviour,
+    use_asset_handler, use_window, use_wry_event_handler, window as desktop_window,
+    WindowCloseBehaviour,
 };
-use dioxus::document::Stylesheet;
 use dioxus::prelude::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -18,9 +18,17 @@ pub fn app() -> Element {
     // their storage to that scope's owner.
     state::init_globals();
 
-    // Inject the (embedded) stylesheet.
+    // Serve the embedded CSS/fonts under /assets/* on dioxus's own scheme.
+    // A separate custom scheme is cross-origin to the dioxus:// page and
+    // WebKitGTK never delivers cross-origin custom-scheme subresources.
+    use_asset_handler("assets", crate::assets::handle_asset_request);
+
+    // Inject the (embedded) stylesheet. A plain element (not
+    // document::Stylesheet): desktop head elements go through the eval
+    // bridge, which is unreliable here, and a body-level <link> is fetched by
+    // the browser anyway.
     rsx! {
-        Stylesheet { href: "devwp:///assets/style.css" }
+        link { rel: "stylesheet", "type": "text/css", href: "/assets/style.css" }
         AppRoot {}
     }
 }

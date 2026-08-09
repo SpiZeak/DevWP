@@ -8,7 +8,7 @@ the RSX UI calls the Rust backend functions directly.
 ## Layer overview
 
 ```
-src/main.rs            entry point: window config, icon, custom "devwp://" asset protocol
+src/main.rs            entry point: window config and icon
 src/app.rs             root component: compose-up on launch, close interception
 src/state.rs           global SyncSignal state (cross-thread safe)
 src/assets.rs          embedded CSS + fonts served through the custom protocol
@@ -74,10 +74,14 @@ Everything the webview needs is embedded in the binary:
 - `src/assets/fonts/*.woff2` — Monaspace Neon Nerd Font set (42 files)
 - `src/assets/icon_32.png` — window icon (`icon_from_memory`)
 
-`main.rs` registers a `devwp://` custom protocol (`assets.rs::serve`) that
-answers `devwp:///assets/style.css` and the relative font URLs it references.
-This works identically under `cargo run`, release binaries, and every
-packaged bundle.
+The stylesheet is injected as a plain `link` element pointing at
+`/assets/style.css`. `app.rs` registers a `use_asset_handler("assets", …)`
+that answers those paths on the webview's own `dioxus://` scheme — same
+origin as the page, so WebKitGTK loads them (a *separate* custom scheme
+would be cross-origin and WebKitGTK never delivers cross-origin
+custom-scheme subresources). The relative font URLs inside the CSS resolve
+to `/assets/fonts/*` and are served from the same handler. This works
+identically under `cargo run`, release binaries, and every packaged bundle.
 
 ## Packaging & CI
 

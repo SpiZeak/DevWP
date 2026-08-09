@@ -21,7 +21,7 @@ src/
 ├── lib.rs           # re-exports (integration tests use `devwp::…`)
 ├── app.rs           # root component: compose-up on launch, close interception
 ├── state.rs         # global SyncSignals (cross-thread safe)
-├── assets.rs        # embedded CSS/fonts served via the devwp:// scheme
+├── assets.rs        # embedded CSS/fonts served under /assets/* on the dioxus scheme
 ├── assets/          # tailwind sources, prebuilt style.css, fonts
 ├── backend/         # docker, site, settings, wp_cli, xdebug, system, lifecycle
 └── components/      # RSX components + ui primitives

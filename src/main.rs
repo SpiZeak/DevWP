@@ -3,8 +3,6 @@
 use dioxus::desktop::{Config, LogicalSize, WindowBuilder, WindowCloseBehaviour};
 use tracing::Level;
 
-const ASSET_SCHEME: &str = "devwp";
-
 fn main() {
     // Disable WebKit's use of DMA-BUF on Linux to prevent rendering issues in apps using Nvidia drivers.
     #[cfg(target_os = "linux")]
@@ -25,8 +23,7 @@ fn main() {
     // in "hide" mode and let the shutdown handler switch to closing when done.
     let config = Config::new()
         .with_window(window_builder)
-        .with_close_behaviour(WindowCloseBehaviour::WindowHides)
-        .with_custom_protocol(ASSET_SCHEME, |_id, request| devwp::assets::serve(&request));
+        .with_close_behaviour(WindowCloseBehaviour::WindowHides);
     let config = match icon {
         Some(icon) => config.with_icon(icon),
         None => config,
