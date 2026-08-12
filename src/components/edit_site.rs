@@ -1,4 +1,4 @@
-use crate::backend::site::Site;
+use crate::backend::site::{Site, SiteStatus};
 use crate::components::ui::{FormInput, Icon, ModalBase};
 use dioxus::prelude::*;
 
@@ -32,7 +32,7 @@ pub fn EditSiteModal(
     let original_web_root = site.web_root.clone().unwrap_or_default();
     let has_changes =
         aliases.read().clone() != original_aliases || web_root.read().clone() != original_web_root;
-    let is_provisioning = site.status == "provisioning";
+    let is_provisioning = site.status == SiteStatus::Provisioning;
 
     let webroot_help = rsx! {
         div { class: "mt-2 text-seasalt text-xs",

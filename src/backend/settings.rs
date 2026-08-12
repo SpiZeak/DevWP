@@ -13,8 +13,15 @@ pub fn read_settings() -> HashMap<String, String> {
         Err(_) => return HashMap::new(),
     };
 
-    match fs::read_to_string(path) {
-        Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
+    match fs::read_to_string(&path) {
+        Ok(content) => match serde_json::from_str(&content) {
+            Ok(settings) => settings,
+            Err(_) => {
+                let backup = path.with_extension("json.corrupt");
+                let _ = fs::copy(&path, &backup);
+                HashMap::new()
+            }
+        },
         Err(_) => HashMap::new(),
     }
 }

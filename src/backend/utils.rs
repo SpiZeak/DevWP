@@ -1,10 +1,39 @@
 use crate::state;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub const DOCKER_SITE_ROOT_PATH: &str = "/src/www";
+
+/// Database credentials — must match `MARIADB_ROOT_PASSWORD` in `compose.yml`.
+pub const DB_ROOT_USER: &str = "root";
+pub const DB_ROOT_PASSWORD: &str = "root";
+pub const DB_HOST: &str = "devwp_mariadb";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum NotificationType {
+    Success,
+    Error,
+    Warning,
+    Info,
+    #[serde(other)]
+    Unknown,
+}
+
+impl std::fmt::Display for NotificationType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Success => "success",
+            Self::Error => "error",
+            Self::Warning => "warning",
+            Self::Info => "info",
+            Self::Unknown => "unknown",
+        })
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct OperationResult {
@@ -16,7 +45,7 @@ pub struct OperationResult {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct NotificationPayload {
     #[serde(rename = "type")]
-    pub notification_type: String,
+    pub notification_type: NotificationType,
     pub message: String,
 }
 
@@ -36,10 +65,16 @@ pub fn project_root() -> PathBuf {
     }
 }
 
-/// State directory. Under `DEVWP_TEST_MODE` the state is redirected to a
-/// temp dir so integration tests never touch the developer's real state.
+static TEST_MODE: AtomicBool = AtomicBool::new(false);
+
+pub fn set_test_mode(enabled: bool) {
+    TEST_MODE.store(enabled, Ordering::SeqCst);
+}
+
+/// State directory. In test mode the state is redirected to a temp dir so
+/// integration tests never touch the developer's real state.
 pub fn state_root() -> PathBuf {
-    if std::env::var("DEVWP_TEST_MODE").is_ok() {
+    if TEST_MODE.load(Ordering::SeqCst) {
         return std::env::temp_dir().join("devwp-test-state");
     }
     project_root().join(".devwp-tauri")
@@ -109,14 +144,20 @@ where
         })
     });
 
-    if let Some(stderr) = child.stderr.take() {
-        let reader = BufReader::new(stderr);
-        for line in reader.lines().map_while(|l| l.ok()) {
-            on_line(line);
-        }
-    }
+    let stderr_thread = child.stderr.take().map(|stderr| {
+        let on_line_stderr = Arc::clone(&on_line);
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stderr);
+            for line in reader.lines().map_while(|l| l.ok()) {
+                on_line_stderr(line);
+            }
+        })
+    });
 
     if let Some(t) = stdout_thread {
+        t.join().ok();
+    }
+    if let Some(t) = stderr_thread {
         t.join().ok();
     }
 
@@ -128,7 +169,7 @@ where
 }
 
 /// Push a notification; safe from any thread.
-pub fn emit_notification(notification_type: &str, message: impl Into<String>) {
+pub fn emit_notification(notification_type: NotificationType, message: impl Into<String>) {
     state::push_notification(notification_type, message);
 }
 

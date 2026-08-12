@@ -1,4 +1,4 @@
-use crate::backend::site::Site;
+use crate::backend::site::{Site, SiteStatus};
 use crate::components::ui::{Icon, Spinner};
 use dioxus::prelude::*;
 
@@ -11,14 +11,12 @@ pub fn SiteInfo(
     on_open_wp_cli: EventHandler<Site>,
     on_edit_site: EventHandler<Site>,
 ) -> Element {
-    let is_provisioning = site.status == "provisioning";
+    let is_provisioning = site.status == SiteStatus::Provisioning;
 
-    let status_dot = if site.status == "active" {
-        "bg-emerald-500"
-    } else if site.status == "provisioning" {
-        "bg-amber-500"
-    } else {
-        "bg-seasalt-400"
+    let status_dot = match site.status {
+        SiteStatus::Active => "bg-emerald-500",
+        SiteStatus::Provisioning => "bg-amber-500",
+        _ => "bg-seasalt-400",
     };
 
     let site_for_directory = site.clone();
@@ -32,9 +30,8 @@ pub fn SiteInfo(
         .aliases
         .clone()
         .map(|a| {
-            a.split(|c: char| c.is_whitespace() || c == ',')
-                .filter(|s| !s.is_empty())
-                .map(|s| s.to_string())
+            crate::backend::site::split_aliases(&a)
+                .map(String::from)
                 .collect()
         })
         .unwrap_or_default();
@@ -71,7 +68,7 @@ pub fn SiteInfo(
                         }
                         div { class: "flex items-center gap-2",
                             span { class: "inline-block w-2 h-2 rounded-full {status_dot.clone()}" }
-                            span { class: "text-seasalt-300 text-sm capitalize", {site.status.clone()} }
+                            span { class: "text-seasalt-300 text-sm capitalize", {site.status.to_string()} }
                         }
                     }
                     div { class: "border-t border-gunmetal-600" }

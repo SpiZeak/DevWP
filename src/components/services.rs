@@ -1,5 +1,5 @@
 use crate::backend::docker;
-use crate::backend::docker::Container;
+use crate::backend::docker::{Container, ContainerState};
 use crate::components::brand_logo::{BrandLogo, SI_DOCKER, SI_MARIADB, SI_NGINX, SI_PHP, SI_REDIS};
 use crate::components::ui::{use_sync_signal, Icon, Spinner};
 use crate::components::{BuildLog, XdebugSwitch};
@@ -51,7 +51,7 @@ fn status_text(container: &Container, building: bool) -> Option<(String, String)
     if building {
         return Some(("Building...".to_string(), "text-amber".to_string()));
     }
-    if container.state == "pending" {
+    if container.state == ContainerState::Pending {
         return Some(("Starting...".to_string(), "text-seasalt-400".to_string()));
     }
     if container.health.as_deref() == Some("starting") {
@@ -101,7 +101,7 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
                 if !stale {
                     break;
                 }
-                tokio::time::sleep(Duration::from_millis(1000)).await;
+                tokio::time::sleep(Duration::from_secs(1)).await;
             }
             *polling_task.write() = false;
         });
@@ -133,9 +133,9 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
                 ),
                 name: name.to_string(),
                 state: if building {
-                    "building".to_string()
+                    ContainerState::Building
                 } else {
-                    "pending".to_string()
+                    ContainerState::Pending
                 },
                 health: None,
                 version: None,
@@ -182,7 +182,7 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
                         let is_restarting = restart_map.get(&item_id).copied().unwrap_or(false);
                         let show_spinner = is_restarting
                             || building
-                            || container.state == "pending"
+                            || container.state == ContainerState::Pending
                             || container.health.as_deref() == Some("starting");
 
                         rsx! {
@@ -216,7 +216,7 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
                                         let id = item_id.clone();
                                         spawn(async move {
                                             let _ = docker::restart_container(id.clone()).await;
-                                            tokio::time::sleep(Duration::from_millis(1000)).await;
+                tokio::time::sleep(Duration::from_secs(1)).await;
                                             rt.write().remove(&id);
                                         });
                                     },
@@ -240,17 +240,16 @@ fn border_class(container: &Container, is_building: bool) -> &'static str {
     if is_building {
         return "border-l-3 border-amber-500";
     }
-    if container.state == "pending" {
-        return "";
-    }
-    if container.state == "running" {
-        if container.health.as_deref() == Some("unhealthy") {
-            return "border-l-3 border-orange-500";
+    match container.state {
+        ContainerState::Pending => "",
+        ContainerState::Running => {
+            if container.health.as_deref() == Some("unhealthy") {
+                "border-l-3 border-orange-500"
+            } else {
+                "border-l-3 border-emerald-500"
+            }
         }
-        return "border-l-3 border-emerald-500";
+        ContainerState::Exited | ContainerState::Stopped => "border-l-3 border-crimson-500",
+        _ => "",
     }
-    if container.state == "exited" || container.state == "stopped" {
-        return "border-l-3 border-crimson-500";
-    }
-    ""
 }

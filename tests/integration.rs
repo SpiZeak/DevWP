@@ -7,9 +7,10 @@
 use dioxus::dioxus_core::{NoOpMutations, RuntimeGuard, VirtualDom};
 use dioxus::prelude::*;
 
-use devwp::backend::docker;
+use devwp::backend::docker::{self, ContainerState};
 use devwp::backend::settings;
-use devwp::backend::wp_cli;
+use devwp::backend::utils::NotificationType;
+use devwp::backend::wp_cli::{self, WpCliRequest};
 use devwp::backend::xdebug;
 use devwp::state;
 
@@ -36,11 +37,11 @@ fn with_runtime<T>(f: impl FnOnce() -> T) -> T {
 
 /// Ensure the test state lives in a temp dir, never the real `.devwp-tauri`.
 fn with_test_state<T>(f: impl FnOnce() -> T) -> T {
-    std::env::set_var("DEVWP_TEST_MODE", "1");
+    devwp::backend::utils::set_test_mode(true);
     let dir = std::env::temp_dir().join("devwp-test-state");
     let _ = std::fs::remove_dir_all(&dir);
     let result = f();
-    std::env::remove_var("DEVWP_TEST_MODE");
+    devwp::backend::utils::set_test_mode(false);
     result
 }
 
@@ -79,7 +80,7 @@ fn container_status_reflects_compose_stack() {
             .iter()
             .find(|c| c.name == "devwp_nginx")
             .expect("nginx container");
-        assert_eq!(nginx.state, "running");
+        assert_eq!(nginx.state, ContainerState::Running);
     });
 }
 
@@ -127,7 +128,7 @@ fn wp_cli_info_runs_against_php_container() {
             name: "example.test".to_string(),
             path: site_dir.to_string_lossy().to_string(),
             url: "https://example.test".to_string(),
-            status: "active".to_string(),
+            status: devwp::backend::site::SiteStatus::Active,
             aliases: None,
             web_root: None,
             multisite: None,
@@ -150,7 +151,6 @@ fn wp_cli_info_runs_against_php_container() {
     assert!(success, "wp --info should succeed, got: {result}");
     assert_eq!(error, "", "no error expected, got: {result}");
 }
-use devwp::backend::wp_cli::WpCliRequest;
 
 #[test]
 fn global_signal_state_handlers_roundtrip() {
@@ -169,10 +169,16 @@ fn global_signal_state_handlers_roundtrip() {
         state::mark_service_building("nginx", false);
         assert!(!state::is_service_building("nginx"));
 
-        state::set_docker_status("complete", "integration check");
-        assert_eq!(state::docker_status().status, "complete");
+        state::set_docker_status(
+            devwp::backend::docker::DockerStatus::Complete,
+            "integration check",
+        );
+        assert_eq!(
+            state::docker_status().status,
+            devwp::backend::docker::DockerStatus::Complete
+        );
 
-        state::push_notification("success", "integration notification");
+        state::push_notification(NotificationType::Success, "integration notification");
         assert_eq!(
             state::notifications().last().map(|n| n.message.as_str()),
             Some("integration notification")

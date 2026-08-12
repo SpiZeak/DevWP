@@ -1,4 +1,5 @@
 use crate::backend::settings;
+use crate::backend::utils::NotificationType;
 use crate::components::ui::{Icon, ModalBase, Spinner};
 use crate::state;
 use dioxus::prelude::*;
@@ -35,10 +36,13 @@ pub fn SettingsModal(is_open: bool, on_close: EventHandler<()>) -> Element {
                 let result = settings::save_setting("webroot_path".to_string(), path.clone());
                 if result.success {
                     *original_s.write() = path;
-                    state::push_notification("success", "Settings saved successfully");
+                    state::push_notification(
+                        NotificationType::Success,
+                        "Settings saved successfully",
+                    );
                 } else {
                     state::push_notification(
-                        "error",
+                        NotificationType::Error,
                         result
                             .error
                             .unwrap_or_else(|| "Failed to save settings".to_string()),

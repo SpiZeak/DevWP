@@ -5,9 +5,9 @@
 //! in a `SyncSignal` so writes are safe from any thread. UI-only state stays
 //! in local `Signal`s inside the components.
 
-use crate::backend::docker::{Container, DockerStatusPayload};
+use crate::backend::docker::{Container, DockerStatus, DockerStatusPayload};
 use crate::backend::site::Site;
-use crate::backend::utils::NotificationPayload;
+use crate::backend::utils::{NotificationPayload, NotificationType};
 use dioxus::prelude::*;
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -22,13 +22,33 @@ macro_rules! sync_state {
     };
 }
 
+/// Generate a signal accessor, a clone-based reader, and a write setter for
+/// simple `Copy + Clone` value types.
+macro_rules! global_value {
+    ($sig:ident, $reader:ident, $setter:ident, $ty:ty, $init:expr) => {
+        pub fn $sig() -> &'static SyncSignal<$ty> {
+            static CELL: OnceLock<SyncSignal<$ty>> = OnceLock::new();
+            CELL.get_or_init(|| SyncSignal::new_maybe_sync($init))
+        }
+
+        pub fn $reader() -> $ty {
+            $sig().read().clone()
+        }
+
+        pub fn $setter(value: $ty) {
+            let mut sig = *$sig();
+            *sig.write() = value;
+        }
+    };
+}
+
 pub type BuildingServices = HashMap<String, bool>;
 
 sync_state!(containers_signal, Vec<Container>, Vec::new);
 sync_state!(building_services_signal, BuildingServices, HashMap::new);
 sync_state!(docker_status_signal, DockerStatusPayload, || {
     DockerStatusPayload {
-        status: "idle".to_string(),
+        status: DockerStatus::Idle,
         message: String::new(),
     }
 });
@@ -39,11 +59,35 @@ sync_state!(build_logs_signal, Vec<String>, Vec::new);
 /// session can never grow the vec without bound.
 pub const MAX_NOTIFICATIONS: usize = 100;
 sync_state!(notifications_signal, Vec<NotificationPayload>, Vec::new);
-sync_state!(xdebug_enabled_signal, Option<bool>, || None);
-sync_state!(xdebug_toggling_signal, bool, || false);
+global_value!(
+    xdebug_enabled_signal,
+    xdebug_enabled,
+    set_xdebug_enabled,
+    Option<bool>,
+    None
+);
+global_value!(
+    xdebug_toggling_signal,
+    xdebug_toggling,
+    set_xdebug_toggling,
+    bool,
+    false
+);
 sync_state!(sites_signal, Vec<Site>, Vec::new);
-sync_state!(sites_loading_signal, bool, || false);
-sync_state!(shutdown_done_signal, bool, || false);
+global_value!(
+    sites_loading_signal,
+    sites_loading,
+    set_sites_loading,
+    bool,
+    false
+);
+global_value!(
+    shutdown_done_signal,
+    shutdown_done,
+    set_shutdown_done,
+    bool,
+    false
+);
 
 /// Create every global signal in the root scope so their storage outlives all
 /// child scopes (see the dioxus-signals "Copy Value hoisted" warning).
@@ -68,8 +112,7 @@ pub fn containers() -> ReadableRef<'static, SyncSignal<Vec<Container>>, Vec<Cont
 
 pub fn set_containers(containers: Vec<Container>) {
     let mut sig = *containers_signal();
-    let mut s = sig.write();
-    *s = containers;
+    *sig.write() = containers;
 }
 
 // ── Building services ─────────────────────────────────────────
@@ -92,7 +135,6 @@ pub fn mark_service_building(name: impl Into<String>, building: bool) {
     let mut map = sig.write();
     if building {
         if map.is_empty() {
-            // New build cycle: clear the log panel first.
             let mut logs_sig = *build_logs_signal();
             logs_sig.write().clear();
         }
@@ -114,10 +156,10 @@ pub fn docker_status() -> ReadableRef<'static, SyncSignal<DockerStatusPayload>, 
     docker_status_signal().read()
 }
 
-pub fn set_docker_status(status: &str, message: impl Into<String>) {
+pub fn set_docker_status(status: DockerStatus, message: impl Into<String>) {
     let mut sig = *docker_status_signal();
     let mut s = sig.write();
-    s.status = status.to_string();
+    s.status = status;
     s.message = message.into();
 }
 
@@ -176,40 +218,17 @@ pub fn notifications(
     notifications_signal().read()
 }
 
-/// Push a notification; safe from any thread.
-pub fn push_notification(notification_type: &str, message: impl Into<String>) {
+pub fn push_notification(notification_type: NotificationType, message: impl Into<String>) {
     let mut sig = *notifications_signal();
     let mut n = sig.write();
     n.push(NotificationPayload {
-        notification_type: notification_type.to_string(),
+        notification_type,
         message: message.into(),
     });
     if n.len() > MAX_NOTIFICATIONS {
         let excess = n.len() - MAX_NOTIFICATIONS;
         n.drain(..excess);
     }
-}
-
-// ── Xdebug ────────────────────────────────────────────────────
-
-pub fn xdebug_enabled() -> Option<bool> {
-    xdebug_enabled_signal().read().clone()
-}
-
-pub fn set_xdebug_enabled(enabled: Option<bool>) {
-    let mut sig = *xdebug_enabled_signal();
-    let mut s = sig.write();
-    *s = enabled;
-}
-
-pub fn set_xdebug_toggling(toggling: bool) {
-    let mut sig = *xdebug_toggling_signal();
-    let mut s = sig.write();
-    *s = toggling;
-}
-
-pub fn xdebug_toggling() -> bool {
-    xdebug_toggling_signal().read().clone()
 }
 
 // ── Sites ─────────────────────────────────────────────────────
@@ -220,22 +239,5 @@ pub fn sites() -> ReadableRef<'static, SyncSignal<Vec<Site>>, Vec<Site>> {
 
 pub fn set_sites(sites: Vec<Site>) {
     let mut sig = *sites_signal();
-    let mut s = sig.write();
-    *s = sites;
-}
-
-pub fn sites_loading() -> bool {
-    sites_loading_signal().read().clone()
-}
-
-// ── Shutdown lifecycle ────────────────────────────────────────
-
-pub fn shutdown_done() -> bool {
-    shutdown_done_signal().read().clone()
-}
-
-pub fn set_shutdown_done(done: bool) {
-    let mut sig = *shutdown_done_signal();
-    let mut s = sig.write();
-    *s = done;
+    *sig.write() = sites;
 }

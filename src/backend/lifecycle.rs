@@ -8,6 +8,7 @@
 //! real. This guarantees compose-down finishes before the process exits.
 
 use crate::backend::docker;
+use crate::backend::docker::DockerStatus;
 use crate::backend::utils::{run_command, run_command_streaming};
 use crate::state;
 use tracing::{error, info};
@@ -23,7 +24,7 @@ pub async fn start_services() {
     for svc in STARTUP_SERVICES {
         state::mark_service_building(*svc, true);
     }
-    state::set_docker_status("starting", "Starting services...");
+    state::set_docker_status(DockerStatus::Starting, "Starting services...");
 
     let result = tokio::task::spawn_blocking(move || {
         run_command_streaming("docker", &["compose", "up", "-d", "nginx"], move |line| {
@@ -43,12 +44,15 @@ pub async fn start_services() {
     match result {
         Ok(_) => {
             info!("Docker services started successfully.");
-            state::set_docker_status("complete", "Services started");
+            state::set_docker_status(DockerStatus::Complete, "Services started");
             let _ = docker::get_container_status();
         }
         Err(e) => {
             error!("Failed to start Docker services: {}", e);
-            state::set_docker_status("error", format!("Failed to start Docker services: {e}"));
+            state::set_docker_status(
+                DockerStatus::Error,
+                format!("Failed to start Docker services: {e}"),
+            );
             let _ = docker::get_container_status();
         }
     }
@@ -59,7 +63,7 @@ pub async fn start_services() {
 /// [`shutdown_done`]: the UI hook that observes it performs the real close.
 pub async fn stop_services() {
     info!("Stopping Docker services...");
-    state::set_docker_status("stopping", "Stopping services...");
+    state::set_docker_status(DockerStatus::Stopping, "Stopping services...");
 
     let result =
         tokio::task::spawn_blocking(move || run_command("docker", &["compose", "down"])).await;
@@ -67,15 +71,21 @@ pub async fn stop_services() {
     match result {
         Ok(Ok(_)) => {
             info!("Docker services stopped successfully.");
-            state::set_docker_status("stopped", "Services stopped");
+            state::set_docker_status(DockerStatus::Stopped, "Services stopped");
         }
         Ok(Err(e)) => {
             error!("Failed to stop Docker services: {}", e);
-            state::set_docker_status("error", format!("Failed to stop Docker services: {e}"));
+            state::set_docker_status(
+                DockerStatus::Error,
+                format!("Failed to stop Docker services: {e}"),
+            );
         }
         Err(e) => {
             error!("Failed to stop Docker services: {}", e);
-            state::set_docker_status("error", format!("Failed to stop Docker services: {e}"));
+            state::set_docker_status(
+                DockerStatus::Error,
+                format!("Failed to stop Docker services: {e}"),
+            );
         }
     }
 

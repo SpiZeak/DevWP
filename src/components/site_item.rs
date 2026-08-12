@@ -1,4 +1,4 @@
-use crate::backend::site::Site;
+use crate::backend::site::{Site, SiteStatus};
 use crate::components::ui::{Icon, Spinner};
 use dioxus::prelude::*;
 
@@ -12,7 +12,7 @@ pub fn SiteItem(
     on_edit_site: EventHandler<Site>,
     on_select_site: EventHandler<Site>,
 ) -> Element {
-    let is_provisioning = site.status == "provisioning";
+    let is_provisioning = site.status == SiteStatus::Provisioning;
 
     let site_for_select = site.clone();
     let site_for_select_key = site.clone();

@@ -1,5 +1,5 @@
 use crate::backend::settings::{read_settings, write_settings};
-use crate::backend::utils::{emit_notification, project_root, run_command};
+use crate::backend::utils::{emit_notification, project_root, run_command, NotificationType};
 use crate::state;
 use std::fs;
 use std::path::PathBuf;
@@ -86,7 +86,10 @@ pub async fn toggle_xdebug() -> Result<bool, String> {
     if let Some(error) = restart_failed {
         state::set_xdebug_toggling(false);
         state::set_xdebug_enabled(Some(get_xdebug_status()));
-        emit_notification("error", format!("Xdebug toggle failed: {error}"));
+        emit_notification(
+            NotificationType::Error,
+            format!("Xdebug toggle failed: {error}"),
+        );
         return Err(error);
     }
 

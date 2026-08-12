@@ -1,11 +1,42 @@
-use crate::backend::site::{self, Site, SiteCreateRequest, SiteUpdateRequest};
+use crate::backend::site::{self, Site, SiteCreateRequest, SiteStatus, SiteUpdateRequest};
 use crate::backend::system;
+use crate::backend::utils::NotificationType;
 use crate::components::ui::{Icon, Spinner};
 use crate::components::{
     ComposerModal, CreateSiteModal, EditSiteData, EditSiteModal, SiteInfo, SiteItem, WpCliModal,
 };
 use crate::state;
 use dioxus::prelude::*;
+
+/// Re-fetch sites from disk and update the global signal.
+async fn refresh_sites() {
+    let sites = tokio::task::spawn_blocking(site::get_sites)
+        .await
+        .unwrap_or_default();
+    state::set_sites(sites);
+}
+
+/// Handle the error arms of a `Result<Result<T, E>, JoinError>` by pushing a
+/// notification. Returns `Some(inner)` on success, `None` on any error.
+fn unwrap_task_result<T, E: std::fmt::Display>(
+    result: Result<Result<T, E>, tokio::task::JoinError>,
+    error_context: &str,
+) -> Option<T> {
+    match result {
+        Ok(Ok(inner)) => Some(inner),
+        Ok(Err(e)) => {
+            state::push_notification(NotificationType::Error, format!("{error_context}: {e}"));
+            None
+        }
+        Err(e) => {
+            state::push_notification(
+                NotificationType::Error,
+                format!("{error_context}: task error: {e}"),
+            );
+            None
+        }
+    }
+}
 
 #[component]
 pub fn SiteList() -> Element {
@@ -16,16 +47,11 @@ pub fn SiteList() -> Element {
     let mut selected_site = use_signal(|| None::<Site>);
     let mut search_query = use_signal(String::new);
 
-    let mut loading_sig = *state::sites_loading_signal();
-    let mut fetch_sites = move || {
-        *loading_sig.write() = true;
-        let mut loading_sig2 = loading_sig.clone();
+    let fetch_sites = move || {
+        state::set_sites_loading(true);
         spawn(async move {
-            let sites = tokio::task::spawn_blocking(site::get_sites)
-                .await
-                .unwrap_or_default();
-            state::set_sites(sites);
-            *loading_sig2.write() = false;
+            refresh_sites().await;
+            state::set_sites_loading(false);
         });
     };
 
@@ -58,16 +84,16 @@ pub fn SiteList() -> Element {
         let domain = data.domain.clone();
         // Optimistically insert a provisioning entry.
         {
-            let mut sites_sig = *state::sites_signal();
-            let mut sites = sites_sig.write();
-            sites.retain(|s| !(s.name == domain && s.status == "provisioning"));
+            let mut sig = *state::sites_signal();
+            let mut sites = sig.write();
+            sites.retain(|s| !(s.name == domain && s.status == SiteStatus::Provisioning));
             sites.insert(
                 0,
                 Site {
                     name: domain.clone(),
                     path: format!("www/{domain}"),
                     url: format!("https://{domain}"),
-                    status: "provisioning".to_string(),
+                    status: SiteStatus::Provisioning,
                     aliases: None,
                     web_root: None,
                     multisite: None,
@@ -76,27 +102,10 @@ pub fn SiteList() -> Element {
         }
         spawn(async move {
             let result = tokio::task::spawn_blocking(move || site::create_site(data)).await;
-            match result {
-                Ok(Ok(())) => {
-                    *create_open.write() = false;
-                    let sites = tokio::task::spawn_blocking(site::get_sites)
-                        .await
-                        .unwrap_or_default();
-                    state::set_sites(sites);
-                    let _ = system::open_external(format!("https://{domain}"));
-                }
-                Ok(Err(e)) => {
-                    state::push_notification(
-                        "error",
-                        format!("Provisioning failed for {domain}: {e}"),
-                    );
-                }
-                Err(e) => {
-                    state::push_notification(
-                        "error",
-                        format!("Provisioning failed for {domain}: task error: {e}"),
-                    );
-                }
+            if unwrap_task_result(result, &format!("Provisioning failed for {domain}")).is_some() {
+                *create_open.write() = false;
+                refresh_sites().await;
+                let _ = system::open_external(format!("https://{domain}"));
             }
         });
     };
@@ -278,10 +287,7 @@ pub fn SiteList() -> Element {
                     on_submit: move |data: EditSiteData| {
                         // Normalize aliases the same way the create flow does
                         // (each token gets a TLD appended when missing).
-                        let aliases = data
-                            .aliases
-                            .split(|c: char| c.is_whitespace() || c == ',')
-                            .filter(|s| !s.is_empty())
+                        let aliases = site::split_aliases(&data.aliases)
                             .map(site::format_domain)
                             .collect::<Vec<_>>()
                             .join(" ");
@@ -296,33 +302,19 @@ pub fn SiteList() -> Element {
                                 )
                             })
                             .await;
-                            match result {
-                                Ok(Ok(op)) if op.success => {
+                            match unwrap_task_result(result, "Failed to update site") {
+                                Some(op) if op.success => {
                                     *edit_site_site.write() = None;
-                                    let sites = tokio::task::spawn_blocking(site::get_sites)
-                                        .await
-                                        .unwrap_or_default();
-                                    state::set_sites(sites);
+                                    refresh_sites().await;
                                 }
-                                Ok(Ok(op)) => {
+                                Some(op) => {
                                     state::push_notification(
-                                        "error",
+                                        NotificationType::Error,
                                         op.error
                                             .unwrap_or_else(|| "Failed to update site".to_string()),
                                     );
                                 }
-                                Ok(Err(e)) => {
-                                    state::push_notification(
-                                        "error",
-                                        format!("Failed to update site: {e}"),
-                                    );
-                                }
-                                Err(e) => {
-                                    state::push_notification(
-                                        "error",
-                                        format!("Failed to update site: task error: {e}"),
-                                    );
-                                }
+                                None => {}
                             }
                         });
                     },
@@ -340,10 +332,7 @@ pub fn SiteList() -> Element {
                             spawn(async move {
                                 let _ =
                                     tokio::task::spawn_blocking(move || site::delete_site(s)).await;
-                                let sites = tokio::task::spawn_blocking(site::get_sites)
-                                    .await
-                                    .unwrap_or_default();
-                                state::set_sites(sites);
+                                refresh_sites().await;
                             });
                         }
                     },

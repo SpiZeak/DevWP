@@ -1,6 +1,8 @@
 use crate::backend::site::{
-    format_domain, is_valid_email, MultisiteConfig, SiteCreateRequest, WordPressInstallConfig,
+    format_domain, is_valid_email, MultisiteConfig, MultisiteType, SiteCreateRequest,
+    WordPressInstallConfig,
 };
+use crate::backend::utils::NotificationType;
 use crate::components::ui::{FormInput, ModalBase, Toggle};
 use crate::state;
 use dioxus::prelude::*;
@@ -15,7 +17,7 @@ pub fn CreateSiteModal(
     let mut web_root = use_signal(String::new);
     let mut aliases = use_signal(String::new);
     let mut multisite_enabled = use_signal(|| false);
-    let mut multisite_type = use_signal(|| "subdirectory".to_string());
+    let mut multisite_type = use_signal(|| MultisiteType::Subdirectory);
     let mut wp_enabled = use_signal(|| true);
     let mut wp_title = use_signal(String::new);
     let mut wp_user = use_signal(String::new);
@@ -45,7 +47,10 @@ pub fn CreateSiteModal(
                 && !wp_email_cur.is_empty()
                 && !is_valid_email(&wp_email_cur)
             {
-                state::push_notification("error", "Please enter a valid email address");
+                state::push_notification(
+                    NotificationType::Error,
+                    "Please enter a valid email address",
+                );
                 return;
             }
 
@@ -69,7 +74,7 @@ pub fn CreateSiteModal(
                 aliases: (!formatted_aliases.is_empty()).then(|| formatted_aliases.join(" ")),
                 multisite: Some(MultisiteConfig {
                     enabled: multisite_enabled_s.read().clone(),
-                    site_type: multisite_type_s.read().clone(),
+                    site_type: *multisite_type_s.read(),
                 }),
                 wordpress: wp_enabled_s.read().clone().then(|| WordPressInstallConfig {
                     title: wp_title_s.read().clone(),
@@ -85,8 +90,8 @@ pub fn CreateSiteModal(
     let formatted_domain = format_domain(&domain.read().clone());
     let domain_wo_test = domain.read().replace(".test", "");
     let is_submit_disabled = submitting.read().clone() || domain_wo_test.is_empty();
-    let multisite_on = multisite_enabled.read().clone();
-    let wp_on = wp_enabled.read().clone();
+    let multisite_on = *multisite_enabled.read();
+    let wp_on = *wp_enabled.read();
     let web_root_cur = web_root.read().clone();
 
     let webroot_help = rsx! {
@@ -181,17 +186,17 @@ pub fn CreateSiteModal(
                         MultisiteOption {
                             label: "Subdirectory".to_string(),
                             example: "example.test/site2".to_string(),
-                            is_selected: multisite_type.read().clone() == "subdirectory",
+                            is_selected: *multisite_type.read() == MultisiteType::Subdirectory,
                             onclick: move |_| {
-                                *multisite_type.write() = "subdirectory".to_string();
+                                *multisite_type.write() = MultisiteType::Subdirectory;
                             },
                         }
                         MultisiteOption {
                             label: "Subdomain".to_string(),
                             example: "site2.example.test".to_string(),
-                            is_selected: multisite_type.read().clone() == "subdomain",
+                            is_selected: *multisite_type.read() == MultisiteType::Subdomain,
                             onclick: move |_| {
-                                *multisite_type.write() = "subdomain".to_string();
+                                *multisite_type.write() = MultisiteType::Subdomain;
                             },
                         }
                     }

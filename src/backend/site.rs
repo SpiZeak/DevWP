@@ -1,6 +1,7 @@
 use crate::backend::settings::{ensure_webroot_exists, get_webroot_from_settings};
 use crate::backend::utils::{
-    emit_notification, ensure_state_root, run_command, OperationResult, DOCKER_SITE_ROOT_PATH,
+    emit_notification, ensure_state_root, run_command, NotificationType, OperationResult,
+    DOCKER_SITE_ROOT_PATH,
 };
 use crate::backend::wp_cli::{PHP_CONTAINER_NAME, WP_CLI_ERROR_REPORTING};
 use serde::{Deserialize, Serialize};
@@ -25,13 +26,56 @@ pub const HOSTS_FILE_PATH: &str = r"C:\Windows\System32\drivers\etc\hosts";
 #[cfg(not(target_os = "windows"))]
 pub const HOSTS_FILE_PATH: &str = "/etc/hosts";
 
+/// Typed site status. `Unknown` catches any legacy/foreign value in sites.json.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SiteStatus {
+    Active,
+    Provisioning,
+    #[serde(other)]
+    Unknown,
+}
+
+impl std::fmt::Display for SiteStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Active => "active",
+            Self::Provisioning => "provisioning",
+            Self::Unknown => "unknown",
+        })
+    }
+}
+
+/// Multisite topology. `subdir` is accepted as a legacy alias for
+/// `subdirectory` (configs written by older versions).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum MultisiteType {
+    #[default]
+    #[serde(rename = "subdirectory", alias = "subdir")]
+    Subdirectory,
+    #[serde(rename = "subdomain")]
+    Subdomain,
+    #[serde(other)]
+    Unknown,
+}
+
+impl std::fmt::Display for MultisiteType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Subdirectory => "subdirectory",
+            Self::Subdomain => "subdomain",
+            Self::Unknown => "unknown",
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Site {
     pub name: String,
     pub path: String,
     pub url: String,
-    pub status: String,
+    pub status: SiteStatus,
     pub aliases: Option<String>,
     pub web_root: Option<String>,
     pub multisite: Option<MultisiteConfig>,
@@ -42,7 +86,7 @@ pub struct Site {
 pub struct MultisiteConfig {
     pub enabled: bool,
     #[serde(rename = "type")]
-    pub site_type: String,
+    pub site_type: MultisiteType,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -75,14 +119,29 @@ pub fn sites_file() -> Result<PathBuf, String> {
     Ok(ensure_state_root()?.join("sites.json"))
 }
 
+/// Split a space/comma-separated alias list into trimmed, non-empty tokens.
+pub fn split_aliases(s: &str) -> impl Iterator<Item = &str> {
+    s.split(|c: char| c.is_whitespace() || c == ',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+}
+
 fn read_sites_unchecked() -> Vec<Site> {
     let path = match sites_file() {
         Ok(path) => path,
         Err(_) => return Vec::new(),
     };
 
-    match fs::read_to_string(path) {
-        Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
+    match fs::read_to_string(&path) {
+        Ok(content) => match serde_json::from_str(&content) {
+            Ok(sites) => sites,
+            Err(_) => {
+                // Back up the corrupt file before any caller can overwrite it.
+                let backup = path.with_extension("json.corrupt");
+                let _ = fs::copy(&path, &backup);
+                Vec::new()
+            }
+        },
         Err(_) => Vec::new(),
     }
 }
@@ -156,15 +215,10 @@ fn validate_site_webroot(input: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Validate a full alias list (space/comma separated); every token must be a
-/// valid site name.
 fn validate_site_aliases(aliases: Option<&str>) -> Result<(), String> {
     if let Some(a) = aliases {
-        for alias in a.split(|c: char| c.is_whitespace() || c == ',') {
-            let alias = alias.trim();
-            if !alias.is_empty() {
-                validate_site_name(alias)?;
-            }
+        for alias in split_aliases(a) {
+            validate_site_name(alias)?;
         }
     }
     Ok(())
@@ -198,11 +252,8 @@ pub fn is_valid_email(email: &str) -> bool {
 fn parse_domains(domain: &str, aliases: Option<&str>) -> Result<Vec<String>, String> {
     let mut domains = vec![validate_site_name(domain)?];
     if let Some(a) = aliases {
-        for alias in a.split(|c: char| c.is_whitespace() || c == ',') {
-            let alias = alias.trim();
-            if !alias.is_empty() {
-                domains.push(validate_site_name(alias)?);
-            }
+        for alias in split_aliases(a) {
+            domains.push(validate_site_name(alias)?);
         }
     }
     Ok(domains)
@@ -216,11 +267,8 @@ fn regenerate_certificate(sites: &[Site]) -> Result<(), String> {
     for s in sites {
         domains.push(s.name.clone());
         if let Some(aliases) = &s.aliases {
-            for alias in aliases.split(|c: char| c.is_whitespace() || c == ',') {
-                let alias = alias.trim();
-                if !alias.is_empty() {
-                    domains.push(alias.to_string());
-                }
+            for alias in split_aliases(aliases) {
+                domains.push(alias.to_string());
             }
         }
     }
@@ -302,7 +350,7 @@ fn nginx_reload() {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             crate::state::push_notification(
-                "error",
+                NotificationType::Error,
                 format!("Nginx config check failed, reload skipped:\n{stderr}"),
             );
             return;
@@ -321,18 +369,15 @@ fn generate_nginx_config(
         .map_err(|e| format!("Failed to read nginx template: {e}"))?;
 
     let active_type = match multisite {
-        Some(m) if m.enabled => m.site_type.as_str(),
-        _ => "single",
+        Some(m) if m.enabled => Some(m.site_type),
+        _ => None,
     };
 
     let domain_list = {
         let mut parts = vec![domain];
         if let Some(a) = aliases {
-            for alias in a.split(|c: char| c.is_whitespace() || c == ',') {
-                let alias = alias.trim();
-                if !alias.is_empty() {
-                    parts.push(alias);
-                }
+            for alias in split_aliases(a) {
+                parts.push(alias);
             }
         }
         parts.join(" ")
@@ -366,10 +411,8 @@ fn generate_nginx_config(
 
         if is_wp_single || is_wp_subdir || is_wp_subdom {
             let should_be_active = match active_type {
-                // "subdirectory" is the canonical UI value; "subdir" is kept
-                // for configs written by older versions.
-                "subdir" | "subdirectory" => is_wp_subdir,
-                "subdomain" => is_wp_subdom,
+                Some(MultisiteType::Subdirectory) => is_wp_subdir,
+                Some(MultisiteType::Subdomain) => is_wp_subdom,
                 _ => is_wp_single,
             };
             if should_be_active {
@@ -652,7 +695,7 @@ pub fn get_sites() -> Vec<Site> {
                     name: name.to_string(),
                     path: path.to_string_lossy().to_string(),
                     url: format!("https://{name}"),
-                    status: "active".to_string(),
+                    status: SiteStatus::Active,
                     aliases: None,
                     web_root: None,
                     multisite: None,
@@ -704,30 +747,45 @@ fn install_wordpress(
         }
     };
 
-    emit_notification("info", format!("[{domain}] Downloading WordPress..."));
+    emit_notification(
+        NotificationType::Info,
+        format!("[{domain}] Downloading WordPress..."),
+    );
     run_wp(&["core", "download"])?;
 
     let dbname_arg = format!("--dbname={db_name}");
-    emit_notification("info", format!("[{domain}] Creating wp-config.php..."));
+    let dbuser_arg = format!("--dbuser={}", crate::backend::utils::DB_ROOT_USER);
+    let dbpass_arg = format!("--dbpass={}", crate::backend::utils::DB_ROOT_PASSWORD);
+    let dbhost_arg = format!("--dbhost={}", crate::backend::utils::DB_HOST);
+    emit_notification(
+        NotificationType::Info,
+        format!("[{domain}] Creating wp-config.php..."),
+    );
     run_wp(&[
         "config",
         "create",
         &dbname_arg,
-        "--dbuser=root",
-        "--dbpass=root",
-        "--dbhost=devwp_mariadb",
+        &dbuser_arg,
+        &dbpass_arg,
+        &dbhost_arg,
     ])?;
 
-    emit_notification("info", format!("[{domain}] Creating database..."));
+    emit_notification(
+        NotificationType::Info,
+        format!("[{domain}] Creating database..."),
+    );
     let create_db_sql = format!("CREATE DATABASE IF NOT EXISTS `{db_name}`");
+    let db_root_user = crate::backend::utils::DB_ROOT_USER;
+    let db_root_pass = crate::backend::utils::DB_ROOT_PASSWORD;
+    let db_host = crate::backend::utils::DB_HOST;
     let output = run_command(
         "docker",
         &[
             "exec",
-            "devwp_mariadb",
+            db_host,
             "mariadb",
-            "-uroot",
-            "-proot",
+            &format!("-u{db_root_user}"),
+            &format!("-p{db_root_pass}"),
             "-e",
             &create_db_sql,
         ],
@@ -737,7 +795,10 @@ fn install_wordpress(
         return Err(format!("Failed to create database: {stderr}"));
     }
 
-    emit_notification("info", format!("[{domain}] Running WordPress install..."));
+    emit_notification(
+        NotificationType::Info,
+        format!("[{domain}] Running WordPress install..."),
+    );
 
     let url_arg = format!("--url=https://{domain}");
     let title_arg = format!(
@@ -812,7 +873,7 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
             name: site.domain.clone(),
             path: site_root.to_string_lossy().to_string(),
             url: format!("https://{}", site.domain),
-            status: "active".to_string(),
+            status: SiteStatus::Active,
             aliases: site.aliases.clone(),
             web_root: site.web_root.clone(),
             multisite: site.multisite.clone(),
@@ -827,9 +888,15 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
     let sites_for_cert = sites.clone();
     std::thread::spawn(move || {
         if let Err(e) = regenerate_certificate(&sites_for_cert) {
-            emit_notification("warning", format!("Certificate regeneration failed: {e}"));
+            emit_notification(
+                NotificationType::Warning,
+                format!("Certificate regeneration failed: {e}"),
+            );
         } else {
-            emit_notification("success", "TLS certificates regenerated for all sites");
+            emit_notification(
+                NotificationType::Success,
+                "TLS certificates regenerated for all sites",
+            );
         }
     });
 
@@ -842,7 +909,7 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
     nginx_reload();
     if let Err(e) = add_hosts_entry(&site.domain, site.aliases.as_deref()) {
         emit_notification(
-            "warning",
+            NotificationType::Warning,
             format!(
                 "Site created but hosts entry not added: {e}\nSite is accessible via URL but domain won't resolve without a hosts entry."
             ),
@@ -853,11 +920,17 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
         install_wordpress(&site.domain, site.web_root.as_deref(), wp_config)?;
     }
 
-    emit_notification("success", format!("Site {} created", site.domain));
+    emit_notification(
+        NotificationType::Success,
+        format!("Site {} created", site.domain),
+    );
     Ok(())
 }
 
 pub fn delete_site(site: Site) -> Result<(), String> {
+    // Validate before any mutation — matches create_site/update_site ordering.
+    validate_site_name(&site.name)?;
+
     let _lock = acquire_sites_lock()?;
     let mut sites = read_sites_unchecked();
     sites.retain(|existing| existing.name != site.name);
@@ -868,11 +941,12 @@ pub fn delete_site(site: Site) -> Result<(), String> {
     let sites_for_cert = sites.clone();
     std::thread::spawn(move || {
         if let Err(e) = regenerate_certificate(&sites_for_cert) {
-            emit_notification("warning", format!("Certificate regeneration failed: {e}"));
+            emit_notification(
+                NotificationType::Warning,
+                format!("Certificate regeneration failed: {e}"),
+            );
         }
     });
-
-    validate_site_name(&site.name)?;
 
     let webroot = get_webroot_from_settings();
     let canonical_webroot = fs::canonicalize(&webroot).unwrap_or(webroot);
@@ -905,7 +979,10 @@ pub fn delete_site(site: Site) -> Result<(), String> {
     nginx_reload();
     let _ = remove_hosts_entry(&site.name, site.aliases.as_deref());
 
-    emit_notification("success", format!("Site {} deleted", site.name));
+    emit_notification(
+        NotificationType::Success,
+        format!("Site {} deleted", site.name),
+    );
     Ok(())
 }
 
@@ -956,7 +1033,7 @@ pub fn update_site(site: Site, data: SiteUpdateRequest) -> Result<OperationResul
     nginx_reload();
     add_hosts_entry(&updated.name, updated.aliases.as_deref())?;
 
-    emit_notification("success", "Site updated");
+    emit_notification(NotificationType::Success, "Site updated");
     Ok(OperationResult {
         success: true,
         message: "Site updated".to_string(),
@@ -1030,7 +1107,7 @@ mod tests {
             name: "a.test".into(),
             path: "p".into(),
             url: "u".into(),
-            status: "active".into(),
+            status: SiteStatus::Active,
             aliases: None,
             web_root: None,
             multisite: None,
@@ -1041,7 +1118,7 @@ mod tests {
                 name: "a.test".into(),
                 path: "p2".into(),
                 url: "u2".into(),
-                status: "active".into(),
+                status: SiteStatus::Active,
                 aliases: None,
                 web_root: None,
                 multisite: None,
@@ -1060,7 +1137,7 @@ mod tests {
                 name: "b.test".into(),
                 path: "p".into(),
                 url: "u".into(),
-                status: "active".into(),
+                status: SiteStatus::Active,
                 aliases: None,
                 web_root: None,
                 multisite: None,

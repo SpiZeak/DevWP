@@ -35,6 +35,7 @@ services:
     image: mariadb:13.0-rc
     environment:
       MARIADB_ROOT_HOST: 'localhost'
+      # Must match DB_ROOT_PASSWORD / DB_ROOT_USER in src/backend/utils.rs
       MARIADB_ROOT_PASSWORD: root
       MARIADB_AUTO_UPGRADE: true
       TZ: Europe/Stockholm
