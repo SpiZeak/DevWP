@@ -11,6 +11,7 @@ A pure-Rust desktop application (Dioxus) for simplified local WordPress developm
 DevWP was previously a Tauri app (Rust backend + React/TypeScript renderer). It is now a **single Rust binary** built with [Dioxus](https://dioxuslabs.com) desktop:
 
 - All React components became Dioxus RSX components; there is no Node/TypeScript toolchain (no Vite, bun, vitest, biome) and no IPC — the UI calls the backend functions directly.
+- The window is frameless with a custom in-app title bar (drag to move, minimize/maximize/close) instead of the native window toolbar.
 - All shared state lives in process-wide `SyncSignal`s so background threads (docker streaming, certificate regeneration) can safely mutate it.
 - The Tailwind v4 CSS bundle is **prebuilt and committed** (`src/assets/style.css`); rebuild with `scripts/build-css.sh` after changing classes.
 - All fonts are embedded in the binary (no external asset loading, identical behaviour in dev and packaged builds).
@@ -92,14 +93,17 @@ cargo run
 ```
 ┌────────────────────────────┐
 │  Dioxus RSX UI (Rust)      │
-│  components/ …             │
+│  custom title bar,         │
+│  components/ (site_list,   │
+│  create_site, services, …) │
 │  reads/writes SyncSignals  │
 └─────────────┬──────────────┘
               │ direct function calls (no IPC)
 ┌─────────────┴──────────────┐
 │  backend/ (pure Rust fns)  │
-│  docker, site, settings,   │
-│  wp_cli, xdebug, lifecycle │
+│  docker, lifecycle,        │
+│  settings, site, system,   │
+│  utils, wp_cli, xdebug     │
 └─────────────┬──────────────┘
               │ docker / filesystem
 ┌─────────────┴──────────────┐
