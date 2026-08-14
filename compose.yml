@@ -47,7 +47,6 @@ services:
     tmpfs:
       - /tmp
     command: --bind-address=0.0.0.0 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --skip-name-resolve --innodb-flush-log-at-trx-commit=2 --innodb-flush-method=O_DIRECT --innodb-buffer-pool-size=512M
-    restart: unless-stopped
     logging: *default-logging
     healthcheck:
       test: ['CMD', 'mariadb-admin', 'ping', '-h', 'localhost', '-u', 'root', '-proot']
