@@ -120,9 +120,17 @@ fn wp_cli_info_runs_against_php_container() {
         return;
     }
     // The container workdir is the site's mounted dir (~/www, the default
-    // webroot); create a throwaway site dir and remove it afterwards.
+    // webroot); create a throwaway site dir and remove it afterwards. The host
+    // dir must actually exist, otherwise docker exec -w fails with a confusing
+    // "chdir ... no such file or directory" (e.g. when ~/www is not writable
+    // by the test's user).
     let site_dir = devwp::backend::utils::default_webroot().join("example.test");
-    let _ = std::fs::create_dir_all(&site_dir);
+    std::fs::create_dir_all(&site_dir).unwrap_or_else(|e| {
+        panic!(
+            "failed to create site dir {} for wp-cli test: {e}. Is the webroot writable?",
+            site_dir.display()
+        )
+    });
     let result = block_on(wp_cli::run_wp_cli(WpCliRequest {
         site: devwp::backend::site::Site {
             name: "example.test".to_string(),
