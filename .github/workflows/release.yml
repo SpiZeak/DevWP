@@ -57,7 +57,11 @@ jobs:
         run: cargo packager --release
         timeout-minutes: 30
 
+      # Explicitly use bash: Windows runners default to PowerShell, where
+      # `ls -lh` is an unknown Get-ChildItem parameter and -lh raises a
+      # terminating error that aborts the step before the fallback can run.
       - name: List packaged artifacts
+        shell: bash
         run: ls -lh target/release/*.AppImage target/release/*.deb target/release/*.dmg target/release/*-setup.exe target/release/*.msi 2>/dev/null || ls -lh target/release/
 
       - name: Upload artifacts
