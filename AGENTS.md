@@ -101,7 +101,7 @@ still relevant (and only to compose). Proposal: trim `.env.example` to just
 ## Gotchas
 
 - **No `rust-toolchain.toml`**: MSRV `1.83` is declared in `Cargo.toml`; CI uses `dtolnay/rust-toolchain@stable`. The local checkout is on nightly — fine, but don't rely on nightly-only features if targeting MSRV.
-- **Linux native deps required to build**: `libwebkit2gtk-4.1-dev` (mandatory), plus `libappindicator3-dev`, `librsvg2-dev`, `patchelf` for packaging. Without these `cargo build`/`cargo run` fails on Linux. CI installs them in every workflow.
+- **Linux native deps required to build**: `libwebkit2gtk-4.1-dev` (mandatory), plus `libappindicator3-dev`, `libxdo-dev` (linker `-lxdo` from `libxdo-sys`/`global_hotkey`), `librsvg2-dev`, `patchelf` for packaging. Without these `cargo build`/`cargo run` fails on Linux. CI installs them in every workflow.
 - **Integration tests are side-effectful**: `cargo test --test integration` runs `docker compose up -d nginx` (may build images, slow on first run) and mutates the local Docker stack (toggles xdebug, runs `wp --info`). They skip gracefully when Docker is absent, but with Docker present they act on the real compose stack — run deliberately, not as a fast loop.
 - **DB creds are hardcoded** in `src/backend/utils.rs` and must stay in sync with `compose.yml` (both `root`/`root`). Changing one without the other breaks DB access.
 - **State dir is `.devwp-tauri/`** (gitignored). Integration tests redirect it to a temp dir via `set_test_mode(true)`; never have unit/integration tests touch the developer's real state.

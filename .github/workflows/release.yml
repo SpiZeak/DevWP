@@ -45,7 +45,7 @@ jobs:
         if: startsWith(matrix.platform, 'ubuntu-')
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils file desktop-file-utils
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libappindicator3-dev libxdo-dev librsvg2-dev patchelf xdg-utils file desktop-file-utils
 
       - name: Install cargo-packager
         run: cargo install cargo-packager --locked
