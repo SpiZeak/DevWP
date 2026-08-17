@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=DevWP
+GenericName=WordPress Development
+Comment=Simplified local WordPress development with Docker, Nginx, and PHP-FPM
+Exec=devwp
+Icon=devwp
+Terminal=false
+Categories=Development;
+StartupWMClass=DevWP

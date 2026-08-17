@@ -38,5 +38,18 @@ homepage = "https://github.com/SpiZeak/DevWP"
 authors = ["Trewhitt"]
 identifier = "com.devwp.app"
 product_name = "DevWP"
+category = "DeveloperTool"
 before_packaging_command = "cargo build --release"
 icons = ["resources/icon.png", "build/icon.icns", "build/icon.ico"]
+
+# Linux package extras: install a freedesktop-compliant launcher and the icon
+# at XDG hicolor locations so the auto-generated {{icon}} lookup resolves.
+# `files` is a src-path -> dst-path mapping relative to the package root
+# (/usr for deb, AppDir/ for AppImage).
+[package.metadata.packager.deb]
+files = { "resources/devwp.desktop" = "/usr/share/applications/devwp.desktop", "resources/icon.png" = "/usr/share/icons/hicolor/512x512/apps/devwp.png" }
+
+[package.metadata.packager.appimage]
+files = { "resources/devwp.desktop" = "usr/share/applications/devwp.desktop", "resources/icon.png" = "usr/share/icons/hicolor/512x512/apps/devwp.png" }
+
+
