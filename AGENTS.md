@@ -30,6 +30,7 @@ functions directly (no IPC, no Node toolchain), state lives in process-wide
 | Test (integration)  | `cargo test --test integration` (needs Docker + compose stack up)    |
 | Test (all)          | `cargo test`                                                         |
 | Rebuild CSS         | `scripts/build-css.sh` (downloads Tailwind v4.3.0 CLI on first run)  |
+| Regenerate icons    | `python3 scripts/build-icon.py` (needs Pillow; rewrites all 5 assets) |
 | Trusted certs       | `./scripts/setup-certs.sh` (mkcert)                                  |
 | Package installers  | `cargo install cargo-packager --locked && cargo packager --release`  |
 

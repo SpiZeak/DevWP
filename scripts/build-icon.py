@@ -2,11 +2,12 @@
 """Generate the DevWP app icon set.
 
 Outputs (overwrites):
-  build/icon.png        512x512 master
+  build/icon.png        512x512 (downsampled from a 1024px render)
   resources/icon.png    512x512 copy (used by cargo-packager)
   src/assets/icon_32.png 32x32 (embedded via include_bytes!)
 
-Plus multi-resolution .ico and .icns files in build/.
+Plus multi-resolution .ico and .icns files in build/. The mark is rendered at
+1024px so the icns can ship a full-size ic10 (512pt@2x) entry.
 
 Design: pumpkin-orange rounded square with a bold white W (WordPress-flavored)
 and a white terminal-cursor bar beneath it that signals "dev / shell prompt".
@@ -155,25 +156,33 @@ def write_icns(master: Image.Image, path: Path) -> None:
 
     Apple's ICNS container is just: 'icns' magic + total length, followed by
     typed chunks {'TYPE' (4 ASCII chars) + chunk length (4B big-endian) + PNG bytes}.
-    We support the subset of sizes we'll actually produce from a 512 master.
+
+    Type codes select the icon by *point size* (and scale), and macOS renders
+    them at the pixel size the code declares — mismatched art gets upscaled and
+    looks blurry. Canonical iconutil-equivalent set (needs a 1024px master):
+
+      ic11  16pt@2x = 32px    ic12  32pt@2x = 64px
+      ic07 128pt@1x = 128px   ic08 256pt@1x = 256px   ic13 128pt@2x = 256px
+      ic09 512pt@1x = 512px   ic14 256pt@2x = 512px   ic10 512pt@2x = 1024px
     """
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    # (pixel_size, type_code) — Apple ICNS reference:
-    #  ic07=16, ic08=16@2x(32), ic09=32, ic10=32@2x(64), ic11=64,
-    #  ic12=64@2x(128), ic13=128, ic14=128@2x(256), ic15=256, ic16=256@2x(512),
-    #  ic17=512, ic18=512@2x(1024), ic19=1024...
-    entries: list[tuple[str, Image.Image]] = [
-        ("ic07", master.resize((16, 16), Image.LANCZOS)),
-        ("ic09", master.resize((32, 32), Image.LANCZOS)),
-        ("ic11", master.resize((64, 64), Image.LANCZOS)),
-        ("ic13", master.resize((128, 128), Image.LANCZOS)),
-        ("ic14", master.resize((256, 256), Image.LANCZOS)),
-        ("ic16", master.resize((512, 512), Image.LANCZOS)),
+    # (pixel_size, type_code) — Apple ICNS reference.
+    entries: list[tuple[int, str]] = [
+        (32, "ic11"),
+        (64, "ic12"),
+        (128, "ic07"),
+        (256, "ic08"),
+        (256, "ic13"),
+        (512, "ic09"),
+        (512, "ic14"),
+        (1024, "ic10"),
     ]
 
     body = bytearray()
-    for type_code, im in entries:
+    for pixel_size, type_code in entries:
+        im = master if master.size[0] == pixel_size else master.resize(
+            (pixel_size, pixel_size), Image.LANCZOS)
         buf = io.BytesIO()
         im.save(buf, format="PNG", optimize=True)
         png = buf.getvalue()
@@ -184,9 +193,10 @@ def write_icns(master: Image.Image, path: Path) -> None:
 
 
 def main() -> None:
-    master = render_master(512)
+    # Render at 1024 so the icns can carry a true 512pt@2x entry (ic10).
+    master = render_master(1024)
 
-    # 512 master copies.
+    # 512 copies (used by cargo-packager / desktop files).
     write_png(master, BUILD / "icon.png", 512)
     write_png(master, RESOURCES / "icon.png", 512)
 
