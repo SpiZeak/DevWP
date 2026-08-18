@@ -15,6 +15,11 @@ use tracing::{error, info};
 
 const STARTUP_SERVICES: &[&str] = &["nginx", "php", "mariadb", "redis", "mailpit"];
 
+/// Canonical compose invocations, shared by the GUI lifecycle and the CLI so
+/// both always start/stop the exact same stack.
+pub const COMPOSE_UP_ARGS: &[&str] = &["compose", "up", "-d", "nginx"];
+pub const COMPOSE_DOWN_ARGS: &[&str] = &["compose", "down"];
+
 /// `docker compose up -d nginx` with build logging, mirroring the previous
 /// app startup sequence. Called once from the UI on mount.
 pub async fn start_services() {
@@ -27,7 +32,7 @@ pub async fn start_services() {
     state::set_docker_status(DockerStatus::Starting, "Starting services...");
 
     let result = tokio::task::spawn_blocking(move || {
-        run_command_streaming("docker", &["compose", "up", "-d", "nginx"], move |line| {
+        run_command_streaming("docker", COMPOSE_UP_ARGS, move |line| {
             state::push_build_log("startup", &line);
         })
     })
@@ -66,7 +71,7 @@ pub async fn stop_services() {
     state::set_docker_status(DockerStatus::Stopping, "Stopping services...");
 
     let result =
-        tokio::task::spawn_blocking(move || run_command("docker", &["compose", "down"])).await;
+        tokio::task::spawn_blocking(move || run_command("docker", COMPOSE_DOWN_ARGS)).await;
 
     match result {
         Ok(Ok(_)) => {

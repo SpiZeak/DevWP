@@ -10,6 +10,12 @@ fn main() {
         std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     }
 
+    // Any argument switches to CLI mode; a bare `devwp` launches the GUI.
+    if std::env::args_os().nth(1).is_some() {
+        let code = devwp::cli::run();
+        std::process::exit(code);
+    }
+
     let _ = dioxus::logger::init(Level::INFO);
 
     let window_builder = WindowBuilder::new()

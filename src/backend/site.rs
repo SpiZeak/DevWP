@@ -317,7 +317,7 @@ fn regenerate_certificate(sites: &[Site]) -> Result<(), String> {
 }
 
 /// Find the mkcert binary. Checks PATH first, then common install locations.
-fn find_mkcert() -> Result<String, String> {
+pub fn find_mkcert() -> Result<String, String> {
     // Check PATH
     if let Ok(paths) = std::env::var("PATH") {
         for dir in std::env::split_paths(&paths) {
@@ -847,6 +847,20 @@ fn install_wordpress(
     Ok(())
 }
 
+/// Regenerate the shared TLS certificate for `sites`. In the GUI this runs
+/// on a worker thread (mkcert can be slow with many sites); in headless
+/// (CLI) mode it must run inline so the process cannot exit mid-run.
+fn run_cert_regen<F>(job: F)
+where
+    F: FnOnce() + Send + 'static,
+{
+    if crate::backend::utils::headless_mode() {
+        job();
+    } else {
+        std::thread::spawn(job);
+    }
+}
+
 pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
     // The domain, web root and aliases flow into filesystem paths, nginx
     // config and SQL — validate everything up front, never trust the UI.
@@ -886,7 +900,7 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
     // Regenerate TLS certificate in background — this can be slow with many sites.
     // The callback runs on a worker thread, so it only touches SyncSignal state.
     let sites_for_cert = sites.clone();
-    std::thread::spawn(move || {
+    run_cert_regen(move || {
         if let Err(e) = regenerate_certificate(&sites_for_cert) {
             emit_notification(
                 NotificationType::Warning,
@@ -939,7 +953,7 @@ pub fn delete_site(site: Site) -> Result<(), String> {
 
     // Regenerate TLS certificate in background — worker thread, SyncSignal only.
     let sites_for_cert = sites.clone();
-    std::thread::spawn(move || {
+    run_cert_regen(move || {
         if let Err(e) = regenerate_certificate(&sites_for_cert) {
             emit_notification(
                 NotificationType::Warning,

@@ -17,6 +17,7 @@ name = "devwp"
 path = "src/main.rs"
 
 [dependencies]
+clap = { version = "4", features = ["derive"] }
 dioxus = { version = "0.7.10", features = ["desktop"] }
 rfd = "0.17"
 serde = { version = "1", features = ["derive"] }

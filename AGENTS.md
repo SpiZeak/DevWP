@@ -38,8 +38,11 @@ functions directly (no IPC, no Node toolchain), state lives in process-wide
 
 ```
 src/
-├── main.rs            entry point: window config, icon, frameless + close behaviour
+├── main.rs            entry point: window config, icon, frameless + close behaviour;
+│                     dispatches to cli::run() when invoked with arguments (bare run = GUI)
 ├── lib.rs             module declarations; crate-level Dioxus lint allows (do not remove)
+├── cli.rs             clap-based CLI (init/doctor/info/site/services/wp/composer/xdebug/settings/open);
+│                     calls the same backend fns as the UI; headless mode makes cert-regen inline
 ├── app.rs             root component: compose-up on launch, close interception/shutdown
 ├── state.rs           process-wide SyncSignal globals (thread-safe; background threads write here)
 ├── assets.rs          embedded CSS + fonts served via the dioxus:// asset handler

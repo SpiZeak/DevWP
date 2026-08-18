@@ -1,4 +1,4 @@
-use crate::backend::utils::run_command;
+use crate::backend::utils::{headless_mode, run_command};
 use crate::state;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -286,22 +286,27 @@ pub fn get_container_status() -> Result<Vec<Container>, String> {
     }
 
     let mut containers = parse_compose_ps(&String::from_utf8_lossy(&output.stdout));
-    let mut cache = VERSION_CACHE
-        .lock()
-        .map_err(|e| format!("Version cache poisoned: {e}"))?;
 
-    for container in &mut containers {
-        if container.state == ContainerState::Running {
-            if let Some(version) = cache.get(&container.id) {
-                container.version = version.clone();
-            } else {
-                let version = get_container_version(&container.name);
-                cache.insert(container.id.clone(), version.clone());
-                container.version = version;
+    // Version probing shells out once per running container for the UI's poll
+    // loop. Skip it in headless (CLI) mode — versions are unread there and the
+    // one-shot process never benefits from the cache.
+    if !headless_mode() {
+        let mut cache = VERSION_CACHE
+            .lock()
+            .map_err(|e| format!("Version cache poisoned: {e}"))?;
+
+        for container in &mut containers {
+            if container.state == ContainerState::Running {
+                if let Some(version) = cache.get(&container.id) {
+                    container.version = version.clone();
+                } else {
+                    let version = get_container_version(&container.name);
+                    cache.insert(container.id.clone(), version.clone());
+                    container.version = version;
+                }
             }
         }
     }
-    drop(cache);
 
     state::set_containers(containers.clone());
     Ok(containers)
@@ -317,7 +322,9 @@ pub async fn restart_container(container_id: String) -> Result<bool, String> {
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
     }
 
-    let _ = get_container_status();
+    if !headless_mode() {
+        let _ = get_container_status();
+    }
     Ok(true)
 }
 

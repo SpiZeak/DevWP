@@ -124,6 +124,21 @@ State files live in `.devwp-tauri/` (sites.json, settings.json); the webroot def
 
 ## Usage
 
+### Command Line
+
+The same binary doubles as a CLI: run it without arguments for the GUI, or with a subcommand to script everything the GUI can do (sites, services, WP-CLI, Xdebug, settings).
+
+```bash
+devwp init                                  # set up state, webroot, start the stack
+devwp site create shop --wp-title Shop      # create a site + install WordPress
+devwp wp shop.test plugin list              # WP-CLI inside the site's container
+devwp services status                       # container/health/version table
+devwp xdebug on                             # enable Xdebug, restart php
+devwp doctor                                # environment health report
+```
+
+See [docs/cli-reference.md](docs/cli-reference.md) for the full command reference (syntax, options, exit codes, and scripting recipes).
+
 ### Creating a Site
 
 1. Launch DevWP and click "New Site"

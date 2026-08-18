@@ -71,6 +71,19 @@ pub fn set_test_mode(enabled: bool) {
     TEST_MODE.store(enabled, Ordering::SeqCst);
 }
 
+/// Headless (CLI) mode. Set when the binary is invoked with a subcommand
+/// instead of launching the GUI; background jobs (certificate regeneration)
+/// must then run inline so the process cannot exit before they finish.
+static HEADLESS_MODE: AtomicBool = AtomicBool::new(false);
+
+pub fn set_headless_mode(enabled: bool) {
+    HEADLESS_MODE.store(enabled, Ordering::SeqCst);
+}
+
+pub fn headless_mode() -> bool {
+    HEADLESS_MODE.load(Ordering::SeqCst)
+}
+
 /// State directory. In test mode the state is redirected to a temp dir so
 /// integration tests never touch the developer's real state.
 pub fn state_root() -> PathBuf {

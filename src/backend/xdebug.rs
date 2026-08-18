@@ -50,8 +50,15 @@ pub fn get_xdebug_status() -> bool {
     enabled
 }
 
+/// Flip Xdebug to the opposite of its current state (GUI switch).
 pub async fn toggle_xdebug() -> Result<bool, String> {
-    let target_enabled = !get_xdebug_status();
+    set_xdebug(!get_xdebug_status()).await
+}
+
+/// Enable or disable Xdebug by writing `xdebug.mode` in the mounted ini and
+/// restarting the php service. The CLI calls this directly so `on`/`off` are
+/// idempotent rather than blind toggles.
+pub async fn set_xdebug(target_enabled: bool) -> Result<bool, String> {
     state::set_xdebug_toggling(true);
     state::set_xdebug_enabled(Some(target_enabled));
 
@@ -68,8 +75,11 @@ pub async fn toggle_xdebug() -> Result<bool, String> {
         "xdebug.mode = off".to_string()
     });
 
-    fs::write(config_path, format!("{}\n", lines.join("\n")))
-        .map_err(|e| format!("Failed to update xdebug.ini: {e}"))?;
+    fs::write(config_path, format!("{}\n", lines.join("\n"))).map_err(|e| {
+        state::set_xdebug_toggling(false);
+        state::set_xdebug_enabled(Some(get_xdebug_status()));
+        format!("Failed to update xdebug.ini: {e}")
+    })?;
 
     let restart =
         tokio::task::spawn_blocking(|| run_command("docker", &["compose", "restart", "php"]))
