@@ -115,70 +115,14 @@ pub fn default_webroot() -> PathBuf {
     home_dir().join("www")
 }
 
-/// Run a command in the project root and capture its output.
+/// Run a command in the project root and capture its output. Only used for
+/// host tooling that has no Docker Engine API equivalent (mkcert).
 pub fn run_command(command: &str, args: &[&str]) -> Result<std::process::Output, String> {
     Command::new(command)
         .args(args)
         .current_dir(project_root())
         .output()
         .map_err(|e| format!("Failed to execute command `{command}`: {e}"))
-}
-
-/// Run a command and stream stdout/stderr line-by-line to the provided callback.
-/// Returns `Ok(true)` if the process exits successfully, `Ok(false)` on non-zero exit.
-///
-/// The callback may run on a worker thread — it must only touch `SyncSignal` state.
-pub fn run_command_streaming<F>(command: &str, args: &[&str], on_line: F) -> Result<bool, String>
-where
-    F: Fn(String) + Send + Sync + 'static,
-{
-    use std::io::{BufRead, BufReader};
-    use std::process::Stdio;
-    use std::sync::Arc;
-
-    let on_line = Arc::new(on_line);
-
-    let mut child = Command::new(command)
-        .args(args)
-        .current_dir(project_root())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("Failed to spawn `{command}`: {e}"))?;
-
-    let stdout = child.stdout.take();
-    let on_line_stdout = Arc::clone(&on_line);
-    let stdout_thread = stdout.map(|stdout| {
-        std::thread::spawn(move || {
-            let reader = BufReader::new(stdout);
-            for line in reader.lines().map_while(|l| l.ok()) {
-                on_line_stdout(line);
-            }
-        })
-    });
-
-    let stderr_thread = child.stderr.take().map(|stderr| {
-        let on_line_stderr = Arc::clone(&on_line);
-        std::thread::spawn(move || {
-            let reader = BufReader::new(stderr);
-            for line in reader.lines().map_while(|l| l.ok()) {
-                on_line_stderr(line);
-            }
-        })
-    });
-
-    if let Some(t) = stdout_thread {
-        t.join().ok();
-    }
-    if let Some(t) = stderr_thread {
-        t.join().ok();
-    }
-
-    let status = child
-        .wait()
-        .map_err(|e| format!("Failed to wait for `{command}`: {e}"))?;
-
-    Ok(status.success())
 }
 
 /// Push a notification; safe from any thread.

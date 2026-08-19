@@ -1,5 +1,6 @@
+use crate::backend::docker;
 use crate::backend::settings::{read_settings, write_settings};
-use crate::backend::utils::{emit_notification, project_root, run_command, NotificationType};
+use crate::backend::utils::{emit_notification, project_root, NotificationType};
 use crate::state;
 use std::fs;
 use std::path::PathBuf;
@@ -81,18 +82,12 @@ pub async fn set_xdebug(target_enabled: bool) -> Result<bool, String> {
         format!("Failed to update xdebug.ini: {e}")
     })?;
 
+    // Restart php through the Docker API so the ini change takes effect
+    // (`docker compose restart php` equivalent — the fixed container name).
     let restart =
-        tokio::task::spawn_blocking(|| run_command("docker", &["compose", "restart", "php"]))
-            .await
-            .map_err(|e| format!("Task join error: {e}"))?;
+        docker::restart_container(crate::backend::wp_cli::PHP_CONTAINER_NAME.to_string()).await;
 
-    let restart_failed = match &restart {
-        Err(e) => Some(e.clone()),
-        Ok(output) if !output.status.success() => {
-            Some(String::from_utf8_lossy(&output.stderr).trim().to_string())
-        }
-        Ok(_) => None,
-    };
+    let restart_failed = restart.err();
     if let Some(error) = restart_failed {
         state::set_xdebug_toggling(false);
         state::set_xdebug_enabled(Some(get_xdebug_status()));

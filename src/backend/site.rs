@@ -1,3 +1,4 @@
+use crate::backend::docker::{exec_in_container, ExecOptions};
 use crate::backend::settings::{ensure_webroot_exists, get_webroot_from_settings};
 use crate::backend::utils::{
     emit_notification, ensure_state_root, run_command, NotificationType, OperationResult,
@@ -345,10 +346,10 @@ pub fn find_mkcert() -> Result<String, String> {
 /// Validate the generated config with `nginx -t` before reloading; an invalid
 /// config must never be applied (and would fail the running nginx otherwise).
 fn nginx_reload() {
-    let test = run_command("docker", &["exec", "devwp_nginx", "nginx", "-t"]);
+    let test = exec_in_container("devwp_nginx", &["nginx", "-t"], &ExecOptions::default());
     if let Ok(output) = test {
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
+        if !output.success() {
+            let stderr = output.stderr;
             crate::state::push_notification(
                 NotificationType::Error,
                 format!("Nginx config check failed, reload skipped:\n{stderr}"),
@@ -356,7 +357,11 @@ fn nginx_reload() {
             return;
         }
     }
-    let _ = run_command("docker", &["exec", "devwp_nginx", "nginx", "-s", "reload"]);
+    let _ = exec_in_container(
+        "devwp_nginx",
+        &["nginx", "-s", "reload"],
+        &ExecOptions::default(),
+    );
 }
 
 fn generate_nginx_config(
@@ -721,24 +726,24 @@ fn install_wordpress(
     let db_name = domain.replace(['.', '-'], "_");
 
     let run_wp = |cmd_args: &[&str]| -> Result<(), String> {
-        let mut args = vec![
-            "exec",
-            "-w",
-            work_dir.as_str(),
+        let mut argv = vec!["php", "-d", WP_CLI_ERROR_REPORTING, "/usr/local/bin/wp"];
+        argv.extend_from_slice(cmd_args);
+        let output = exec_in_container(
             PHP_CONTAINER_NAME,
-            "php",
-            "-d",
-            WP_CLI_ERROR_REPORTING,
-            "/usr/local/bin/wp",
-        ];
-        args.extend_from_slice(cmd_args);
-        let output = run_command("docker", &args)?;
-        if output.status.success() {
+            &argv,
+            &ExecOptions {
+                working_dir: Some(work_dir.clone()),
+                env: Vec::new(),
+            },
+        )?;
+        if output.success() {
             Ok(())
         } else {
-            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-            let detail = if !stderr.is_empty() { stderr } else { stdout };
+            let detail = if !output.stderr.is_empty() {
+                output.stderr
+            } else {
+                output.stdout
+            };
             Err(format!(
                 "wp {} failed: {}",
                 cmd_args.first().copied().unwrap_or(""),
@@ -778,21 +783,15 @@ fn install_wordpress(
     let db_root_user = crate::backend::utils::DB_ROOT_USER;
     let db_root_pass = crate::backend::utils::DB_ROOT_PASSWORD;
     let db_host = crate::backend::utils::DB_HOST;
-    let output = run_command(
-        "docker",
-        &[
-            "exec",
-            db_host,
-            "mariadb",
-            &format!("-u{db_root_user}"),
-            &format!("-p{db_root_pass}"),
-            "-e",
-            &create_db_sql,
-        ],
+    let db_user_arg = format!("-u{db_root_user}");
+    let db_pass_arg = format!("-p{db_root_pass}");
+    let output = exec_in_container(
+        db_host,
+        &["mariadb", &db_user_arg, &db_pass_arg, "-e", &create_db_sql],
+        &ExecOptions::default(),
     )?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        return Err(format!("Failed to create database: {stderr}"));
+    if !output.success() {
+        return Err(format!("Failed to create database: {}", output.stderr));
     }
 
     emit_notification(

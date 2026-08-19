@@ -22,7 +22,7 @@ tests/integration.rs   backend tests against the real compose stack
 All shared state lives in process-wide signals declared with the
 `sync_state!` macro in `src/state.rs` (a `SyncSignal` behind a `OnceLock`):
 
-- `CONTAINERS` — `docker compose ps` results
+- `CONTAINERS` — Docker Engine API container listing (project label filter)
 - `BUILDING_SERVICES` — service → building flag
 - `DOCKER_STATUS` — status banner (idle/starting/complete/error/stopping/stopped)
 - `BUILD_LOGS` — `[{service}] {line}` strings, ANSI-stripped, capped at 500
@@ -50,20 +50,27 @@ replaced by signal writes:
 | `listen("container-status")`  | reading `state::containers()` reactively  |
 | `invoke("create_site", {..})` | `spawn(async { site::create_site(req).await })` |
 
-Blocking work is wrapped in `tokio::task::spawn_blocking`; long-running
-streams (`docker compose up -d`) stream into `BUILD_LOGS` via
-`run_command_streaming`.
+Blocking work is wrapped in `tokio::task::spawn_blocking`. Docker access goes
+through the Bollard SDK (`src/backend/docker.rs`) on a dedicated per-call
+tokio runtime — no `docker` CLI is spawned. `src/backend/compose.rs` parses
+the repo's `compose.yml`, and `lifecycle.rs` orchestrates the stack (network,
+volumes, image build/pull, container create/start in `depends_on` order with
+health gates). Build/pull progress streams into `BUILD_LOGS`. See
+`docs/bollard-migration-plan.md` for the full command→API mapping.
 
 ## Lifecycle
 
 - **Startup** — `app.rs` mounts, `lifecycle::start_services()` marks the five
-  services as building and runs `docker compose up -d nginx` (streaming logs),
-  then refreshes container status.
+  services as building and orchestrates the stack through the Docker Engine
+  API (ensure network/volumes, build php/nginx or pull images, create/start
+  containers in dependency order, wait for dependency health), then refreshes
+  container status.
 - **Shutdown** — the window starts in `WindowCloseBehaviour::WindowHides`.
   `use_wry_event_handler` observes `CloseRequested` and spawns
-  `lifecycle::stop_services()` (`docker compose down`). When it finishes,
+  `lifecycle::stop_services()` (stop + remove project containers; volumes and
+  the network are kept). When it finishes,
   `shutdown_done()` flips and the root component switches the window to
-  `WindowCloses` and closes it — compose-down always completes before exit.
+  `WindowCloses` and closes it — teardown always completes before exit.
 
 ## Assets
 

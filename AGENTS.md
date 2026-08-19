@@ -48,8 +48,9 @@ src/
 ├── assets.rs          embedded CSS + fonts served via the dioxus:// asset handler
 ├── assets/            committed Tailwind v4 bundle (style.css), fonts/*.woff2, theme.css
 ├── backend/           pure Rust functions, no IPC; mirrors the old Tauri command surface
-│   ├── docker.rs      container status + compose lifecycle
-│   ├── lifecycle.rs   start/stop services, shutdown coordination
+│   ├── compose.rs     typed parser for the repo compose.yml (orchestration input)
+│   ├── docker.rs      Bollard (Docker Engine API) client: exec, status, restart, orchestration primitives
+│   ├── lifecycle.rs   start/stop the stack via Bollard (network/volumes/images/containers, health gates)
 │   ├── site.rs        create/edit/delete sites, nginx configs, /etc/hosts, certs
 │   ├── settings.rs    settings.json CRUD
 │   ├── wp_cli.rs      WP-CLI execution inside the php container
@@ -71,7 +72,7 @@ full layer/state/lifecycle/asset writeup.
 ## Conventions
 
 - Naming: `snake_case` functions/vars, `PascalCase` types, flat modules under `backend/` and `components/`.
-- Error handling: backend fns return `Result<T, String>` with `.map_err(|e| format!("...: {e}"))` — string errors, no `anyhow`/`thiserror`. Results surface to the UI as `OperationResult { success, message, error }` and/or `state::push_notification(type, msg)`. Blocking work wraps in `tokio::task::spawn_blocking`; long streams use `run_command_streaming` into `BUILD_LOGS`.
+- Error handling: backend fns return `Result<T, String>` with `.map_err(|e| format!("...: {e}"))` — string errors, no `anyhow`/`thiserror`. Results surface to the UI as `OperationResult { success, message, error }` and/or `state::push_notification(type, msg)`. Blocking work wraps in `tokio::task::spawn_blocking`; Docker work goes through Bollard (`docker::exec_in_container`, orchestration in `lifecycle.rs`) — never spawn the `docker` CLI.
 - State: cross-thread state via `SyncSignal` + the `sync_state!`/`global_value!` macros in `state.rs`. `init_globals()` (called in `app.rs` root scope) creates every signal in the root scope so storage outlives child scopes. UI-only state stays in local `Signal`s.
 - Tests: unit tests are inline `#[cfg(test)] mod tests` inside `src/` modules. Integration tests in `tests/integration.rs` call the backend directly (no IPC), skip gracefully when Docker is unavailable, and isolate state to a temp dir via `with_test_state()` / `set_test_mode(true)`.
 - `src/lib.rs` carries `#![allow(unused_braces, clippy::clone_on_copy)]` — these are intentional and documented (Dioxus RSX requires braces for expression children; signal handles are `Copy`). Do not remove them.
@@ -106,7 +107,8 @@ still relevant (and only to compose). Proposal: trim `.env.example` to just
 
 - **No `rust-toolchain.toml`**: MSRV `1.83` is declared in `Cargo.toml`; CI uses `dtolnay/rust-toolchain@stable`. The local checkout is on nightly — fine, but don't rely on nightly-only features if targeting MSRV.
 - **Linux native deps required to build**: `libwebkit2gtk-4.1-dev` (mandatory), plus `libappindicator3-dev`, `libxdo-dev` (linker `-lxdo` from `libxdo-sys`/`global_hotkey`), `librsvg2-dev`, `patchelf` for packaging. Without these `cargo build`/`cargo run` fails on Linux. CI installs them in every workflow.
-- **Integration tests are side-effectful**: `cargo test --test integration` runs `docker compose up -d nginx` (may build images, slow on first run) and mutates the local Docker stack (toggles xdebug, runs `wp --info`). They skip gracefully when Docker is absent, but with Docker present they act on the real compose stack — run deliberately, not as a fast loop.
+- **Integration tests are side-effectful**: `cargo test --test integration` provisions via the `docker compose` CLI in CI and mutates the local Docker stack when it is up (toggles xdebug, runs `wp --info`). They skip gracefully when the Docker daemon is absent, but with Docker present they act on the real stack — run deliberately, not as a fast loop.
+- **The app never spawns the docker CLI**: all Docker operations go through Bollard (unix socket / named pipe). The `docker compose` CLI remains only for CI provisioning and developer workflows; the two interoperate because all app-created resources carry compose-identical names/labels (`devwp` project). See `docs/bollard-migration-plan.md`.
 - **DB creds are hardcoded** in `src/backend/utils.rs` and must stay in sync with `compose.yml` (both `root`/`root`). Changing one without the other breaks DB access.
 - **State dir is `.devwp-tauri/`** (gitignored). Integration tests redirect it to a temp dir via `set_test_mode(true)`; never have unit/integration tests touch the developer's real state.
 - **Tailwind CSS is prebuilt and committed** (`src/assets/style.css`). After changing any class names in `src/**/*.rs`, run `scripts/build-css.sh` and commit the regenerated `style.css` — otherwise the UI won't reflect the change. The script downloads the standalone Tailwind v4.3.0 CLI into `$XDG_CACHE_HOME` on first use (network fetch).

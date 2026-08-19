@@ -1,6 +1,6 @@
 //! Custom window title bar for the frameless desktop window: drag region,
 //! minimize / maximize / close controls. The close button routes through
-//! [`crate::app::request_shutdown`] so `docker compose down` still runs
+//! [`crate::app::request_shutdown`] so the Docker stack teardown still runs
 //! before the app exits (see `src/backend/lifecycle.rs`).
 
 use crate::app::request_shutdown;

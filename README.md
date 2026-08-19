@@ -34,11 +34,11 @@ DevWP was previously a Tauri app (Rust backend + React/TypeScript renderer). It 
 
 ### For Using the App
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) - Required for managing WordPress environments
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or any Docker daemon) - the app talks to the Docker Engine API directly via [Bollard](https://crates.io/crates/bollard); the `docker`/`docker compose` CLI is not required
 
 ### For Development (Building from Source)
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- A running Docker daemon (the `docker compose` CLI is only needed to provision the stack for integration tests and CI)
 - [Rust](https://rustup.rs/) - stable toolchain
 - Linux: `libwebkit2gtk-4.1-dev` (and `libappindicator3-dev`, `librsvg2-dev`, `patchelf` for packaging)
 

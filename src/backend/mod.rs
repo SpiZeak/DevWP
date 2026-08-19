@@ -1,3 +1,4 @@
+pub mod compose;
 pub mod docker;
 pub mod lifecycle;
 pub mod settings;

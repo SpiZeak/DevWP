@@ -1,7 +1,7 @@
 //! Global application state.
 //!
 //! Every piece of state that can be written from a background thread (tokio
-//! tasks, `run_command_streaming` reader threads, certificate threads) lives
+//! tasks, Docker build/pull streams, certificate threads) lives
 //! in a `SyncSignal` so writes are safe from any thread. UI-only state stays
 //! in local `Signal`s inside the components.
 

@@ -12,9 +12,7 @@ use crate::backend::site::{
     format_domain, is_valid_email, MultisiteConfig, MultisiteType, Site, SiteCreateRequest,
     SiteUpdateRequest, WordPressInstallConfig,
 };
-use crate::backend::utils::{
-    run_command, run_command_streaming, NotificationType, OperationResult,
-};
+use crate::backend::utils::{run_command, NotificationType, OperationResult};
 use crate::backend::{docker, lifecycle, settings, site, system, utils, wp_cli, xdebug};
 use crate::state;
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -780,23 +778,23 @@ fn cmd_services_status(json: bool) -> Result<(), String> {
 
 fn cmd_services_start() -> Result<(), String> {
     outln("Starting services (the first run may build images)...");
-    let ok = run_command_streaming("docker", lifecycle::COMPOSE_UP_ARGS, outln)?;
-    if !ok {
-        return Err("`docker compose up` failed (see output above)".to_string());
+    // The Bollard lifecycle streams build/pull output into the global build
+    // log instead of stdout; drain whatever accumulated so first-run builds
+    // stay visible (and failures diagnosable) in headless mode.
+    let seen = state::build_logs().len();
+    let result = lifecycle::start_services_sync();
+    let logs = state::build_logs();
+    for line in &logs[seen.min(logs.len())..] {
+        outln(line.clone());
     }
+    result?;
     outln("Services started.");
     Ok(())
 }
 
 fn cmd_services_stop() -> Result<(), String> {
     outln("Stopping services...");
-    let output = run_command("docker", lifecycle::COMPOSE_DOWN_ARGS)?;
-    if !output.status.success() {
-        return Err(format!(
-            "`docker compose down` failed: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ));
-    }
+    lifecycle::stop_services_sync()?;
     outln("Services stopped.");
     Ok(())
 }

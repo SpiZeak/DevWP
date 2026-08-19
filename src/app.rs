@@ -38,7 +38,7 @@ fn AppRoot() -> Element {
     let mut settings_open = use_signal(|| false);
     let mut versions_open = use_signal(|| false);
 
-    // Compose-up on launch (mirrors the previous setup hook).
+    // Stack startup on launch (mirrors the previous setup hook).
     use_effect(move || {
         spawn(async move {
             lifecycle::start_services().await;
@@ -46,7 +46,7 @@ fn AppRoot() -> Element {
     });
 
     // Close interception: the window starts in "hide" mode. On CloseRequested
-    // we run `docker compose down` in the background; when it completes the
+    // we stop the Docker stack in the background; when it completes the
     // shutdown-done signal fires and the effect below closes the window for
     // real.
     let window = use_window();
@@ -151,9 +151,9 @@ fn AppRoot() -> Element {
     }
 }
 
-/// Start the shutdown sequence (docker compose down) on demand. Called both
-/// from the native CloseRequested handler and the custom title bar's close
-/// button; guarded so the compose-down runs at most once.
+/// Start the shutdown sequence (Docker stack teardown) on demand. Called
+/// both from the native CloseRequested handler and the custom title bar's
+/// close button; guarded so the teardown runs at most once.
 pub(crate) fn request_shutdown() {
     if !SHUTDOWN_REQUESTED.swap(true, Ordering::SeqCst) {
         spawn(async move {

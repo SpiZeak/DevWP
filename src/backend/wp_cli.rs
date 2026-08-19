@@ -1,5 +1,6 @@
+use crate::backend::docker::{exec_in_container, ExecOptions};
 use crate::backend::site::{validate_site_name, Site};
-use crate::backend::utils::{run_command, DOCKER_SITE_ROOT_PATH};
+use crate::backend::utils::DOCKER_SITE_ROOT_PATH;
 use serde::{Deserialize, Serialize};
 
 pub const WP_CLI_ERROR_REPORTING: &str = "error_reporting=E_ALL & ~E_DEPRECATED & ~E_WARNING";
@@ -12,19 +13,17 @@ pub struct WpCliRequest {
     pub command: String,
 }
 
-fn build_wp_args(work_dir: &str, extra: &[&str]) -> Vec<String> {
-    let mut args = vec![
-        "exec".to_string(),
-        "-w".to_string(),
-        work_dir.to_string(),
-        PHP_CONTAINER_NAME.to_string(),
+/// Full argv (without the container name) for a wp-cli invocation inside the
+/// php container.
+fn wp_cli_argv(extra: &[String]) -> Vec<String> {
+    let mut argv = vec![
         "php".to_string(),
         "-d".to_string(),
         WP_CLI_ERROR_REPORTING.to_string(),
         "/usr/local/bin/wp".to_string(),
     ];
-    args.extend(extra.iter().map(|s| s.to_string()));
-    args
+    argv.extend(extra.iter().cloned());
+    argv
 }
 
 /// WP-CLI's exception handler buffers its output and may never flush it when the
@@ -32,7 +31,7 @@ fn build_wp_args(work_dir: &str, extra: &[&str]) -> Vec<String> {
 /// If both stdout and stderr are empty on a non-zero exit we re-run with
 /// `--debug` which forces the buffer to flush, then strip the noisy debug lines
 /// so only the actual error is returned.
-fn extract_error(stdout: &str, stderr: &str, args: &[String]) -> String {
+fn extract_error(stdout: &str, stderr: &str, wp_args: &[String]) -> String {
     if !stderr.is_empty() {
         return stderr.to_string();
     }
@@ -41,17 +40,16 @@ fn extract_error(stdout: &str, stderr: &str, args: &[String]) -> String {
     }
 
     // Both empty – retry with --debug to flush WP-CLI's internal output buffer.
-    let mut debug_args = args.to_vec();
+    let mut debug_args = wp_args.to_vec();
     debug_args.push("--debug".to_string());
-    let debug_arg_refs: Vec<&str> = debug_args.iter().map(|s| s.as_str()).collect();
+    let argv = wp_cli_argv(&debug_args);
+    let cmd_refs: Vec<&str> = argv.iter().map(|s| s.as_str()).collect();
 
-    if let Ok(debug_output) = run_command("docker", &debug_arg_refs) {
-        let debug_stderr = String::from_utf8_lossy(&debug_output.stderr).to_string();
-        let debug_stdout = String::from_utf8_lossy(&debug_output.stdout).to_string();
-
-        let meaningful: Vec<&str> = debug_stderr
+    if let Ok(output) = exec_in_container(PHP_CONTAINER_NAME, &cmd_refs, &ExecOptions::default()) {
+        let meaningful: Vec<&str> = output
+            .stderr
             .lines()
-            .chain(debug_stdout.lines())
+            .chain(output.stdout.lines())
             .filter(|line| !line.starts_with("Debug ("))
             .collect();
 
@@ -78,8 +76,8 @@ pub async fn run_composer_update(site: Site) -> Result<serde_json::Value, String
 
     // Read the host's composer auth.json so private-package credentials are
     // available inside the container without requiring an interactive prompt.
-    // The secret is passed via an --env-file (mode 600) instead of the process
-    // argv, so it never appears in `ps` output or the docker event log.
+    // The secret is passed via the exec environment (it travels over the
+    // Docker API socket), never through a child process's argv.
     let composer_auth = std::env::var("HOME").ok().and_then(|home| {
         let xdg = format!("{}/.config/composer/auth.json", home);
         let legacy = format!("{}/.composer/auth.json", home);
@@ -89,44 +87,27 @@ pub async fn run_composer_update(site: Site) -> Result<serde_json::Value, String
     });
 
     let result = tokio::task::spawn_blocking(move || {
-        let mut args = vec!["exec", "-w", work_dir.as_str()];
-
-        let mut env_file = None;
-        let path_arg;
-        if let Some(auth) = &composer_auth {
-            let path = std::env::temp_dir()
-                .join(format!("devwp-composer-auth-{}.env", std::process::id()));
-            let content = format!("COMPOSER_AUTH={auth}\n");
-            if std::fs::write(&path, content.as_bytes()).is_ok() {
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
-                }
-                // The secret never appears on the command line — only the
-                // env-file path does.
-                path_arg = path.to_string_lossy().into_owned();
-                args.push("--env-file");
-                args.push(&path_arg);
-                env_file = Some(path);
-            }
-        }
-
-        args.extend_from_slice(&[PHP_CONTAINER_NAME, "composer", "update"]);
-        let result = run_command("docker", &args);
-        if let Some(path) = env_file {
-            let _ = std::fs::remove_file(path);
-        }
-        result
+        let env = composer_auth
+            .map(|auth| vec![format!("COMPOSER_AUTH={auth}")])
+            .unwrap_or_default();
+        exec_in_container(
+            PHP_CONTAINER_NAME,
+            &["composer", "update"],
+            &ExecOptions {
+                working_dir: Some(work_dir),
+                env,
+            },
+        )
     })
     .await
     .map_err(|e| format!("Task join error: {e}"))?;
 
     let output = result?;
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    let success = output.success();
+    let stdout = output.stdout;
+    let stderr = output.stderr;
 
-    if output.status.success() {
+    if success {
         Ok(serde_json::json!({
             "success": true,
             "output": stdout,
@@ -147,23 +128,27 @@ pub async fn run_wp_cli(request: WpCliRequest) -> Result<serde_json::Value, Stri
 
     let cmd_parts: Vec<String> =
         shell_words::split(&request.command).map_err(|e| format!("Invalid command: {e}"))?;
-    let cmd_parts: Vec<&str> = cmd_parts.iter().map(|s| s.as_str()).collect();
-    let args = build_wp_args(&work_dir, &cmd_parts);
+    let opts = ExecOptions {
+        working_dir: Some(work_dir.clone()),
+        env: Vec::new(),
+    };
 
     tokio::task::spawn_blocking(move || {
-        let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-        let output = run_command("docker", &arg_refs)?;
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        let argv = wp_cli_argv(&cmd_parts);
+        let cmd_refs: Vec<&str> = argv.iter().map(|s| s.as_str()).collect();
+        let output = exec_in_container(PHP_CONTAINER_NAME, &cmd_refs, &opts)?;
+        let success = output.success();
+        let stdout = output.stdout;
+        let stderr = output.stderr;
 
-        if output.status.success() {
+        if success {
             Ok(serde_json::json!({
                 "success": true,
                 "output": stdout,
                 "error": stderr
             }))
         } else {
-            let error = extract_error(&stdout, &stderr, &args);
+            let error = extract_error(&stdout, &stderr, &cmd_parts);
             Ok(serde_json::json!({
                 "success": false,
                 "output": stdout,
