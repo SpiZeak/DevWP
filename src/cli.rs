@@ -12,7 +12,7 @@ use crate::backend::site::{
     format_domain, is_valid_email, MultisiteConfig, MultisiteType, Site, SiteCreateRequest,
     SiteUpdateRequest, WordPressInstallConfig,
 };
-use crate::backend::utils::{run_command, NotificationType, OperationResult};
+use crate::backend::utils::{NotificationType, OperationResult};
 use crate::backend::{docker, lifecycle, settings, site, system, utils, wp_cli, xdebug};
 use crate::state;
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -346,16 +346,7 @@ fn cmd_init(args: InitArgs) -> Result<(), String> {
     outln(format!("State directory: {}", state_dir.display()));
     outln(format!("Webroot:          {}", webroot.display()));
 
-    match run_command("docker", &["info"]) {
-        Ok(output) if output.status.success() => {}
-        Ok(output) => {
-            return Err(format!(
-                "Docker daemon is not reachable:\n{}",
-                String::from_utf8_lossy(&output.stderr).trim()
-            ))
-        }
-        Err(e) => return Err(format!("Docker CLI not available: {e}")),
-    }
+    docker::daemon_reachable().map_err(|e| format!("Docker daemon is not reachable: {e}"))?;
     outln("Docker daemon:    reachable");
 
     if !args.skip_start {
@@ -386,13 +377,13 @@ fn report(label: &str, check: Check) -> bool {
 fn cmd_doctor() -> Result<(), String> {
     let mut failed = false;
 
-    let docker_ok = matches!(run_command("docker", &["info"]), Ok(o) if o.status.success());
+    let docker_ok = docker::daemon_reachable().is_ok();
     failed |= report(
         "docker daemon",
         if docker_ok {
             Check::Pass("reachable".to_string())
         } else {
-            Check::Fail("docker info failed — is Docker running?".to_string())
+            Check::Fail("daemon not reachable — is Docker running?".to_string())
         },
     );
 

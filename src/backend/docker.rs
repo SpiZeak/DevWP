@@ -109,15 +109,23 @@ fn describe_daemon_error(err: &bollard::errors::Error) -> String {
     text
 }
 
+/// Probe the daemon via the Engine API (no `docker` CLI). Returns the
+/// formatted connection error so CLI diagnostics can surface why.
+pub fn daemon_reachable() -> Result<(), String> {
+    docker_block_on(async {
+        let docker = docker_client(STATUS_TIMEOUT)?;
+        docker
+            .ping()
+            .await
+            .map(|_| ())
+            .map_err(|e| describe_daemon_error(&e))
+    })?
+}
+
 /// Probe the daemon without going through the CLI (test skip-probe and
 /// startup diagnostics).
 pub fn docker_daemon_available() -> bool {
-    docker_block_on(async {
-        let docker = docker_client(STATUS_TIMEOUT).ok()?;
-        docker.ping().await.ok().map(|_| ())
-    })
-    .unwrap_or(None)
-    .is_some()
+    daemon_reachable().is_ok()
 }
 
 // ── UI-facing types (unchanged shapes) ────────────────────────
