@@ -531,44 +531,51 @@ fn cmd_site_list(json: bool) -> Result<(), String> {
         return Ok(());
     }
 
-    let name_w = sites
+    let rows: Vec<[String; 6]> = sites
         .iter()
-        .map(|s| s.name.len())
-        .chain([4])
-        .max()
-        .unwrap_or(4);
-    let status_w = sites
-        .iter()
-        .map(|s| s.status.to_string().len())
-        .chain([6])
-        .max()
-        .unwrap_or(6);
-    let url_w = sites
-        .iter()
-        .map(|s| s.url.len())
-        .chain([3])
-        .max()
-        .unwrap_or(3);
+        .map(|s| {
+            [
+                s.name.clone(),
+                s.status.to_string(),
+                s.url.clone(),
+                or_dash(s.aliases.as_deref()),
+                or_dash(s.web_root.as_deref()),
+                s.multisite
+                    .as_ref()
+                    .filter(|m| m.enabled)
+                    .map(|m| m.site_type.to_string())
+                    .unwrap_or_else(|| "-".into()),
+            ]
+        })
+        .collect();
+    let headers = ["NAME", "STATUS", "URL", "ALIASES", "WEB ROOT", "MULTISITE"];
+    let widths: Vec<usize> = (0..headers.len())
+        .map(|i| {
+            rows.iter()
+                .map(|r| r[i].len())
+                .chain([headers[i].len()])
+                .max()
+                .unwrap_or(0)
+        })
+        .collect();
+    fn or_dash(v: Option<&str>) -> String {
+        match v.filter(|v| !v.trim().is_empty()) {
+            Some(v) => v.to_string(),
+            None => "-".to_string(),
+        }
+    }
 
-    outln(format!(
-        "{:<name_w$}  {:<status_w$}  {:<url_w$}  ALIASES  WEB ROOT  MULTISITE",
-        "NAME", "STATUS", "URL"
-    ));
-    for s in &sites {
-        let aliases = s.aliases.as_deref().unwrap_or("-");
-        let web_root = s.web_root.as_deref().unwrap_or("-");
-        let multisite = s
-            .multisite
-            .as_ref()
-            .filter(|m| m.enabled)
-            .map(|m| m.site_type.to_string())
-            .unwrap_or_else(|| "-".to_string());
-        outln(format!(
-            "{:<name_w$}  {:<status_w$}  {:<url_w$}  {aliases}  {web_root}  {multisite}",
-            s.name,
-            s.status.to_string(),
-            s.url
-        ));
+    fn row(cells: [&str; 6], widths: &[usize]) -> String {
+        let padded: Vec<String> = cells
+            .iter()
+            .enumerate()
+            .map(|(i, c)| format!("{:<w$}", c, w = widths[i]))
+            .collect();
+        padded.join("  ").trim_end().to_string()
+    }
+    outln(row(headers, &widths));
+    for r in &rows {
+        outln(row([&r[0], &r[1], &r[2], &r[3], &r[4], &r[5]], &widths));
     }
     Ok(())
 }
