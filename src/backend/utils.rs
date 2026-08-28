@@ -50,18 +50,28 @@ pub struct NotificationPayload {
 }
 
 /// Walk up from CWD until we find the directory containing `compose.yml`.
-/// Falls back to CWD if not found.
+/// When launched via a symlinked install (e.g. `/usr/local/bin/devwp` →
+/// `…/DevWP/target/release/devwp`) with CWD outside the checkout, CWD finds
+/// nothing — so also walk up from the resolved executable path before
+/// falling back to CWD.
 pub fn project_root() -> PathBuf {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let mut dir = cwd.clone();
+    find_project_root(&cwd)
+        .or_else(|| {
+            std::env::current_exe()
+                .ok()
+                .and_then(|exe| find_project_root(&exe))
+        })
+        .unwrap_or(cwd)
+}
+
+fn find_project_root(start: &std::path::Path) -> Option<PathBuf> {
+    let mut dir = start.to_path_buf();
     loop {
-        if dir.join("compose.yml").exists() {
-            return dir;
+        if dir.join("compose.yml").is_file() {
+            return Some(dir);
         }
-        match dir.parent() {
-            Some(parent) => dir = parent.to_path_buf(),
-            None => return cwd,
-        }
+        dir = dir.parent()?.to_path_buf();
     }
 }
 
@@ -177,10 +187,29 @@ pub fn open_target(target: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn default_webroot_ends_with_www() {
         assert!(default_webroot().to_string_lossy().ends_with("www"));
+    }
+
+    #[test]
+    fn find_project_root_locates_compose_dir_from_descendant() {
+        let base = std::env::temp_dir().join("devwp-utils-find-root");
+        let nested = base.join("target").join("release");
+        fs::create_dir_all(&nested).expect("create nested dir");
+        fs::write(base.join("compose.yml"), "services: {}\n").expect("write compose.yml");
+
+        // A path inside the tree resolves upward to the compose dir…
+        assert_eq!(find_project_root(&nested), Some(base.clone()));
+        // …and a sibling tree without compose.yml does not.
+        let bare = std::env::temp_dir().join("devwp-utils-find-root-bare");
+        fs::create_dir_all(&bare).expect("create bare dir");
+        assert_eq!(find_project_root(&bare), None);
+
+        fs::remove_dir_all(&base).ok();
+        fs::remove_dir_all(&bare).ok();
     }
 
     #[test]
