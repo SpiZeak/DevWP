@@ -4,23 +4,16 @@ use crate::backend::utils::{emit_notification, project_root, NotificationType};
 use crate::state;
 use std::fs;
 use std::path::PathBuf;
+use tracing::warn;
 
 pub fn xdebug_config_path() -> PathBuf {
     project_root().join("config/php/conf.d/xdebug.ini")
 }
 
-pub fn get_xdebug_status() -> bool {
-    let config_path = xdebug_config_path();
-    let content = match fs::read_to_string(&config_path) {
-        Ok(content) => content,
-        Err(_) => {
-            return read_settings()
-                .get("xdebug_enabled")
-                .map(|v| v == "true")
-                .unwrap_or(false);
-        }
-    };
-
+/// Parse `xdebug.mode` from an ini file body: `Some(true)` when an active
+/// (non-commented) `xdebug.mode` line enables it, `Some(false)` when it is
+/// `off`, `None` when no active line exists.
+pub fn parse_xdebug_mode(content: &str) -> Option<bool> {
     let mut found = false;
     let mut enabled = false;
 
@@ -41,14 +34,23 @@ pub fn get_xdebug_status() -> bool {
         }
     }
 
-    if !found {
-        return read_settings()
-            .get("xdebug_enabled")
-            .map(|v| v == "true")
-            .unwrap_or(false);
-    }
+    found.then_some(enabled)
+}
 
-    enabled
+/// Fallback to the persisted setting when the ini carries no mode line.
+fn xdebug_setting_fallback() -> bool {
+    read_settings()
+        .get("xdebug_enabled")
+        .map(|v| v == "true")
+        .unwrap_or(false)
+}
+
+pub fn get_xdebug_status() -> bool {
+    let content = match fs::read_to_string(xdebug_config_path()) {
+        Ok(content) => content,
+        Err(_) => return xdebug_setting_fallback(),
+    };
+    parse_xdebug_mode(&content).unwrap_or_else(xdebug_setting_fallback)
 }
 
 /// Flip Xdebug to the opposite of its current state (GUI switch).
@@ -104,7 +106,40 @@ pub async fn set_xdebug(target_enabled: bool) -> Result<bool, String> {
 
     let mut settings = read_settings();
     settings.insert("xdebug_enabled".to_string(), final_status.to_string());
-    let _ = write_settings(&settings);
+    if let Err(error) = write_settings(&settings) {
+        warn!("Failed to persist xdebug_enabled setting: {error}");
+    }
 
     Ok(final_status)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_xdebug_mode;
+
+    #[test]
+    fn parse_xdebug_mode_reads_active_line() {
+        assert_eq!(
+            parse_xdebug_mode("xdebug.mode = develop,debug\n"),
+            Some(true)
+        );
+        assert_eq!(parse_xdebug_mode("xdebug.mode=off\n"), Some(false));
+        assert_eq!(parse_xdebug_mode("xdebug.mode =\n"), Some(false));
+    }
+
+    #[test]
+    fn parse_xdebug_mode_ignores_comments_and_wrong_keys() {
+        assert_eq!(parse_xdebug_mode("; xdebug.mode = develop\n"), None);
+        assert_eq!(parse_xdebug_mode("# xdebug.mode = develop\n"), None);
+        assert_eq!(parse_xdebug_mode("xdebug.modez = develop\n"), None);
+        assert_eq!(parse_xdebug_mode("zend_extension=xdebug.so\n"), None);
+    }
+
+    #[test]
+    fn parse_xdebug_mode_last_active_line_wins() {
+        assert_eq!(
+            parse_xdebug_mode("xdebug.mode = develop\nxdebug.mode = off\n"),
+            Some(false)
+        );
+    }
 }

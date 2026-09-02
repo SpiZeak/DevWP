@@ -97,11 +97,8 @@ No app env vars are required and none are secrets. Database credentials are
 `"root"` in `src/backend/utils.rs:11-12`, and must match
 `MARIADB_ROOT_PASSWORD: root` in `compose.yml:39`.
 
-`.env.example` is **stale**: it documents `NODE_ENV`, `LOG_LEVEL`,
-`LOG_MAX_FILES`, `AUTO_UPDATE_CHECK`, `CRASH_REPORTING` — none of which the
-Rust code reads (leftovers from the Tauri/Node era). Only `UID`/`GID` are
-still relevant (and only to compose). Proposal: trim `.env.example` to just
-`UID`/`GID` — not done here without sign-off.
+`.env.example` documents the only vars compose reads: `UID`/`GID` (Docker
+build args for the php/nginx images). The Rust code reads no app env vars.
 
 ## Gotchas
 
@@ -111,8 +108,8 @@ still relevant (and only to compose). Proposal: trim `.env.example` to just
 - **The app never spawns the docker CLI**: all Docker operations go through Bollard (unix socket / named pipe). The `docker compose` CLI remains only for CI provisioning and developer workflows; the two interoperate because all app-created resources carry compose-identical names/labels (`devwp` project). See `docs/bollard-migration-plan.md`.
 - **DB creds are hardcoded** in `src/backend/utils.rs` and must stay in sync with `compose.yml` (both `root`/`root`). Changing one without the other breaks DB access.
 - **State dir is `.devwp-tauri/`** (gitignored). Integration tests redirect it to a temp dir via `set_test_mode(true)`; never have unit/integration tests touch the developer's real state.
-- **Tailwind CSS is prebuilt and committed** (`src/assets/style.css`). After changing any class names in `src/**/*.rs`, run `scripts/build-css.sh` and commit the regenerated `style.css` — otherwise the UI won't reflect the change. The script downloads the standalone Tailwind v4.3.0 CLI into `$XDG_CACHE_HOME` on first use (network fetch).
-- **`.env.example` is stale** (see Env / Config) — don't trust its var list as authoritative.
+- **Tailwind CSS is prebuilt and committed** (`src/assets/style.css`). After changing any class names in `src/**/*.rs` or anything in `src/assets/{tailwind,theme,fonts}.css`, run `scripts/build-css.sh` and commit the regenerated `style.css` — otherwise the UI won't reflect the change. The script downloads the standalone Tailwind v4.3.0 CLI into `$XDG_CACHE_HOME` on first use (network fetch).
+- **Fonts are pruned to the 4 weights the UI uses** (regular/medium/semibold/bold, ~5 MB total). No patched variable font exists upstream (Nerd Fonts ships static OTFs only), and the plain Monaspace variable font lacks the nerd glyphs the UI's icons depend on.
 - **Git submodules**: CI checks out with `submodules: recursive`; `.gitmodules` is present.
 - **`compose.yml` mounts host paths**: `~/www` (webroot), `~/.ssh`, `~/.config/composer` are bind-mounted — they must exist on the host for the stack to behave.
 - **No automated UI/E2E runner**: the app is a desktop webview (WebKitGTK/WebView2/WKWebView). Chrome DevTools MCP cannot attach to it. UI changes are verified manually via `cargo run`.
@@ -132,7 +129,7 @@ cargo test --test integration
 ```
 
 Confirmed passing on this checkout: fmt PASS, check PASS, clippy PASS,
-`cargo test --lib --bins` → 13 passed / 0 failed. Integration skipped (requires
+`cargo test --lib --bins` → 55 passed / 0 failed. Integration skipped (requires
 compose stack; side-effectful on local Docker).
 
 ## E2E / UI Verification

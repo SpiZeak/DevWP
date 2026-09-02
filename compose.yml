@@ -32,6 +32,8 @@ services:
 
   mariadb:
     container_name: devwp_mariadb
+    # 13 is still an RC line (13.0-rc floats within 13.0.x for RC fixes);
+    # downgrading an existing 13 volume to a stable 12.x is not supported.
     image: mariadb:13.0-rc
     environment:
       MARIADB_ROOT_HOST: 'localhost'
@@ -43,7 +45,8 @@ services:
       - mariadb:/var/lib/mysql
       - ./config/mariadb/files:/src:ro
     ports:
-      - '3306:3306'
+      # Loopback only: a dev DB with root/root must not listen on the LAN.
+      - '127.0.0.1:3306:3306'
     tmpfs:
       - /tmp
     command: --bind-address=0.0.0.0 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --skip-name-resolve --innodb-flush-log-at-trx-commit=2 --innodb-flush-method=O_DIRECT --innodb-buffer-pool-size=512M
@@ -57,9 +60,9 @@ services:
 
   redis:
     container_name: devwp_redis
-    image: redis:alpine
+    image: redis:8.8-alpine
     ports:
-      - '6379:6379'
+      - '127.0.0.1:6379:6379'
     command: redis-server
     volumes:
       - redis:/data
@@ -108,11 +111,11 @@ services:
 
   mailpit:
     container_name: devwp_mailpit
-    image: axllent/mailpit
+    image: axllent/mailpit:v1.31
     expose:
       - '1025' # smtp server
     ports:
-      - '8025:8025' # web ui
+      - '127.0.0.1:8025:8025' # web ui
     environment:
       - TZ=Europe/Stockholm
       - MP_SMTP_AUTH_ACCEPT_ANY=1

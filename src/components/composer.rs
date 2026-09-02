@@ -1,7 +1,6 @@
 use crate::backend::site::Site;
 use crate::backend::wp_cli;
-use crate::components::ui::{ModalBase, Spinner};
-use dioxus::document::eval;
+use crate::components::ui::{ModalBase, OutputPanel, Spinner};
 use dioxus::prelude::*;
 
 #[component]
@@ -42,17 +41,6 @@ pub fn ComposerModal(site: Site, on_close: EventHandler<()>) -> Element {
             }
             *loading.write() = false;
         });
-    });
-
-    // Auto-scroll output as new lines arrive.
-    use_effect(move || {
-        let has_content = !output.read().is_empty() || !error.read().is_empty();
-        if has_content {
-            let _ = eval(
-                "const el = document.getElementById('composer-output'); if (el) el.scrollTop = el.scrollHeight;",
-            )
-            .send(());
-        }
     });
 
     let handle_close = EventHandler::new({
@@ -146,18 +134,12 @@ pub fn ComposerModal(site: Site, on_close: EventHandler<()>) -> Element {
                     span { class: "text-seasalt-400 text-sm", "Running composer update…" }
                 }
             } else if has_output {
-                div { class: "mb-5",
-                    div { class: "block mb-1 text-seasalt text-sm",
-                        "Output"
-                        if is_loading { span { class: "text-amber", " ●" } }
-                    }
-                    pre {
-                        id: "composer-output",
-                        class: "bg-warm-charcoal-200 p-2.5 border border-gunmetal-600 rounded max-h-96 overflow-auto font-mono text-seasalt text-xs wrap-break-word whitespace-pre-wrap",
-                        if !out.is_empty() { span { class: "text-emerald", {out} } }
-                        if !err.is_empty() { span { class: "text-crimson", {err} } }
-                        if is_loading { span { class: "text-amber", "▊" } }
-                    }
+                OutputPanel {
+                    id: "composer-output".to_string(),
+                    output: output,
+                    error: error,
+                    loading: loading,
+                    max_h_class: Some("max-h-96".to_string()),
                 }
             }
         }

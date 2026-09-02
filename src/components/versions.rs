@@ -34,7 +34,7 @@ pub fn Versions(is_open: bool, on_close: EventHandler<()>) -> Element {
                         class: "font-semibold text-pumpkin text-sm hover:underline no-underline",
                         onclick: move |ev| {
                             ev.prevent_default();
-                            let _ = system::open_external("https://trewhitt.au".to_string());
+                            let _ = system::open_external("https://trewhitt.au");
                         },
                         "Trewhitt"
                     }

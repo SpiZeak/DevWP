@@ -1,7 +1,6 @@
 use crate::backend::site::Site;
 use crate::backend::wp_cli::{self, WpCliRequest};
-use crate::components::ui::{ModalBase, Spinner};
-use dioxus::document::eval;
+use crate::components::ui::{ModalBase, OutputPanel, Spinner};
 use dioxus::prelude::*;
 
 #[component]
@@ -10,17 +9,6 @@ pub fn WpCliModal(site: Site, on_close: EventHandler<()>) -> Element {
     let output = use_signal(String::new);
     let error = use_signal(String::new);
     let loading = use_signal(|| false);
-
-    // Auto-scroll output as new lines arrive.
-    use_effect(move || {
-        let len = output.read().len() + error.read().len();
-        if len > 0 {
-            let _ = eval(
-                "const el = document.getElementById('wp-cli-output'); if (el) el.scrollTop = el.scrollHeight;",
-            )
-            .send(());
-        }
-    });
 
     let site_title = site.name.clone();
     let handle_run = EventHandler::new(move |_: ()| {
@@ -66,8 +54,14 @@ pub fn WpCliModal(site: Site, on_close: EventHandler<()>) -> Element {
         let mut command_s = command.clone();
         let mut output_s = output.clone();
         let mut error_s = error.clone();
+        let loading_s = loading.clone();
         let on_close = on_close.clone();
         move |_: ()| {
+            // Guard every close path (X, overlay, Escape) while a command is
+            // running — the spawned task writes this scope's signals.
+            if *loading_s.read() {
+                return;
+            }
             *command_s.write() = String::new();
             *output_s.write() = String::new();
             *error_s.write() = String::new();
@@ -147,18 +141,12 @@ pub fn WpCliModal(site: Site, on_close: EventHandler<()>) -> Element {
                 }
             }
             if has_output {
-                div { class: "mb-5",
-                    div { class: "block mb-1 text-seasalt text-sm",
-                        "Output"
-                        if is_loading { span { class: "text-amber", " ●" } }
-                    }
-                    pre {
-                        id: "wp-cli-output",
-                        class: "bg-warm-charcoal-200 p-2.5 border border-gunmetal-600 rounded max-h-75 overflow-auto font-mono text-seasalt text-xs wrap-break-word whitespace-pre-wrap",
-                        if !out.is_empty() { span { class: "text-emerald", {out} } }
-                        if !err.is_empty() { span { class: "text-crimson", {err} } }
-                        if is_loading { span { class: "text-amber", "▊" } }
-                    }
+                OutputPanel {
+                    id: "wp-cli-output".to_string(),
+                    output: output,
+                    error: error,
+                    loading: loading,
+                    max_h_class: Some("max-h-75".to_string()),
                 }
             }
         }

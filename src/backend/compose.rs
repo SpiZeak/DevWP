@@ -358,7 +358,8 @@ pub fn yaml_value_to_string(value: &serde_yaml::Value) -> String {
 }
 
 /// Parse a compose duration (`"30s"`, `"1m30s"`-style components with
-/// h/m/s/ms/us/ns) into nanoseconds for the Docker healthcheck API.
+/// h/m/s units; a trailing unit-less number is tolerated as seconds) into
+/// nanoseconds for the Docker healthcheck API.
 pub fn parse_duration_ns(input: &str) -> Result<u64, String> {
     let mut total: u64 = 0;
     let mut num = String::new();
@@ -463,10 +464,13 @@ mod tests {
             compose.services["mariadb"].image_ref("mariadb"),
             "mariadb:13.0-rc"
         );
-        assert_eq!(compose.services["redis"].image_ref("redis"), "redis:alpine");
+        assert_eq!(
+            compose.services["redis"].image_ref("redis"),
+            "redis:8.8-alpine"
+        );
         assert_eq!(
             compose.services["mailpit"].image_ref("mailpit"),
-            "axllent/mailpit"
+            "axllent/mailpit:v1.31"
         );
     }
 

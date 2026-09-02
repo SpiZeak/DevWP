@@ -33,7 +33,7 @@ pub fn SettingsModal(is_open: bool, on_close: EventHandler<()>) -> Element {
             *saving_s.write() = true;
             let path = webroot_s.read().clone();
             spawn(async move {
-                let result = settings::save_setting("webroot_path".to_string(), path.clone());
+                let result = settings::save_setting("webroot_path", &path);
                 if result.success {
                     *original_s.write() = path;
                     state::push_notification(
@@ -121,7 +121,8 @@ pub fn SettingsModal(is_open: bool, on_close: EventHandler<()>) -> Element {
                     div { class: "flex justify-end gap-2.5 pt-4 border-gunmetal-600 border-t",
                         button {
                             "type": "button",
-                            class: "bg-gunmetal-500 hover:bg-gunmetal-600 px-4 py-2 border-0 rounded text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer",
+                            class: "bg-gunmetal-500 hover:bg-gunmetal-600 px-4 py-2 border-0 rounded text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50",
+                            disabled: is_saving,
                             onclick: move |_ev: MouseEvent| handle_close.call(()),
                             "Cancel"
                         }

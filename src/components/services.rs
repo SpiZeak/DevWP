@@ -1,5 +1,7 @@
 use crate::backend::docker;
-use crate::backend::docker::{Container, ContainerState};
+use crate::backend::docker::{Container, ContainerState, DockerStatus};
+use crate::backend::lifecycle;
+use crate::backend::utils::NotificationType;
 use crate::components::brand_logo::{BrandLogo, SI_DOCKER, SI_MARIADB, SI_NGINX, SI_PHP, SI_REDIS};
 use crate::components::ui::{use_sync_signal, Icon, Spinner};
 use crate::components::{BuildLog, XdebugSwitch};
@@ -7,14 +9,6 @@ use crate::state;
 use dioxus::prelude::*;
 use std::collections::HashMap;
 use std::time::Duration;
-
-const KNOWN_CONTAINER_NAMES: [&str; 5] = [
-    "devwp_nginx",
-    "devwp_php",
-    "devwp_mariadb",
-    "devwp_redis",
-    "devwp_mailpit",
-];
 
 fn is_building(building: &HashMap<String, bool>, container_name: &str) -> bool {
     building.contains_key(container_name)
@@ -25,23 +19,15 @@ fn is_building(building: &HashMap<String, bool>, container_name: &str) -> bool {
         )
 }
 
-fn display_name(container_name: &str) -> String {
-    match container_name {
-        "devwp_nginx" => "Nginx".to_string(),
-        "devwp_php" => "PHP".to_string(),
-        "devwp_mariadb" => "MariaDB".to_string(),
-        "devwp_redis" => "Redis".to_string(),
-        "devwp_mailpit" => "Mailpit".to_string(),
-        other => other.strip_prefix("devwp_").unwrap_or(other).to_string(),
-    }
-}
-
-fn container_icon(name: &str) -> Element {
-    match name {
-        "devwp_nginx" => rsx! { BrandLogo { icon: SI_NGINX } },
-        "devwp_php" => rsx! { BrandLogo { icon: SI_PHP } },
-        "devwp_mariadb" => rsx! { BrandLogo { icon: SI_MARIADB } },
-        "devwp_redis" => rsx! { BrandLogo { icon: SI_REDIS } },
+fn container_icon(container_or_service: &str) -> Element {
+    let service = container_or_service
+        .strip_prefix("devwp_")
+        .unwrap_or(container_or_service);
+    match service {
+        "nginx" => rsx! { BrandLogo { icon: SI_NGINX } },
+        "php" => rsx! { BrandLogo { icon: SI_PHP } },
+        "mariadb" => rsx! { BrandLogo { icon: SI_MARIADB } },
+        "redis" => rsx! { BrandLogo { icon: SI_REDIS } },
         _ => rsx! { BrandLogo { icon: SI_DOCKER } },
     }
 }
@@ -109,6 +95,7 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
 
     let containers = state::containers().clone();
     let building_services = state::building_services().clone();
+    let docker_status = state::docker_status().clone();
 
     let container_map: Vec<Container> = containers
         .iter()
@@ -119,19 +106,23 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
     // Always show all known services; use real data if available, otherwise
     // a building/pending placeholder.
     let mut all_items: Vec<Container> = Vec::new();
-    for name in KNOWN_CONTAINER_NAMES {
-        let real = container_map.iter().find(|c| c.name == name).cloned();
+    for service in docker::STACK_SERVICES {
+        let container_name = docker::container_name_for(service);
+        let real = container_map
+            .iter()
+            .find(|c| c.name == container_name)
+            .cloned();
         if let Some(real) = real {
             all_items.push(real);
         } else {
-            let building = is_building(&building_services, name);
+            let building = is_building(&building_services, &container_name);
             all_items.push(Container {
                 id: format!(
                     "{}_{}",
                     if building { "building" } else { "placeholder" },
-                    name
+                    container_name
                 ),
-                name: name.to_string(),
+                name: container_name,
                 state: if building {
                     ContainerState::Building
                 } else {
@@ -148,6 +139,26 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
 
     rsx! {
         div { class: "mr-6 mb-5 rounded-lg",
+            // The lifecycle writes detailed failure reasons into the docker
+            // status signal; surface them instead of showing "Starting…"
+            // placeholders forever when the daemon is down or startup failed.
+            if docker_status.status == DockerStatus::Error {
+                div { class: "flex justify-between items-center bg-crimson/10 mb-6 p-3 border border-crimson rounded-md",
+                    div { class: "text-crimson text-xs font-medium",
+                        {docker_status.message.clone()}
+                    }
+                    button {
+                        "type": "button",
+                        class: "shrink-0 bg-pumpkin hover:bg-pumpkin-600 px-3 py-1.5 rounded text-warm-charcoal text-xs font-medium transition-colors cursor-pointer",
+                        onclick: move |_| {
+                            spawn(async move {
+                                lifecycle::start_services().await;
+                            });
+                        },
+                        "Retry"
+                    }
+                }
+            }
             XdebugSwitch {}
             div { class: "flex justify-between items-center mb-8",
                 div { class: "flex items-center gap-2",
@@ -180,6 +191,9 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
                         let item_id = container.id.clone();
                         let item_name = container.name.clone();
                         let is_restarting = restart_map.get(&item_id).copied().unwrap_or(false);
+                        // Placeholder ids (`placeholder_devwp_*`) do not exist
+                        // in Docker — restarting them can only fail.
+                        let is_placeholder = container.state == ContainerState::Pending;
                         let show_spinner = is_restarting
                             || building
                             || container.state == ContainerState::Pending
@@ -198,7 +212,7 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
                                     }
                                     div { class: "flex flex-col text-left",
                                         div { class: "flex items-center gap-1.5",
-                                            span { class: "overflow-hidden font-medium text-sm text-ellipsis whitespace-nowrap", "{display_name(&item_name)}" }
+                                             span { class: "overflow-hidden font-medium text-sm text-ellipsis whitespace-nowrap", "{docker::display_name(&item_name)}" }
                                         }
                                         if let Some((text, color)) = status {
                                             span { class: "mt-0.5 text-xs {color}", {text} }
@@ -207,16 +221,26 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
                                 }
                                 button {
                                     "type": "button",
-                                    class: "flex shrink-0 justify-center items-center bg-gunmetal-500 disabled:opacity-50 rounded-full size-7 text-2xl text-seasalt hover:text-warm-charcoal transition-all duration-200 cursor-pointer disabled:cursor-not-allowed icon",
-                                    disabled: is_restarting || building,
+                                    class: "flex shrink-0 justify-center items-center bg-gunmetal-500 disabled:opacity-50 rounded-full size-7 text-2xl text-seasalt hover:text-warm-charcoal transition-all duration-200 cursor-pointer disabled:cursor-not-allowed",
+                                    disabled: is_restarting || building || is_placeholder,
                                     title: "Restart service",
                                     onclick: move |_| {
                                         restarting.write().insert(item_id.clone(), true);
                                         let mut rt = restarting.clone();
                                         let id = item_id.clone();
+                                        let name = item_name.clone();
                                         spawn(async move {
-                                            let _ = docker::restart_container(id.clone()).await;
-                tokio::time::sleep(Duration::from_secs(1)).await;
+                                            if let Err(error) =
+                                                docker::restart_container(id.clone()).await
+                                            {
+                                                state::push_notification(
+                                                    NotificationType::Error,
+                                                    format!(
+                                                        "Failed to restart {name}: {error}"
+                                                    ),
+                                                );
+                                            }
+                                            tokio::time::sleep(Duration::from_secs(1)).await;
                                             rt.write().remove(&id);
                                         });
                                     },

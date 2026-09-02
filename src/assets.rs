@@ -16,132 +16,18 @@ pub static ICON_PNG: &[u8] = include_bytes!("assets/icon_32.png");
 
 fn font_bytes(name: &str) -> Option<&'static [u8]> {
     match name {
-        "MonaspaceNeonNF-Bold.woff2" => {
-            Some(include_bytes!("assets/fonts/MonaspaceNeonNF-Bold.woff2"))
-        }
-        "MonaspaceNeonNF-BoldItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-BoldItalic.woff2"
-        )),
-        "MonaspaceNeonNF-ExtraBold.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-ExtraBold.woff2"
-        )),
-        "MonaspaceNeonNF-ExtraBoldItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-ExtraBoldItalic.woff2"
-        )),
-        "MonaspaceNeonNF-ExtraLight.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-ExtraLight.woff2"
-        )),
-        "MonaspaceNeonNF-ExtraLightItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-ExtraLightItalic.woff2"
-        )),
-        "MonaspaceNeonNF-Italic.woff2" => {
-            Some(include_bytes!("assets/fonts/MonaspaceNeonNF-Italic.woff2"))
-        }
-        "MonaspaceNeonNF-Light.woff2" => {
-            Some(include_bytes!("assets/fonts/MonaspaceNeonNF-Light.woff2"))
-        }
-        "MonaspaceNeonNF-LightItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-LightItalic.woff2"
-        )),
-        "MonaspaceNeonNF-Medium.woff2" => {
-            Some(include_bytes!("assets/fonts/MonaspaceNeonNF-Medium.woff2"))
-        }
-        "MonaspaceNeonNF-MediumItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-MediumItalic.woff2"
-        )),
         "MonaspaceNeonNF-Regular.woff2" => {
             Some(include_bytes!("assets/fonts/MonaspaceNeonNF-Regular.woff2"))
+        }
+        "MonaspaceNeonNF-Medium.woff2" => {
+            Some(include_bytes!("assets/fonts/MonaspaceNeonNF-Medium.woff2"))
         }
         "MonaspaceNeonNF-SemiBold.woff2" => Some(include_bytes!(
             "assets/fonts/MonaspaceNeonNF-SemiBold.woff2"
         )),
-        "MonaspaceNeonNF-SemiBoldItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-SemiBoldItalic.woff2"
-        )),
-        "MonaspaceNeonNF-SemiWideBold.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-SemiWideBold.woff2"
-        )),
-        "MonaspaceNeonNF-SemiWideBoldItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-SemiWideBoldItalic.woff2"
-        )),
-        "MonaspaceNeonNF-SemiWideExtraBold.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-SemiWideExtraBold.woff2"
-        )),
-        "MonaspaceNeonNF-SemiWideExtraBoldItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-SemiWideExtraBoldItalic.woff2"
-        )),
-        "MonaspaceNeonNF-SemiWideExtraLight.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-SemiWideExtraLight.woff2"
-        )),
-        "MonaspaceNeonNF-SemiWideExtraLightItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-SemiWideExtraLightItalic.woff2"
-        )),
-        "MonaspaceNeonNF-SemiWideItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-SemiWideItalic.woff2"
-        )),
-        "MonaspaceNeonNF-SemiWideLight.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-SemiWideLight.woff2"
-        )),
-        "MonaspaceNeonNF-SemiWideLightItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-SemiWideLightItalic.woff2"
-        )),
-        "MonaspaceNeonNF-SemiWideMedium.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-SemiWideMedium.woff2"
-        )),
-        "MonaspaceNeonNF-SemiWideMediumItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-SemiWideMediumItalic.woff2"
-        )),
-        "MonaspaceNeonNF-SemiWideRegular.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-SemiWideRegular.woff2"
-        )),
-        "MonaspaceNeonNF-SemiWideSemiBold.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-SemiWideSemiBold.woff2"
-        )),
-        "MonaspaceNeonNF-SemiWideSemiBoldItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-SemiWideSemiBoldItalic.woff2"
-        )),
-        "MonaspaceNeonNF-WideBold.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-WideBold.woff2"
-        )),
-        "MonaspaceNeonNF-WideBoldItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-WideBoldItalic.woff2"
-        )),
-        "MonaspaceNeonNF-WideExtraBold.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-WideExtraBold.woff2"
-        )),
-        "MonaspaceNeonNF-WideExtraBoldItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-WideExtraBoldItalic.woff2"
-        )),
-        "MonaspaceNeonNF-WideExtraLight.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-WideExtraLight.woff2"
-        )),
-        "MonaspaceNeonNF-WideExtraLightItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-WideExtraLightItalic.woff2"
-        )),
-        "MonaspaceNeonNF-WideItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-WideItalic.woff2"
-        )),
-        "MonaspaceNeonNF-WideLight.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-WideLight.woff2"
-        )),
-        "MonaspaceNeonNF-WideLightItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-WideLightItalic.woff2"
-        )),
-        "MonaspaceNeonNF-WideMedium.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-WideMedium.woff2"
-        )),
-        "MonaspaceNeonNF-WideMediumItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-WideMediumItalic.woff2"
-        )),
-        "MonaspaceNeonNF-WideRegular.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-WideRegular.woff2"
-        )),
-        "MonaspaceNeonNF-WideSemiBold.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-WideSemiBold.woff2"
-        )),
-        "MonaspaceNeonNF-WideSemiBoldItalic.woff2" => Some(include_bytes!(
-            "assets/fonts/MonaspaceNeonNF-WideSemiBoldItalic.woff2"
-        )),
+        "MonaspaceNeonNF-Bold.woff2" => {
+            Some(include_bytes!("assets/fonts/MonaspaceNeonNF-Bold.woff2"))
+        }
         _ => None,
     }
 }

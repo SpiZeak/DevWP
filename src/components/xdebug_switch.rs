@@ -48,9 +48,14 @@ pub fn XdebugSwitch() -> Element {
                             checked: enabled,
                             disabled: toggling,
                             title: if enabled { "Switch to Performance Mode" } else { "Switch to Debug Mode" },
-                            onchange: move |_| {
+                            onchange: move |checked| {
+                                // Use the checkbox's value instead of a blind
+                                // flip: if the GUI signal and the ini file
+                                // diverge (e.g. `devwp xdebug on` from the
+                                // CLI), one click still lands on what the
+                                // user sees.
                                 spawn(async move {
-                                    let _ = xdebug::toggle_xdebug().await;
+                                    let _ = xdebug::set_xdebug(checked).await;
                                 });
                             },
                         }

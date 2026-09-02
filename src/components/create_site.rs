@@ -88,7 +88,11 @@ pub fn CreateSiteModal(
     });
 
     let formatted_domain = format_domain(&domain.read().clone());
-    let domain_wo_test = domain.read().replace(".test", "");
+    let domain_current = domain.read().clone();
+    let domain_wo_test = domain_current
+        .strip_suffix(".test")
+        .unwrap_or(&domain_current)
+        .to_string();
     let is_submit_disabled = submitting.read().clone() || domain_wo_test.is_empty();
     let multisite_on = *multisite_enabled.read();
     let wp_on = *wp_enabled.read();

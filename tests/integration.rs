@@ -81,14 +81,30 @@ fn with_runtime<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T 
         .expect("job result from dioxus runtime thread")
 }
 
+/// Serializes tests that share the temp state dir (cargo runs tests on
+/// parallel threads; the settings/xdebug/signal tests would otherwise wipe
+/// each other's `devwp-test-state`).
+static TEST_STATE_LOCK: Mutex<()> = Mutex::new(());
+
 /// Ensure the test state lives in a temp dir, never the real `.devwp-tauri`.
+/// The guard resets the flag even when the test panics, so a failure cannot
+/// leak test mode into later tests in the same binary.
 fn with_test_state<T>(f: impl FnOnce() -> T) -> T {
+    struct TestModeGuard;
+    impl Drop for TestModeGuard {
+        fn drop(&mut self) {
+            devwp::backend::utils::set_test_mode(false);
+        }
+    }
+
+    let _state_lock = TEST_STATE_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let _flag = TestModeGuard;
     devwp::backend::utils::set_test_mode(true);
     let dir = std::env::temp_dir().join("devwp-test-state");
     let _ = std::fs::remove_dir_all(&dir);
-    let result = f();
-    devwp::backend::utils::set_test_mode(false);
-    result
+    f()
 }
 
 fn block_on<F: std::future::Future>(future: F) -> F::Output {
@@ -134,12 +150,12 @@ fn container_status_reflects_compose_stack() {
 #[test]
 fn settings_crud_roundtrip_in_test_state() {
     with_test_state(|| {
-        settings::save_setting("webroot_path".to_string(), "/tmp/devwp-www".to_string());
-        let read = settings::get_setting("webroot_path".to_string());
+        settings::save_setting("webroot_path", "/tmp/devwp-www");
+        let read = settings::get_setting("webroot_path");
         assert_eq!(read.as_deref(), Some("/tmp/devwp-www"));
         assert_eq!(settings::get_webroot_path(), "/tmp/devwp-www");
-        settings::delete_setting("webroot_path".to_string());
-        assert_eq!(settings::get_setting("webroot_path".to_string()), None);
+        settings::delete_setting("webroot_path");
+        assert_eq!(settings::get_setting("webroot_path"), None);
     });
 }
 

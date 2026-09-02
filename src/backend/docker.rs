@@ -23,6 +23,7 @@ use bollard::query_parameters::{
 };
 use bollard::Docker;
 use bytes::Bytes;
+use futures_util::future::join_all;
 use futures_util::StreamExt;
 use http_body_util::{Either, Full};
 use serde::{Deserialize, Serialize};
@@ -352,8 +353,35 @@ async fn wait_for_exit_code(
 
 // ── Container listing (replaces `docker compose ps -a`) ───────
 
+/// The stack's services in UI display order — must match `compose.yml`.
+/// Single source for the Services panel, the CLI's container resolution, and
+/// display naming (adding a service is a one-file change plus compose).
+pub const STACK_SERVICES: [&str; 5] = ["nginx", "php", "mariadb", "redis", "mailpit"];
+
+/// Container name for a stack service (`devwp_<service>`).
+pub fn container_name_for(service: &str) -> String {
+    format!("devwp_{service}")
+}
+
+/// Human-friendly name for a stack service or `devwp_*` container name.
+pub fn display_name(container_or_service: &str) -> String {
+    let service = container_or_service
+        .strip_prefix("devwp_")
+        .unwrap_or(container_or_service);
+    match service {
+        "nginx" => "Nginx".to_string(),
+        "php" => "PHP".to_string(),
+        "mariadb" => "MariaDB".to_string(),
+        "redis" => "Redis".to_string(),
+        "mailpit" => "Mailpit".to_string(),
+        other => other.to_string(),
+    }
+}
+
 /// List the project's containers with health (via inspect — the list API
-/// does not expose health) and cached version probes.
+/// does not expose health) and cached version probes. Inspects and version
+/// probes run concurrently so the UI's 1s poll loop is one round of RTTs,
+/// not one per container.
 pub fn get_container_status() -> Result<Vec<Container>, String> {
     let mut containers = docker_block_on(async {
         let docker = docker_client(STATUS_TIMEOUT)?;
@@ -386,26 +414,35 @@ pub fn get_container_status() -> Result<Vec<Container>, String> {
                     .unwrap_or_default()
                     .to_lowercase(),
             );
-            // Health only matters while running (matches `compose ps`, which
-            // leaves the column blank for stopped containers).
-            let health = if state == ContainerState::Running && !name.is_empty() {
-                docker
-                    .inspect_container(&name, None)
-                    .await
-                    .ok()
-                    .and_then(|inspect| inspect.state.and_then(|s| s.health))
-                    .and_then(|health| health.status.map(health_status_to_string))
-                    .flatten()
-            } else {
-                None
-            };
             containers.push(Container {
                 id: summary.id.unwrap_or_else(|| name.clone()),
                 name,
                 state,
-                health,
+                health: None,
                 version: None,
             });
+        }
+
+        // Health only matters while running (matches `compose ps`, which
+        // leaves the column blank for stopped containers).
+        let inspect_targets: Vec<(usize, String)> = containers
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.state == ContainerState::Running && !c.name.is_empty())
+            .map(|(i, c)| (i, c.name.clone()))
+            .collect();
+        let inspections = join_all(
+            inspect_targets
+                .iter()
+                .map(|(_, name)| docker.inspect_container(name.as_str(), None)),
+        )
+        .await;
+        for ((index, _), inspect) in inspect_targets.iter().zip(inspections) {
+            containers[*index].health = inspect
+                .ok()
+                .and_then(|inspect| inspect.state.and_then(|s| s.health))
+                .and_then(|health| health.status.map(health_status_to_string))
+                .flatten();
         }
         Ok::<Vec<Container>, String>(containers)
     })??;
@@ -417,22 +454,38 @@ pub fn get_container_status() -> Result<Vec<Container>, String> {
         let mut cache = VERSION_CACHE
             .lock()
             .map_err(|e| format!("Version cache poisoned: {e}"))?;
-        for container in &mut containers {
-            if container.state == ContainerState::Running {
-                if let Some(version) = cache.get(&container.id) {
-                    container.version = version.clone();
-                } else {
-                    let version = docker_block_on(async {
-                        let docker = docker_client(EXEC_TIMEOUT).ok()?;
-                        get_container_version_async(&docker, &container.name).await
-                    })
-                    .ok()
-                    .flatten();
-                    cache.insert(container.id.clone(), version.clone());
-                    container.version = version;
-                }
+
+        let to_probe: Vec<usize> = containers
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.state == ContainerState::Running && !cache.contains_key(&c.id))
+            .map(|(i, _)| i)
+            .collect();
+        if !to_probe.is_empty() {
+            let probed = docker_block_on(async {
+                let docker = docker_client(EXEC_TIMEOUT).ok()?;
+                let probes = to_probe
+                    .iter()
+                    .map(|i| get_container_version_async(&docker, &containers[*i].name));
+                Some(join_all(probes).await)
+            })
+            .ok()
+            .flatten()
+            .unwrap_or_default();
+            for (index, version) in to_probe.iter().zip(probed) {
+                cache.insert(containers[*index].id.clone(), version);
             }
         }
+        for container in &mut containers {
+            if container.state == ContainerState::Running {
+                container.version = cache.get(&container.id).cloned().flatten();
+            }
+        }
+
+        // Drop entries for containers that are gone — otherwise every
+        // down/up cycle accumulates stale ids forever.
+        let live: HashSet<&String> = containers.iter().map(|c| &c.id).collect();
+        cache.retain(|id, _| live.contains(id));
     }
 
     state::set_containers(containers.clone());
@@ -822,36 +875,14 @@ fn tar_directory(dir: &Path) -> Result<Vec<u8>, String> {
         .map_err(|e| format!("tar `{}`: {e}", dir.display()))
 }
 
-/// Create the container if missing (compose labels, binds, ports, env,
-/// healthcheck, tmpfs, log config, network aliases) or adopt the existing
-/// one; start it if it is not running. Mirrors `compose up`'s adopt-don't-
-/// recreate behaviour — an edited compose.yml needs a down/up cycle to apply.
-pub(crate) async fn ensure_service_container(
-    docker: &Docker,
-    service: &str,
-    cfg: &ServiceConfig,
-    image: &str,
-) -> Result<(), String> {
-    let name = cfg.container_id(service);
+/// Host port bindings keyed by `"container_port/proto"`.
+type PortBindings = HashMap<String, Option<Vec<bollard::models::PortBinding>>>;
 
-    match docker.inspect_container(&name, None).await {
-        Ok(_) => {
-            if !container_running(docker, &name).await? {
-                docker
-                    .start_container(&name, None)
-                    .await
-                    .map_err(|e| format!("start `{name}`: {e}"))?;
-                state::push_build_log(service, &format!("Started {name}"));
-            }
-            return Ok(());
-        }
-        Err(e) if is_not_found(&e) => {}
-        Err(e) => return Err(format!("inspect `{name}`: {}", describe_daemon_error(&e))),
-    }
-
+/// Exposed ports and host bindings derived from the compose `ports`/`expose`
+/// sections.
+fn compose_port_bindings(cfg: &ServiceConfig) -> Result<(Vec<String>, PortBindings), String> {
     let mut exposed: Vec<String> = cfg.expose.clone().unwrap_or_default();
-    let mut port_bindings: HashMap<String, Option<Vec<bollard::models::PortBinding>>> =
-        HashMap::new();
+    let mut port_bindings: PortBindings = HashMap::new();
     for spec in cfg.ports.clone().unwrap_or_default() {
         let mapping = compose::parse_port_mapping(&spec)?;
         let key = format!("{}/{}", mapping.container_port, mapping.proto);
@@ -864,30 +895,35 @@ pub(crate) async fn ensure_service_container(
             }]),
         );
     }
+    Ok((exposed, port_bindings))
+}
 
-    let healthcheck = cfg
-        .healthcheck
-        .as_ref()
-        .map(|h| bollard::models::HealthConfig {
+/// The full create body for a compose service container (labels, binds,
+/// ports, env, healthcheck, tmpfs, log config, network aliases).
+fn container_create_body(
+    service: &str,
+    name: &str,
+    cfg: &ServiceConfig,
+    image: &str,
+) -> Result<bollard::models::ContainerCreateBody, String> {
+    let (exposed, port_bindings) = compose_port_bindings(cfg)?;
+
+    let healthcheck = cfg.healthcheck.as_ref().map(|h| {
+        let duration_ns = |value: &Option<String>| {
+            value
+                .as_deref()
+                .and_then(|d| compose::parse_duration_ns(d).ok())
+                .map(|ns| ns as i64)
+        };
+        bollard::models::HealthConfig {
             test: Some(h.test.clone()),
-            interval: h
-                .interval
-                .as_deref()
-                .and_then(|d| compose::parse_duration_ns(d).ok())
-                .map(|ns| ns as i64),
-            timeout: h
-                .timeout
-                .as_deref()
-                .and_then(|d| compose::parse_duration_ns(d).ok())
-                .map(|ns| ns as i64),
+            interval: duration_ns(&h.interval),
+            timeout: duration_ns(&h.timeout),
             retries: h.retries,
-            start_period: h
-                .start_period
-                .as_deref()
-                .and_then(|d| compose::parse_duration_ns(d).ok())
-                .map(|ns| ns as i64),
+            start_period: duration_ns(&h.start_period),
             start_interval: None,
-        });
+        }
+    });
 
     let env = cfg.env_vec();
     let host_config = bollard::models::HostConfig {
@@ -917,7 +953,7 @@ pub(crate) async fn ensure_service_container(
                 // Service-name alias keeps container-to-container DNS working
                 // exactly like compose (DB host is the container name, but
                 // compose also registers the bare service name).
-                aliases: Some(vec![service.to_string(), name.clone()]),
+                aliases: Some(vec![service.to_string(), name.to_string()]),
                 ..Default::default()
             },
         )])),
@@ -940,7 +976,7 @@ pub(crate) async fn ensure_service_container(
         .collect();
     let depends_on_refs: Vec<&str> = depends_on.iter().map(String::as_str).collect();
 
-    let body = bollard::models::ContainerCreateBody {
+    Ok(bollard::models::ContainerCreateBody {
         image: Some(image.to_string()),
         env: (!env.is_empty()).then_some(env),
         cmd: cfg.command_vec(),
@@ -950,7 +986,37 @@ pub(crate) async fn ensure_service_container(
         host_config: Some(host_config),
         networking_config: Some(networking),
         ..Default::default()
-    };
+    })
+}
+
+/// Create the container if missing (compose labels, binds, ports, env,
+/// healthcheck, tmpfs, log config, network aliases) or adopt the existing
+/// one; start it if it is not running. Mirrors `compose up`'s adopt-don't-
+/// recreate behaviour — an edited compose.yml needs a down/up cycle to apply.
+pub(crate) async fn ensure_service_container(
+    docker: &Docker,
+    service: &str,
+    cfg: &ServiceConfig,
+    image: &str,
+) -> Result<(), String> {
+    let name = cfg.container_id(service);
+
+    match docker.inspect_container(&name, None).await {
+        Ok(_) => {
+            if !container_running(docker, &name).await? {
+                docker
+                    .start_container(&name, None)
+                    .await
+                    .map_err(|e| format!("start `{name}`: {e}"))?;
+                state::push_build_log(service, &format!("Started {name}"));
+            }
+            return Ok(());
+        }
+        Err(e) if is_not_found(&e) => {}
+        Err(e) => return Err(format!("inspect `{name}`: {}", describe_daemon_error(&e))),
+    }
+
+    let body = container_create_body(service, &name, cfg, image)?;
 
     let options = CreateContainerOptionsBuilder::new().name(&name).build();
     match docker.create_container(Some(options), body).await {

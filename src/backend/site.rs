@@ -1,7 +1,7 @@
 use crate::backend::docker::{exec_in_container, ExecOptions};
 use crate::backend::settings::{ensure_webroot_exists, get_webroot_from_settings};
 use crate::backend::utils::{
-    emit_notification, ensure_state_root, run_command, NotificationType, OperationResult,
+    emit_notification, ensure_state_root, home_dir, run_command, save_json, NotificationType,
     DOCKER_SITE_ROOT_PATH,
 };
 use crate::backend::wp_cli::{PHP_CONTAINER_NAME, WP_CLI_ERROR_REPORTING};
@@ -127,39 +127,13 @@ pub fn split_aliases(s: &str) -> impl Iterator<Item = &str> {
         .filter(|s| !s.is_empty())
 }
 
-fn read_sites_unchecked() -> Vec<Site> {
-    let path = match sites_file() {
-        Ok(path) => path,
-        Err(_) => return Vec::new(),
-    };
-
-    match fs::read_to_string(&path) {
-        Ok(content) => match serde_json::from_str(&content) {
-            Ok(sites) => sites,
-            Err(_) => {
-                // Back up the corrupt file before any caller can overwrite it.
-                let backup = path.with_extension("json.corrupt");
-                let _ = fs::copy(&path, &backup);
-                Vec::new()
-            }
-        },
-        Err(_) => Vec::new(),
-    }
+fn read_sites_checked() -> Result<Vec<Site>, String> {
+    let path = sites_file()?;
+    crate::backend::utils::load_json_or_report(&path, "sites")
 }
 
 fn write_sites_unchecked(sites: &[Site]) -> Result<(), String> {
-    let path = sites_file()?;
-    let content =
-        serde_json::to_string_pretty(sites).map_err(|e| format!("Serialize sites: {e}"))?;
-    fs::write(path, content).map_err(|e| format!("Write sites: {e}"))
-}
-
-pub fn read_sites() -> Vec<Site> {
-    read_sites_unchecked()
-}
-
-pub fn write_sites(sites: &[Site]) -> Result<(), String> {
-    write_sites_unchecked(sites)
+    save_json(&sites_file()?, sites, "sites")
 }
 
 fn acquire_sites_lock() -> Result<std::sync::MutexGuard<'static, ()>, String> {
@@ -273,6 +247,8 @@ fn regenerate_certificate(sites: &[Site]) -> Result<(), String> {
             }
         }
     }
+    // Sort before dedup: `dedup` alone only removes consecutive repeats.
+    domains.sort();
     domains.dedup();
 
     if domains.is_empty() {
@@ -329,15 +305,15 @@ pub fn find_mkcert() -> Result<String, String> {
         }
     }
     // Check common user install locations
-    let home = std::env::var("HOME").unwrap_or_default();
+    let home = home_dir();
     let common_locations = vec![
-        format!("{home}/.local/bin/mkcert"),
-        format!("{home}/.cargo/bin/mkcert"),
-        format!("{home}/bin/mkcert"),
+        home.join(".local/bin/mkcert"),
+        home.join(".cargo/bin/mkcert"),
+        home.join("bin/mkcert"),
     ];
     for loc in &common_locations {
-        if std::path::Path::new(loc).exists() {
-            return Ok(loc.clone());
+        if loc.exists() {
+            return Ok(loc.to_string_lossy().to_string());
         }
     }
     Err("mkcert not found. Please install mkcert first:\n  https://github.com/FiloSottile/mkcert#installation\nor run: scripts/setup-certs.sh".to_string())
@@ -345,23 +321,40 @@ pub fn find_mkcert() -> Result<String, String> {
 
 /// Validate the generated config with `nginx -t` before reloading; an invalid
 /// config must never be applied (and would fail the running nginx otherwise).
+/// A transport failure of the check itself also skips the reload — we cannot
+/// know the config is safe to apply.
 fn nginx_reload() {
     let test = exec_in_container("devwp_nginx", &["nginx", "-t"], &ExecOptions::default());
-    if let Ok(output) = test {
-        if !output.success() {
-            let stderr = output.stderr;
+    match test {
+        Ok(output) if output.success() => {}
+        Ok(output) => {
             crate::state::push_notification(
                 NotificationType::Error,
-                format!("Nginx config check failed, reload skipped:\n{stderr}"),
+                format!(
+                    "Nginx config check failed, reload skipped:\n{}",
+                    output.stderr
+                ),
+            );
+            return;
+        }
+        Err(error) => {
+            crate::state::push_notification(
+                NotificationType::Error,
+                format!("Nginx config check could not run, reload skipped: {error}"),
             );
             return;
         }
     }
-    let _ = exec_in_container(
+    if let Err(error) = exec_in_container(
         "devwp_nginx",
         &["nginx", "-s", "reload"],
         &ExecOptions::default(),
-    );
+    ) {
+        crate::state::push_notification(
+            NotificationType::Warning,
+            format!("Nginx reload failed: {error}"),
+        );
+    }
 }
 
 fn generate_nginx_config(
@@ -484,28 +477,66 @@ fn add_hosts_entry(domain: &str, aliases: Option<&str>) -> Result<(), String> {
         _ => {}
     }
 
-    elevate_append_hosts(&to_append)
+    elevate_hosts(&to_append, true)
 }
 
+/// Stage hosts content in a temp file so it never has to survive
+/// AppleScript/PowerShell string escaping (a `'` in a hosts comment must not
+/// break out of the elevated command). Windows hosts files want CRLF endings.
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn stage_hosts_temp(content: &str) -> Result<PathBuf, String> {
+    #[cfg(target_os = "windows")]
+    let content = content.replace("\r\n", "\n").replace('\n', "\r\n");
+
+    let tmp = std::env::temp_dir().join(format!(
+        "devwp-hosts-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0),
+    ));
+    fs::write(&tmp, content).map_err(|e| format!("Failed to stage hosts content: {e}"))?;
+
+    let path = tmp.display().to_string();
+    if path.contains('\'') || path.contains('"') || path.contains('\\') {
+        let _ = fs::remove_file(&tmp);
+        return Err("Temp path contains shell metacharacters".to_string());
+    }
+    Ok(tmp)
+}
+
+/// Write (`append == false`) or append to the hosts file with elevated
+/// privileges, after the direct unelevated attempt was denied. Linux pipes
+/// the content through `pkexec tee`; macOS/Windows elevate a helper that
+/// copies the staged temp file, so only validated paths cross a quoting
+/// boundary.
 #[allow(unreachable_code)]
-fn elevate_append_hosts(content: &str) -> Result<(), String> {
+fn elevate_hosts(content: &str, append: bool) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
-        let mut child = Command::new("pkexec")
-            .args(["tee", "-a", HOSTS_FILE_PATH])
+        let mut cmd = Command::new("pkexec");
+        cmd.arg("tee");
+        if append {
+            cmd.arg("-a");
+        }
+        let mut child = cmd
+            .arg(HOSTS_FILE_PATH)
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .spawn()
             .map_err(|_| {
                 format!(
-                    "pkexec not available. Run manually:\n  echo '127.0.0.1 <domain>' | sudo tee -a {}",
+                    "pkexec not available. Run manually:\n  echo '127.0.0.1 <domain>' | sudo tee {}{}",
+                    if append { "-a " } else { "" },
                     HOSTS_FILE_PATH
                 )
             })?;
         {
-            let mut stdin = child.stdin.take().ok_or_else(|| {
-                format!("pkexec closed stdin. Run manually:\n  echo '127.0.0.1 <domain>' | sudo tee -a {}", HOSTS_FILE_PATH)
-            })?;
+            let mut stdin = child
+                .stdin
+                .take()
+                .ok_or_else(|| "pkexec closed stdin before receiving data".to_string())?;
             stdin
                 .write_all(content.as_bytes())
                 .map_err(|e| format!("Failed to write to pkexec stdin: {e}"))?;
@@ -516,9 +547,8 @@ fn elevate_append_hosts(content: &str) -> Result<(), String> {
             .map_err(|e| format!("pkexec wait failed: {e}"))?;
         if !status.success() {
             return Err(format!(
-                "pkexec exited with code {:?}. Run manually:\n  echo '127.0.0.1 <domain>' | sudo tee -a {}",
-                status.code(),
-                HOSTS_FILE_PATH
+                "pkexec exited with code {:?}. Run the sudo command manually.",
+                status.code()
             ));
         }
         return Ok(());
@@ -526,31 +556,45 @@ fn elevate_append_hosts(content: &str) -> Result<(), String> {
 
     #[cfg(target_os = "macos")]
     {
-        let escaped = content.replace('\\', "\\\\").replace('"', "\\\"");
+        let tmp = stage_hosts_temp(content)?;
         let script = format!(
-            "do shell script \"printf '%s' '{escaped}' >> {HOSTS_FILE_PATH}\" with administrator privileges"
+            "do shell script \"/bin/cat '{}' {} {}\" with administrator privileges",
+            tmp.display(),
+            if append { ">>" } else { ">" },
+            HOSTS_FILE_PATH
         );
         let status = Command::new("osascript")
-            .arg("-e")
-            .arg(&script)
+            .args(["-e", &script])
             .status()
             .map_err(|e| format!("Failed to launch osascript: {e}"))?;
+        let _ = fs::remove_file(&tmp);
         if !status.success() {
-            return Err("Failed to add hosts entry: osascript returned non-zero".to_string());
+            return Err("Failed to modify hosts file: osascript returned non-zero".to_string());
         }
         return Ok(());
     }
 
     #[cfg(target_os = "windows")]
     {
-        let ps_content = content.replace('\n', "`n").replace('\'', "''");
-        let ps_cmd = format!("Add-Content -Path '{HOSTS_FILE_PATH}' -Value '{ps_content}'");
+        let tmp = stage_hosts_temp(content)?;
+        let verb = if append { "Add-Content" } else { "Set-Content" };
+        // The elevated child copies the staged file, so only two validated
+        // paths cross the PowerShell quoting boundary.
+        let inner = format!(
+            "{verb} -Path '{HOSTS_FILE_PATH}' -Encoding Ascii -Value (Get-Content -Raw '{}')",
+            tmp.display()
+        );
+        let ps_cmd = format!(
+            "Start-Process -Verb RunAs -Wait powershell -ArgumentList @('-NoProfile','-Command','{}')",
+            inner.replace('\'', "''")
+        );
         let status = Command::new("powershell")
-            .args(["-Command", &ps_cmd])
+            .args(["-NoProfile", "-Command", &ps_cmd])
             .status()
             .map_err(|e| format!("Failed to launch PowerShell: {e}"))?;
+        let _ = fs::remove_file(&tmp);
         if !status.success() {
-            return Err("Failed to add hosts entry: PowerShell returned non-zero".to_string());
+            return Err("Failed to modify hosts file: elevation declined or failed".to_string());
         }
         return Ok(());
     }
@@ -601,88 +645,25 @@ fn remove_hosts_entry(domain: &str, aliases: Option<&str>) -> Result<(), String>
         _ => {}
     }
 
-    elevate_write_hosts(&new_content)
-}
-
-#[allow(unreachable_code)]
-fn elevate_write_hosts(content: &str) -> Result<(), String> {
-    #[cfg(target_os = "linux")]
-    {
-        let mut child = Command::new("pkexec")
-            .args(["tee", HOSTS_FILE_PATH])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::null())
-            .spawn()
-            .map_err(|_| {
-                format!(
-                    "pkexec not available. Run manually:\n  echo '{}' | sudo tee {}",
-                    content.lines().next().unwrap_or("<content>"),
-                    HOSTS_FILE_PATH
-                )
-            })?;
-        {
-            let mut stdin = child
-                .stdin
-                .take()
-                .ok_or_else(|| "pkexec closed stdin before receiving data".to_string())?;
-            stdin
-                .write_all(content.as_bytes())
-                .map_err(|e| format!("Failed to write to pkexec stdin: {e}"))?;
-        }
-        // stdin dropped — tee sees EOF and can exit
-        let status = child
-            .wait()
-            .map_err(|e| format!("pkexec wait failed: {e}"))?;
-        if !status.success() {
-            return Err(format!(
-                "pkexec exited with code {:?}. Run the sudo command manually.",
-                status.code()
-            ));
-        }
-        return Ok(());
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        let escaped = content.replace('\\', "\\\\").replace('"', "\\\"");
-        let script = format!(
-            "do shell script \"printf '%s' '{escaped}' | tee {HOSTS_FILE_PATH}\" with administrator privileges"
-        );
-        let status = Command::new("osascript")
-            .arg("-e")
-            .arg(&script)
-            .status()
-            .map_err(|e| format!("Failed to launch osascript: {e}"))?;
-        if !status.success() {
-            return Err("Failed to remove hosts entry: osascript returned non-zero".to_string());
-        }
-        return Ok(());
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        let escaped = content.replace('\'', "''");
-        let ps_cmd = format!("Set-Content -Path '{HOSTS_FILE_PATH}' -Value '{escaped}'");
-        let status = Command::new("powershell")
-            .args(["-Command", &ps_cmd])
-            .status()
-            .map_err(|e| format!("Failed to launch PowerShell: {e}"))?;
-        if !status.success() {
-            return Err("Failed to remove hosts entry: PowerShell returned non-zero".to_string());
-        }
-        return Ok(());
-    }
-
-    Err(
-        "Failed to modify hosts file: permission denied and no elevation method available"
-            .to_string(),
-    )
+    elevate_hosts(&new_content, false)
 }
 
 pub fn get_sites() -> Vec<Site> {
-    let _lock = acquire_sites_lock().ok();
-    let mut sites = read_sites_unchecked();
+    // A read path: recover from a poisoned lock rather than fail the listing.
+    let _lock = SITES_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut sites = match read_sites_checked() {
+        Ok(sites) => sites,
+        Err(error) => {
+            // Never scan-and-rewrite past a corrupt state file: that would
+            // permanently drop aliases/multisite/web_root metadata.
+            emit_notification(NotificationType::Error, error);
+            return Vec::new();
+        }
+    };
     let webroot = get_webroot_from_settings();
+    let mut discovered = false;
 
     if let Ok(entries) = fs::read_dir(webroot) {
         for entry in entries.flatten() {
@@ -705,12 +686,83 @@ pub fn get_sites() -> Vec<Site> {
                     web_root: None,
                     multisite: None,
                 });
+                discovered = true;
             }
         }
     }
 
-    let _ = write_sites_unchecked(&sites);
+    // Persist only when the webroot scan found directories the state file
+    // does not know about — otherwise every UI refresh rewrites sites.json
+    // (extra IO and a wider race window against concurrent writers).
+    if discovered {
+        let _ = write_sites_unchecked(&sites);
+    }
     sites
+}
+
+/// MariaDB database name for a site domain (`.` and `-` become `_`).
+pub fn db_name_for(domain: &str) -> String {
+    domain.replace(['.', '-'], "_")
+}
+
+/// `wp config create` argv for a fresh site (DB creds are the stack's
+/// hardcoded MariaDB root account).
+fn wp_config_create_argv(db_name: &str) -> Vec<String> {
+    vec![
+        "config".to_string(),
+        "create".to_string(),
+        format!("--dbname={db_name}"),
+        format!("--dbuser={}", crate::backend::utils::DB_ROOT_USER),
+        format!("--dbpass={}", crate::backend::utils::DB_ROOT_PASSWORD),
+        format!("--dbhost={}", crate::backend::utils::DB_HOST),
+    ]
+}
+
+/// Create the site's database via the mariadb container. Safe only because
+/// `validate_site_name` restricts the charset of everything that flows into
+/// `db_name` (alphanumerics plus `.`, `-`, `_`, and the `.`/`-` → `_` mapping
+/// happens before this point).
+fn create_database(db_name: &str) -> Result<(), String> {
+    let sql = format!("CREATE DATABASE IF NOT EXISTS `{db_name}`");
+    let user_arg = format!("-u{}", crate::backend::utils::DB_ROOT_USER);
+    let pass_arg = format!("-p{}", crate::backend::utils::DB_ROOT_PASSWORD);
+    let output = exec_in_container(
+        crate::backend::utils::DB_HOST,
+        &["mariadb", &user_arg, &pass_arg, "-e", &sql],
+        &ExecOptions::default(),
+    )?;
+    if !output.success() {
+        return Err(format!("Failed to create database: {}", output.stderr));
+    }
+    Ok(())
+}
+
+/// `wp core install` argv; empty config fields fall back to the same
+/// defaults the previous renderer flow used.
+fn wp_install_args(domain: &str, config: &WordPressInstallConfig) -> Vec<String> {
+    let or_default = |value: &str, default: &str| {
+        if value.is_empty() {
+            default.to_string()
+        } else {
+            value.to_string()
+        }
+    };
+    vec![
+        "core".to_string(),
+        "install".to_string(),
+        format!("--url=https://{domain}"),
+        format!("--title={}", or_default(&config.title, domain)),
+        format!("--admin_user={}", or_default(&config.admin_user, "root")),
+        format!(
+            "--admin_password={}",
+            or_default(&config.admin_password, "root")
+        ),
+        format!(
+            "--admin_email={}",
+            or_default(&config.admin_email, "root@example.com")
+        ),
+        "--skip-email".to_string(),
+    ]
 }
 
 fn install_wordpress(
@@ -723,14 +775,20 @@ fn install_wordpress(
         None => format!("{DOCKER_SITE_ROOT_PATH}/{domain}"),
     };
 
-    let db_name = domain.replace(['.', '-'], "_");
+    let db_name = db_name_for(domain);
 
-    let run_wp = |cmd_args: &[&str]| -> Result<(), String> {
-        let mut argv = vec!["php", "-d", WP_CLI_ERROR_REPORTING, "/usr/local/bin/wp"];
-        argv.extend_from_slice(cmd_args);
+    let run_wp = |phase: &str, args: &[String]| -> Result<(), String> {
+        let mut argv = vec![
+            "php".to_string(),
+            "-d".to_string(),
+            WP_CLI_ERROR_REPORTING.to_string(),
+            "/usr/local/bin/wp".to_string(),
+        ];
+        argv.extend_from_slice(args);
+        let argv_refs: Vec<&str> = argv.iter().map(String::as_str).collect();
         let output = exec_in_container(
             PHP_CONTAINER_NAME,
-            &argv,
+            &argv_refs,
             &ExecOptions {
                 working_dir: Some(work_dir.clone()),
                 env: Vec::new(),
@@ -744,11 +802,7 @@ fn install_wordpress(
             } else {
                 output.stdout
             };
-            Err(format!(
-                "wp {} failed: {}",
-                cmd_args.first().copied().unwrap_or(""),
-                detail
-            ))
+            Err(format!("wp {phase} failed: {detail}"))
         }
     };
 
@@ -756,92 +810,28 @@ fn install_wordpress(
         NotificationType::Info,
         format!("[{domain}] Downloading WordPress..."),
     );
-    run_wp(&["core", "download"])?;
+    run_wp(
+        "core download",
+        &["core".to_string(), "download".to_string()],
+    )?;
 
-    let dbname_arg = format!("--dbname={db_name}");
-    let dbuser_arg = format!("--dbuser={}", crate::backend::utils::DB_ROOT_USER);
-    let dbpass_arg = format!("--dbpass={}", crate::backend::utils::DB_ROOT_PASSWORD);
-    let dbhost_arg = format!("--dbhost={}", crate::backend::utils::DB_HOST);
     emit_notification(
         NotificationType::Info,
         format!("[{domain}] Creating wp-config.php..."),
     );
-    run_wp(&[
-        "config",
-        "create",
-        &dbname_arg,
-        &dbuser_arg,
-        &dbpass_arg,
-        &dbhost_arg,
-    ])?;
+    run_wp("config create", &wp_config_create_argv(&db_name))?;
 
     emit_notification(
         NotificationType::Info,
         format!("[{domain}] Creating database..."),
     );
-    let create_db_sql = format!("CREATE DATABASE IF NOT EXISTS `{db_name}`");
-    let db_root_user = crate::backend::utils::DB_ROOT_USER;
-    let db_root_pass = crate::backend::utils::DB_ROOT_PASSWORD;
-    let db_host = crate::backend::utils::DB_HOST;
-    let db_user_arg = format!("-u{db_root_user}");
-    let db_pass_arg = format!("-p{db_root_pass}");
-    let output = exec_in_container(
-        db_host,
-        &["mariadb", &db_user_arg, &db_pass_arg, "-e", &create_db_sql],
-        &ExecOptions::default(),
-    )?;
-    if !output.success() {
-        return Err(format!("Failed to create database: {}", output.stderr));
-    }
+    create_database(&db_name)?;
 
     emit_notification(
         NotificationType::Info,
         format!("[{domain}] Running WordPress install..."),
     );
-
-    let url_arg = format!("--url=https://{domain}");
-    let title_arg = format!(
-        "--title={}",
-        if config.title.is_empty() {
-            domain
-        } else {
-            &config.title
-        }
-    );
-    let user_arg = format!(
-        "--admin_user={}",
-        if config.admin_user.is_empty() {
-            "root"
-        } else {
-            &config.admin_user
-        }
-    );
-    let pass_arg = format!(
-        "--admin_password={}",
-        if config.admin_password.is_empty() {
-            "root"
-        } else {
-            &config.admin_password
-        }
-    );
-    let email_arg = format!(
-        "--admin_email={}",
-        if config.admin_email.is_empty() {
-            "root@example.com"
-        } else {
-            &config.admin_email
-        }
-    );
-    run_wp(&[
-        "core",
-        "install",
-        &url_arg,
-        &title_arg,
-        &user_arg,
-        &pass_arg,
-        &email_arg,
-        "--skip-email",
-    ])?;
+    run_wp("core install", &wp_install_args(domain, config))?;
 
     Ok(())
 }
@@ -879,7 +869,17 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
     }
 
     let _lock = acquire_sites_lock()?;
-    let mut sites = read_sites_unchecked();
+    let mut sites = read_sites_checked()?;
+
+    // Generate the vhost before committing to sites.json: a template failure
+    // must not leave a registered site without an nginx config.
+    generate_nginx_config(
+        &site.domain,
+        site.aliases.as_deref(),
+        site.web_root.as_deref(),
+        site.multisite.as_ref(),
+    )?;
+
     update_or_insert_site(
         &mut sites,
         Site {
@@ -893,7 +893,11 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
         },
     );
 
-    write_sites_unchecked(&sites)?;
+    if let Err(error) = write_sites_unchecked(&sites) {
+        // Roll the vhost back so state and config stay consistent.
+        let _ = fs::remove_file(nginx_sites_enabled_path().join(format!("{}.conf", site.domain)));
+        return Err(error);
+    }
     drop(_lock);
 
     // Regenerate TLS certificate in background — this can be slow with many sites.
@@ -913,12 +917,6 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
         }
     });
 
-    generate_nginx_config(
-        &site.domain,
-        site.aliases.as_deref(),
-        site.web_root.as_deref(),
-        site.multisite.as_ref(),
-    )?;
     nginx_reload();
     if let Err(e) = add_hosts_entry(&site.domain, site.aliases.as_deref()) {
         emit_notification(
@@ -945,7 +943,7 @@ pub fn delete_site(site: Site) -> Result<(), String> {
     validate_site_name(&site.name)?;
 
     let _lock = acquire_sites_lock()?;
-    let mut sites = read_sites_unchecked();
+    let mut sites = read_sites_checked()?;
     sites.retain(|existing| existing.name != site.name);
     write_sites_unchecked(&sites)?;
     drop(_lock);
@@ -999,7 +997,17 @@ pub fn delete_site(site: Site) -> Result<(), String> {
     Ok(())
 }
 
-pub fn update_site(site: Site, data: SiteUpdateRequest) -> Result<OperationResult, String> {
+/// Interpret an `SiteUpdateRequest` field: `None` keeps the existing value,
+/// `Some("")` (or whitespace) clears it, `Some(value)` sets it.
+fn updated_field(new: Option<String>, existing: Option<String>) -> Option<String> {
+    match new {
+        None => existing,
+        Some(s) if s.trim().is_empty() => None,
+        Some(s) => Some(s),
+    }
+}
+
+pub fn update_site(site: Site, data: SiteUpdateRequest) -> Result<(), String> {
     // Validate the incoming data before any side effect writes config/certs.
     validate_site_name(&site.name)?;
     if let Some(web_root) = &data.web_root {
@@ -1008,7 +1016,7 @@ pub fn update_site(site: Site, data: SiteUpdateRequest) -> Result<OperationResul
     validate_site_aliases(data.aliases.as_deref())?;
 
     let _lock = acquire_sites_lock()?;
-    let mut sites = read_sites_unchecked();
+    let mut sites = read_sites_checked()?;
 
     let existing = sites
         .iter()
@@ -1019,14 +1027,8 @@ pub fn update_site(site: Site, data: SiteUpdateRequest) -> Result<OperationResul
     let old_aliases = existing.aliases.clone();
 
     let updated = Site {
-        aliases: data
-            .aliases
-            .filter(|s| !s.is_empty())
-            .or(existing.aliases.clone()),
-        web_root: data
-            .web_root
-            .filter(|s| !s.is_empty())
-            .or(existing.web_root.clone()),
+        aliases: updated_field(data.aliases, existing.aliases.clone()),
+        web_root: updated_field(data.web_root, existing.web_root.clone()),
         ..existing.clone()
     };
 
@@ -1047,11 +1049,7 @@ pub fn update_site(site: Site, data: SiteUpdateRequest) -> Result<OperationResul
     add_hosts_entry(&updated.name, updated.aliases.as_deref())?;
 
     emit_notification(NotificationType::Success, "Site updated");
-    Ok(OperationResult {
-        success: true,
-        message: "Site updated".to_string(),
-        error: None,
-    })
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1102,6 +1100,13 @@ mod tests {
         assert_eq!(format_domain("example"), "example.test");
         assert_eq!(format_domain("example.test"), "example.test");
         assert_eq!(format_domain("sub.example.com"), "sub.example.com");
+    }
+
+    #[test]
+    fn db_name_for_maps_dots_and_dashes() {
+        assert_eq!(db_name_for("example.test"), "example_test");
+        assert_eq!(db_name_for("my-site.test"), "my_site_test");
+        assert_eq!(db_name_for("plain"), "plain");
     }
 
     #[test]

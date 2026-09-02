@@ -332,7 +332,7 @@ fn execute(command: Commands) -> Result<(), String> {
 
 fn cmd_init(args: InitArgs) -> Result<(), String> {
     if let Some(webroot) = &args.webroot {
-        let res = settings::save_setting("webroot_path".to_string(), webroot.clone());
+        let res = settings::save_setting("webroot_path", webroot);
         if !res.success {
             return Err(res
                 .error
@@ -484,27 +484,24 @@ fn cmd_info(json: bool) -> Result<(), String> {
         utils::project_root().display()
     ));
     outln(format!("State dir:      {}", utils::state_root().display()));
+    outln(format!("Sites file:     {}", site::sites_file()?.display()));
     outln(format!(
-        "Sites file:      {}",
-        site::sites_file()?.display()
-    ));
-    outln(format!(
-        "Settings file:   {}",
+        "Settings file:  {}",
         settings::settings_file()?.display()
     ));
     outln(format!(
-        "Webroot:         {}",
+        "Webroot:        {}",
         settings::get_webroot_from_settings().display()
     ));
     outln(format!(
-        "Xdebug:          {}",
+        "Xdebug:         {}",
         if xdebug::get_xdebug_status() {
             "enabled"
         } else {
             "disabled"
         }
     ));
-    outln(format!("Sites:           {}", sites.len()));
+    outln(format!("Sites:          {}", sites.len()));
     Ok(())
 }
 
@@ -679,14 +676,15 @@ fn cmd_site_update(args: SiteUpdateArgs) -> Result<(), String> {
         return Err("nothing to update: pass --aliases and/or --webroot".to_string());
     }
     let site = resolve_site(&args.domain)?;
-    let result = site::update_site(
+    site::update_site(
         site,
         SiteUpdateRequest {
             aliases: args.aliases.clone(),
             web_root: args.web_root.clone(),
         },
     )?;
-    check_operation(result)
+    outln("Site updated.");
+    Ok(())
 }
 
 fn cmd_site_delete(args: SiteDeleteArgs) -> Result<(), String> {
@@ -714,7 +712,7 @@ fn cmd_site_delete(args: SiteDeleteArgs) -> Result<(), String> {
     outln(format!("Site '{name}' deleted."));
     outln(format!(
         "Note: database '{}' was kept in MariaDB (same behaviour as the GUI).",
-        name.replace(['.', '-'], "_")
+        site::db_name_for(&name)
     ));
     Ok(())
 }
@@ -807,9 +805,10 @@ fn cmd_services_restart(service: String) -> Result<(), String> {
 /// Map compose service names to their container names; pass anything else
 /// (devwp_* names, container ids) through unchanged.
 fn resolve_container(name: &str) -> String {
-    match name {
-        "php" | "nginx" | "mariadb" | "redis" | "mailpit" => format!("devwp_{name}"),
-        other => other.to_string(),
+    if docker::STACK_SERVICES.contains(&name) {
+        docker::container_name_for(name)
+    } else {
+        name.to_string()
     }
 }
 
@@ -920,15 +919,17 @@ fn cmd_settings(cmd: SettingsCommand) -> Result<(), String> {
             }
             Ok(())
         }
-        SettingsCommand::Get { key } => match settings::get_setting(key.clone()) {
+        SettingsCommand::Get { key } => match settings::get_setting(&key) {
             Some(value) => {
                 outln(value);
                 Ok(())
             }
             None => Err(format!("setting '{key}' is not set")),
         },
-        SettingsCommand::Set { key, value } => check_operation(settings::save_setting(key, value)),
-        SettingsCommand::Unset { key } => check_operation(settings::delete_setting(key)),
+        SettingsCommand::Set { key, value } => {
+            check_operation(settings::save_setting(&key, &value))
+        }
+        SettingsCommand::Unset { key } => check_operation(settings::delete_setting(&key)),
     }
 }
 
@@ -946,7 +947,7 @@ fn check_operation(result: OperationResult) -> Result<(), String> {
 fn cmd_open(domain: String) -> Result<(), String> {
     let site = resolve_site(&domain)?;
     let url = site.url.clone();
-    system::open_external(url.clone())?;
+    system::open_external(&url)?;
     outln(format!("Opened {url}"));
     Ok(())
 }

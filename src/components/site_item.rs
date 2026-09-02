@@ -22,11 +22,10 @@ pub fn SiteItem(
     let site_for_wpcli = site.clone();
     let site_for_edit = site.clone();
 
-    let li_class = if is_last {
-        "animate-fade-in-up group relative bg-gunmetal-300 hover:bg-gunmetal-400 transition-all duration-200 rounded-lg mx-2 cursor-pointer mb-2"
-    } else {
-        "animate-fade-in-up group relative bg-gunmetal-300 hover:bg-gunmetal-400 transition-all duration-200 rounded-lg mx-2 cursor-pointer mb-3"
-    };
+    let li_class = format!(
+        "animate-fade-in-up group relative bg-gunmetal-300 hover:bg-gunmetal-400 transition-all duration-200 rounded-lg mx-2 cursor-pointer mb-{}",
+        if is_last { 2 } else { 3 }
+    );
 
     rsx! {
         li {
@@ -44,7 +43,7 @@ pub fn SiteItem(
                 div { class: "flex-1 min-w-0",
                     div { class: "flex items-center gap-3 mb-1",
                         div { class: "flex items-center gap-2",
-                            h4 { class: "font-semibold text-md text-seasalt truncate leading-tight", {site.name} }
+                            h4 { class: "font-semibold text-base text-seasalt truncate leading-tight", {site.name} }
                         }
                         if is_provisioning {
                             div { class: "flex items-center gap-2 bg-amber/20 px-2 py-1 rounded-full",
@@ -61,9 +60,7 @@ pub fn SiteItem(
                             title: "Open folder in file manager",
                             onclick: move |ev: MouseEvent| {
                                 ev.stop_propagation();
-                                let _ = crate::backend::system::open_directory(
-                                    site_for_directory.path.clone(),
-                                );
+                                let _ = crate::backend::system::open_directory(&site_for_directory.path);
                             },
                             {site.path}
                         }

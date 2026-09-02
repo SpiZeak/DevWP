@@ -82,9 +82,7 @@ pub fn SiteInfo(
                             class: "bg-gunmetal-400 hover:bg-gunmetal-600 px-3 py-2 rounded-lg w-full text-seasalt hover:text-pumpkin text-left text-sm font-mono transition-colors cursor-pointer",
                             title: "Open folder in file manager",
                             onclick: move |_ev: MouseEvent| {
-                                let _ = crate::backend::system::open_directory(
-                                    site_for_directory.path.clone(),
-                                );
+                                let _ = crate::backend::system::open_directory(&site_for_directory.path);
                             },
                             {site.path.clone()}
                         }

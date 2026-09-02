@@ -58,6 +58,7 @@ sync_state!(build_logs_signal, Vec<String>, Vec::new);
 /// User-facing notifications (auto-dismissed by the UI); capped so a busy
 /// session can never grow the vec without bound.
 pub const MAX_NOTIFICATIONS: usize = 100;
+static NOTIFICATION_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 sync_state!(notifications_signal, Vec<NotificationPayload>, Vec::new);
 global_value!(
     xdebug_enabled_signal,
@@ -219,11 +220,15 @@ pub fn notifications(
 }
 
 pub fn push_notification(notification_type: NotificationType, message: impl Into<String>) {
+    use std::sync::atomic::Ordering;
+
+    let seq = NOTIFICATION_SEQ.fetch_add(1, Ordering::Relaxed) + 1;
     let mut sig = *notifications_signal();
     let mut n = sig.write();
     n.push(NotificationPayload {
         notification_type,
         message: message.into(),
+        seq,
     });
     if n.len() > MAX_NOTIFICATIONS {
         let excess = n.len() - MAX_NOTIFICATIONS;

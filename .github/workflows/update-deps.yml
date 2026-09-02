@@ -5,7 +5,9 @@ on:
     - cron: '0 2 * * *' # Runs daily at 2 AM UTC
   workflow_dispatch: # Optional manual trigger
 
-# Add permissions block to allow pushing changes
+# Dependency updates go through a pull request so the full CI gate
+# (including integration tests) runs before anything reaches the default
+# branch.
 permissions:
   contents: write
   pull-requests: write
@@ -47,26 +49,23 @@ jobs:
         run: cargo build --release
         timeout-minutes: 20
 
-      - name: Commit changes
-        id: commit
+      - name: Open pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.ref_name }}
         run: |
-          git config --global user.name "${{ github.actor }}"
-          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
-          git add Cargo.toml Cargo.lock # Be specific about files to add
-          # Check if there are staged changes before committing
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          BRANCH="deps/auto-update-$(date +%Y%m%d)"
+          git checkout -b "$BRANCH"
+          git add Cargo.toml Cargo.lock
           if git diff --staged --quiet; then
             echo "No changes to commit"
-            echo "changes_exist=false" >> $GITHUB_OUTPUT
-          else
-            echo "Changes detected, committing..."
-            git commit -m "chore: Auto-update dependencies and lockfiles"
-            echo "changes_exist=true" >> $GITHUB_OUTPUT
+            exit 0
           fi
-
-      - name: Push changes
-        # Only run if the commit step detected changes
-        if: steps.commit.outputs.changes_exist == 'true'
-        run: |
-          echo "Pushing changes..."
-          # Explicitly push to the branch the workflow is running on
-          git push origin HEAD:${{ github.ref_name }}
+          git commit -m "chore: auto-update dependencies"
+          git push origin HEAD:"$BRANCH"
+          gh pr create \
+            --title "chore: auto-update dependencies" \
+            --body "Automated \`cargo update\` from the scheduled workflow. The full CI gate (including integration tests) runs on this PR before merging." \
+            --base "$BASE" || echo "PR already open, pushed new commits"

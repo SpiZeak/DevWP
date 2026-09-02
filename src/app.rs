@@ -138,9 +138,7 @@ fn AppRoot() -> Element {
                         class: "group inline-flex items-center gap-1 hover:text-pumpkin transition-colors",
                         onclick: move |ev| {
                             ev.prevent_default();
-                            let _ = crate::backend::system::open_external(
-                                "https://github.com/SpiZeak".to_string(),
-                            );
+                            let _ = crate::backend::system::open_external("https://github.com/SpiZeak");
                         },
                         "SpiZeak"
                         span { class: "opacity-0 group-hover:opacity-100 transition-opacity", "↗" }
@@ -157,7 +155,19 @@ fn AppRoot() -> Element {
 pub(crate) fn request_shutdown() {
     if !SHUTDOWN_REQUESTED.swap(true, Ordering::SeqCst) {
         spawn(async move {
-            lifecycle::stop_services().await;
+            // A hung Docker socket must not keep the hidden window alive
+            // forever: force the real close after 30s regardless. The
+            // abandoned teardown task dies with the process.
+            if tokio::time::timeout(
+                std::time::Duration::from_secs(30),
+                lifecycle::stop_services(),
+            )
+            .await
+            .is_err()
+            {
+                tracing::warn!("Stack teardown timed out after 30s; closing anyway");
+                state::set_shutdown_done(true);
+            }
         });
     }
 }

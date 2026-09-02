@@ -1,36 +1,28 @@
-use crate::backend::utils::{default_webroot, ensure_state_root, OperationResult};
+use crate::backend::utils::{
+    default_webroot, ensure_state_root, load_json_or_default, save_json, OperationResult,
+};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+
+/// Serializes read-modify-write cycles on settings.json (mirrors
+/// `site.rs::SITES_LOCK`) so concurrent saves cannot lose updates.
+static SETTINGS_LOCK: Mutex<()> = Mutex::new(());
 
 pub fn settings_file() -> Result<PathBuf, String> {
     Ok(ensure_state_root()?.join("settings.json"))
 }
 
 pub fn read_settings() -> HashMap<String, String> {
-    let path = match settings_file() {
-        Ok(path) => path,
-        Err(_) => return HashMap::new(),
-    };
-
-    match fs::read_to_string(&path) {
-        Ok(content) => match serde_json::from_str(&content) {
-            Ok(settings) => settings,
-            Err(_) => {
-                let backup = path.with_extension("json.corrupt");
-                let _ = fs::copy(&path, &backup);
-                HashMap::new()
-            }
-        },
+    match settings_file() {
+        Ok(path) => load_json_or_default(&path),
         Err(_) => HashMap::new(),
     }
 }
 
 pub fn write_settings(settings: &HashMap<String, String>) -> Result<(), String> {
-    let path = settings_file()?;
-    let content =
-        serde_json::to_string_pretty(settings).map_err(|e| format!("Serialize settings: {e}"))?;
-    fs::write(path, content).map_err(|e| format!("Write settings: {e}"))
+    save_json(&settings_file()?, settings, "settings")
 }
 
 pub fn get_webroot_from_settings() -> PathBuf {
@@ -47,13 +39,16 @@ pub fn ensure_webroot_exists() -> Result<PathBuf, String> {
     Ok(webroot)
 }
 
-pub fn get_setting(key: String) -> Option<String> {
-    read_settings().get(&key).cloned()
+pub fn get_setting(key: &str) -> Option<String> {
+    read_settings().get(key).cloned()
 }
 
-pub fn save_setting(key: String, value: String) -> OperationResult {
+pub fn save_setting(key: &str, value: &str) -> OperationResult {
+    let _lock = SETTINGS_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut settings = read_settings();
-    settings.insert(key.clone(), value.clone());
+    settings.insert(key.to_string(), value.to_string());
 
     match write_settings(&settings) {
         Ok(_) => OperationResult {
@@ -69,9 +64,12 @@ pub fn save_setting(key: String, value: String) -> OperationResult {
     }
 }
 
-pub fn delete_setting(key: String) -> OperationResult {
+pub fn delete_setting(key: &str) -> OperationResult {
+    let _lock = SETTINGS_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let mut settings = read_settings();
-    settings.remove(&key);
+    settings.remove(key);
 
     match write_settings(&settings) {
         Ok(_) => OperationResult {

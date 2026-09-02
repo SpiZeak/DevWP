@@ -20,16 +20,17 @@ tests/integration.rs   backend tests against the real compose stack
 ## State management
 
 All shared state lives in process-wide signals declared with the
-`sync_state!` macro in `src/state.rs` (a `SyncSignal` behind a `OnceLock`):
+`sync_state!` / `global_value!` macros in `src/state.rs` (a `SyncSignal`
+behind a `OnceLock`, exposed through accessor functions):
 
-- `CONTAINERS` — Docker Engine API container listing (project label filter)
-- `BUILDING_SERVICES` — service → building flag
-- `DOCKER_STATUS` — status banner (idle/starting/complete/error/stopping/stopped)
-- `BUILD_LOGS` — `[{service}] {line}` strings, ANSI-stripped, capped at 500
-- `NOTIFICATIONS` — one-way toasts (auto-dismissed by the UI)
-- `XDEBUG_ENABLED` / `XDEBUG_TOGGLING` — xdebug switch state
-- `SITES` / `SITES_LOADING` — the site list
-- `SHUTDOWN_DONE` — close-lifecycle flag
+- `containers_signal` — Docker Engine API container listing (project label filter)
+- `building_services_signal` — service → building flag
+- `docker_status_signal` — status banner (idle/starting/complete/error/stopping/stopped)
+- `build_logs_signal` — `[{service}] {line}` strings, ANSI-stripped, capped at 500
+- `notifications_signal` — one-way toasts (auto-dismissed by the UI)
+- `xdebug_enabled_signal` / `xdebug_toggling_signal` — xdebug switch state
+- `sites_signal` / `sites_loading_signal` — the site list
+- `shutdown_done_signal` — close-lifecycle flag
 
 `SyncSignal` uses thread-safe storage, so background threads (docker log
 readers, certificate threads, tokio tasks) can write it. `init_globals()` in
@@ -78,7 +79,8 @@ Everything the webview needs is embedded in the binary:
 
 - `src/assets/style.css` — the prebuilt Tailwind v4 bundle (rebuilt via
   `scripts/build-css.sh`, committed)
-- `src/assets/fonts/*.woff2` — Monaspace Neon Nerd Font set (42 files)
+- `src/assets/fonts/*.woff2` — Monaspace Neon Nerd Font set (4 weights:
+  regular/medium/semibold/bold — the ones the UI uses)
 - `src/assets/icon_32.png` — window icon (`icon_from_memory`)
 
 The stylesheet is injected as a plain `link` element pointing at

@@ -105,7 +105,11 @@ pub fn SiteList() -> Element {
             if unwrap_task_result(result, &format!("Provisioning failed for {domain}")).is_some() {
                 *create_open.write() = false;
                 refresh_sites().await;
-                let _ = system::open_external(format!("https://{domain}"));
+                let _ = system::open_external(&format!("https://{domain}"));
+            } else {
+                // Close the latched "submitting" modal; the failure is
+                // surfaced as a notification.
+                *create_open.write() = false;
             }
         });
     };
@@ -145,7 +149,7 @@ pub fn SiteList() -> Element {
                         *selected_site.write() = None;
                     },
                     on_open_url: move |url: String| {
-                        let _ = system::open_external(url);
+                        let _ = system::open_external(&url);
                     },
                     on_composer_update: move |s: Site| {
                         *composer_site.write() = Some(s);
@@ -233,7 +237,7 @@ pub fn SiteList() -> Element {
                                                 *selected_site.write() = Some(s);
                                             },
                                             on_open_url: move |url: String| {
-                                                let _ = system::open_external(url);
+                                                let _ = system::open_external(&url);
                                             },
                                             on_composer_update: move |s: Site| {
                                                 *composer_site.write() = Some(s);
@@ -302,19 +306,13 @@ pub fn SiteList() -> Element {
                                 )
                             })
                             .await;
-                            match unwrap_task_result(result, "Failed to update site") {
-                                Some(op) if op.success => {
-                                    *edit_site_site.write() = None;
-                                    refresh_sites().await;
-                                }
-                                Some(op) => {
-                                    state::push_notification(
-                                        NotificationType::Error,
-                                        op.error
-                                            .unwrap_or_else(|| "Failed to update site".to_string()),
-                                    );
-                                }
-                                None => {}
+                            if unwrap_task_result(result, "Failed to update site").is_some() {
+                                *edit_site_site.write() = None;
+                                refresh_sites().await;
+                            } else {
+                                // Close the latched "submitting" modal; the
+                                // failure is surfaced as a notification.
+                                *edit_site_site.write() = None;
                             }
                         });
                     },
@@ -330,9 +328,11 @@ pub fn SiteList() -> Element {
                         if confirmed == rfd::MessageDialogResult::Yes {
                             *edit_site_site.write() = None;
                             spawn(async move {
-                                let _ =
+                                let result =
                                     tokio::task::spawn_blocking(move || site::delete_site(s)).await;
-                                refresh_sites().await;
+                                if unwrap_task_result(result, "Failed to delete site").is_some() {
+                                    refresh_sites().await;
+                                }
                             });
                         }
                     },

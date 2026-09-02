@@ -1,12 +1,14 @@
 pub mod form_input;
 pub mod icon;
 pub mod modal_base;
+pub mod output_panel;
 pub mod spinner;
 pub mod toggle;
 
 pub use form_input::FormInput;
 pub use icon::Icon;
 pub use modal_base::ModalBase;
+pub use output_panel::OutputPanel;
 pub use spinner::Spinner;
 pub use toggle::Toggle;
 

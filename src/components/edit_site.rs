@@ -115,7 +115,7 @@ pub fn EditSiteModal(
             div { class: "bg-gunmetal-400/60 mt-6 px-4 py-4 border border-gunmetal-600 rounded-lg",
                 h4 { class: "mb-2 font-semibold text-seasalt text-sm", "Danger Zone" }
                 p { class: "mb-3 text-seasalt-400 text-xs",
-                    "Deleting this site removes Docker containers, files, and the database snapshot. This action cannot be undone."
+                    "Deleting this site removes the site directory, nginx config, and hosts entries. The MariaDB database is kept. This action cannot be undone."
                 }
                 button {
                     "type": "button",
