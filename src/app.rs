@@ -73,8 +73,8 @@ fn AppRoot() -> Element {
         }
     });
 
-    let settings_is_open = settings_open.read().clone();
-    let versions_is_open = versions_open.read().clone();
+    let settings_is_open = *settings_open.read();
+    let versions_is_open = *versions_open.read();
 
     rsx! {
         TitleBar {}

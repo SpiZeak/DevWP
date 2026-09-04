@@ -22,7 +22,7 @@ macro_rules! sync_state {
     };
 }
 
-/// Generate a signal accessor, a clone-based reader, and a write setter for
+/// Generate a signal accessor, a copy-based reader, and a write setter for
 /// simple `Copy + Clone` value types.
 macro_rules! global_value {
     ($sig:ident, $reader:ident, $setter:ident, $ty:ty, $init:expr) => {
@@ -32,7 +32,7 @@ macro_rules! global_value {
         }
 
         pub fn $reader() -> $ty {
-            $sig().read().clone()
+            *$sig().read()
         }
 
         pub fn $setter(value: $ty) {

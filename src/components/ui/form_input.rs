@@ -2,13 +2,13 @@ use dioxus::prelude::*;
 
 #[component]
 pub fn FormInput(
-    label: String,
+    label: &'static str,
     value: String,
     onchange: EventHandler<String>,
     placeholder: String,
     #[props(optional)] autofocus: Option<bool>,
     #[props(optional)] help_text: Option<Element>,
-    #[props(optional)] input_type: Option<String>,
+    #[props(optional)] input_type: Option<&'static str>,
     #[props(optional)] id: Option<String>,
 ) -> Element {
     let input_id = id.unwrap_or_else(|| {
@@ -17,7 +17,7 @@ pub fn FormInput(
             label.to_lowercase().replace(char::is_whitespace, "-")
         )
     });
-    let input_type = input_type.unwrap_or_else(|| "text".to_string());
+    let input_type = input_type.unwrap_or("text");
     rsx! {
         div { class: "mb-5",
             label { class: "block mb-1 text-sm", "for": {input_id.clone()}, {label} }

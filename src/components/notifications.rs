@@ -62,15 +62,16 @@ pub fn Notifications() -> Element {
         *last_seq.write() = max_seq;
     });
 
-    let visible = toasts.read().clone();
+    // Hold the read guard instead of cloning the whole toast list per render.
+    let visible = toasts.read();
 
     rsx! {
         div { class: "notification-container",
-            for toast in visible {
+            for toast in visible.iter() {
                 div {
                     class: format!("notification {} {}", toast.notification.notification_type,
                         if toast.leaving { "leaving" } else { "" }),
-                    {toast.notification.message}
+                    "{toast.notification.message}"
                 }
             }
         }

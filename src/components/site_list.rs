@@ -7,6 +7,7 @@ use crate::components::{
 };
 use crate::state;
 use dioxus::prelude::*;
+use std::rc::Rc;
 
 /// Re-fetch sites from disk and update the global signal.
 async fn refresh_sites() {
@@ -41,10 +42,10 @@ fn unwrap_task_result<T, E: std::fmt::Display>(
 #[component]
 pub fn SiteList() -> Element {
     let mut create_open = use_signal(|| false);
-    let mut composer_site = use_signal(|| None::<Site>);
-    let mut wp_cli_site = use_signal(|| None::<Site>);
-    let mut edit_site_site = use_signal(|| None::<Site>);
-    let mut selected_site = use_signal(|| None::<Site>);
+    let mut composer_site = use_signal(|| None::<Rc<Site>>);
+    let mut wp_cli_site = use_signal(|| None::<Rc<Site>>);
+    let mut edit_site_site = use_signal(|| None::<Rc<Site>>);
+    let mut selected_site = use_signal(|| None::<Rc<Site>>);
     let mut search_query = use_signal(String::new);
 
     let fetch_sites = move || {
@@ -60,16 +61,25 @@ pub fn SiteList() -> Element {
         fetch_sites();
     });
 
-    let sites = state::sites().clone();
+    // Wrap each Site in an Rc once per signal change; every render below only
+    // bumps refcounts instead of deep-copying the whole site list.
+    let sites = use_memo(move || {
+        state::sites()
+            .iter()
+            .map(|s| Rc::new(s.clone()))
+            .collect::<Vec<Rc<Site>>>()
+    });
+
     let loading = state::sites_loading();
     let query = search_query.read().clone();
     let selected = selected_site.read().clone();
 
-    let filtered_sites: Vec<Site> = if query.trim().is_empty() {
-        sites.clone()
+    let filtered_sites: Vec<Rc<Site>> = if query.trim().is_empty() {
+        sites.read().clone()
     } else {
         let q = query.to_lowercase();
         sites
+            .read()
             .iter()
             .filter(|s| {
                 s.name.to_lowercase().contains(&q)
@@ -119,15 +129,15 @@ pub fn SiteList() -> Element {
             div { class: "flex justify-between items-center mb-6 w-full",
                 div { class: "flex items-center gap-3",
                     div { class: "flex justify-center items-center bg-linear-to-br from-gunmetal-700 to-gunmetal-600 rounded-lg w-8 h-8",
-                        Icon { content: "\u{f0328}".to_string(), class: "text-warm-charcoal text-lg".to_string() }
+                        Icon { content: "\u{f0328}", class: "text-warm-charcoal text-lg" }
                     }
                     h3 { class: "font-bold text-seasalt text-2xl", "Sites" }
-                    if !sites.is_empty() {
+                    if !sites.read().is_empty() {
                         span { class: "bg-gunmetal-500 px-3 py-1 rounded-full font-medium text-seasalt-300 text-sm",
                             if !query.trim().is_empty() {
-                                "{filtered_sites.len()}/{sites.len()}"
+                                "{filtered_sites.len()}/{sites.read().len()}"
                             } else {
-                                "{sites.len()}"
+                                "{sites.read().len()}"
                             }
                         }
                     }
@@ -139,34 +149,34 @@ pub fn SiteList() -> Element {
                     onclick: move |_| {
                         *create_open.write() = true;
                     },
-                    Icon { content: "\u{f067}".to_string(), class: "text-xl".to_string() }
+                    Icon { content: "\u{f067}", class: "text-xl" }
                 }
             }
             if let Some(site) = selected {
                 SiteInfo {
-                    site: site.clone(),
+                    site: site,
                     on_back: move |_| {
                         *selected_site.write() = None;
                     },
                     on_open_url: move |url: String| {
                         let _ = system::open_external(&url);
                     },
-                    on_composer_update: move |s: Site| {
+                    on_composer_update: move |s: Rc<Site>| {
                         *composer_site.write() = Some(s);
                     },
-                    on_open_wp_cli: move |s: Site| {
+                    on_open_wp_cli: move |s: Rc<Site>| {
                         *wp_cli_site.write() = Some(s);
                     },
-                    on_edit_site: move |s: Site| {
+                    on_edit_site: move |s: Rc<Site>| {
                         *edit_site_site.write() = Some(s);
                     },
                 }
             } else {
                 { rsx! {
-                    if !sites.is_empty() {
+                    if !sites.read().is_empty() {
                         div { class: "mb-4",
                             div { class: "relative",
-                                Icon { content: "\u{f0349}".to_string(), class: "top-1/2 left-3 absolute text-seasalt-400 text-lg -translate-y-1/2 transform".to_string() }
+                                Icon { content: "\u{f0349}", class: "top-1/2 left-3 absolute text-seasalt-400 text-lg -translate-y-1/2 transform" }
                                 input {
                                     "type": "text",
                                     value: {query.clone()},
@@ -185,7 +195,7 @@ pub fn SiteList() -> Element {
                                         onclick: move |_| {
                                             *search_query.write() = String::new();
                                         },
-                                        Icon { content: "\u{f0156}".to_string(), class: "text-lg".to_string() }
+                                        Icon { content: "\u{f0156}", class: "text-lg" }
                                     }
                                 }
                             }
@@ -197,21 +207,21 @@ pub fn SiteList() -> Element {
                                 if loading {
                                     li { class: "flex justify-center items-center py-12",
                                         div { class: "flex items-center gap-3",
-                                            Spinner { svg_class: "size-6 text-pumpkin".to_string() }
+                                            Spinner { svg_class: "size-6 text-pumpkin" }
                                             span { class: "text-seasalt-300 text-lg", "Loading sites..." }
                                         }
                                     }
                                 } else if filtered_sites.is_empty() {
                                     li { class: "flex flex-col justify-center items-center px-6 py-16 text-center",
                                         div { class: "flex justify-center items-center bg-gunmetal-500 mb-4 rounded-full w-16 h-16",
-                                            Icon { content: if !query.trim().is_empty() { "\u{f0349}".to_string() } else { "\u{f0328}".to_string() }, class: "text-seasalt-400 text-3xl".to_string() }
+                                            Icon { content: Some(if !query.trim().is_empty() { "\u{f0349}" } else { "\u{f0328}" }), class: "text-seasalt-400 text-3xl" }
                                         }
                                         h4 { class: "mb-2 font-semibold text-seasalt text-xl",
                                             if !query.trim().is_empty() { "No sites found" } else { "No sites yet" }
                                         }
                                         p { class: "max-w-xs text-seasalt-400 text-sm",
                                             if !query.trim().is_empty() {
-                                                "No sites match \"{query.clone()}\". Try a different search term."
+                                                "No sites match \"{query}\". Try a different search term."
                                             } else {
                                                 "Create your first WordPress development site to get started"
                                             }
@@ -231,21 +241,21 @@ pub fn SiteList() -> Element {
                                     for (index, site) in filtered_sites.iter().enumerate() {
                                         SiteItem {
                                             key: "{site.name}",
-                                            site: site.clone(),
+                                            site: Rc::clone(site),
                                             is_last: index == filtered_sites.len() - 1,
-                                            on_select_site: move |s: Site| {
+                                            on_select_site: move |s: Rc<Site>| {
                                                 *selected_site.write() = Some(s);
                                             },
                                             on_open_url: move |url: String| {
                                                 let _ = system::open_external(&url);
                                             },
-                                            on_composer_update: move |s: Site| {
+                                            on_composer_update: move |s: Rc<Site>| {
                                                 *composer_site.write() = Some(s);
                                             },
-                                            on_open_wp_cli: move |s: Site| {
+                                            on_open_wp_cli: move |s: Rc<Site>| {
                                                 *wp_cli_site.write() = Some(s);
                                             },
-                                            on_edit_site: move |s: Site| {
+                                            on_edit_site: move |s: Rc<Site>| {
                                                 *edit_site_site.write() = Some(s);
                                             },
                                         }
@@ -257,7 +267,7 @@ pub fn SiteList() -> Element {
                 } }
             }
             // Mounted per-open so the form state initialises fresh each time.
-            if create_open.read().clone() {
+            if *create_open.read() {
                 CreateSiteModal {
                     is_open: true,
                     on_close: move |_| {
@@ -268,7 +278,7 @@ pub fn SiteList() -> Element {
             }
             if let Some(site) = wp_cli_site.read().clone() {
                 WpCliModal {
-                    site: site.clone(),
+                    site: site,
                     on_close: move |_| {
                         *wp_cli_site.write() = None;
                     },
@@ -276,7 +286,7 @@ pub fn SiteList() -> Element {
             }
             if let Some(site) = composer_site.read().clone() {
                 ComposerModal {
-                    site: site.clone(),
+                    site: site,
                     on_close: move |_| {
                         *composer_site.write() = None;
                     },
@@ -284,7 +294,7 @@ pub fn SiteList() -> Element {
             }
             if let Some(site) = edit_site_site.read().clone() {
                 EditSiteModal {
-                    site: site.clone(),
+                    site: site,
                     on_close: move |_| {
                         *edit_site_site.write() = None;
                     },
@@ -316,7 +326,7 @@ pub fn SiteList() -> Element {
                             }
                         });
                     },
-                    on_delete: move |s: Site| {
+                    on_delete: move |s: Rc<Site>| {
                         let confirmed = rfd::MessageDialog::new()
                             .set_title("Delete Site")
                             .set_description(format!(
@@ -328,8 +338,13 @@ pub fn SiteList() -> Element {
                         if confirmed == rfd::MessageDialogResult::Yes {
                             *edit_site_site.write() = None;
                             spawn(async move {
-                                let result =
-                                    tokio::task::spawn_blocking(move || site::delete_site(s)).await;
+                                // Deref to an owned Site before crossing threads:
+                                // Rc handles are not Send.
+                                let site = (*s).clone();
+                                let result = tokio::task::spawn_blocking(move || {
+                                    site::delete_site(site)
+                                })
+                                .await;
                                 if unwrap_task_result(result, "Failed to delete site").is_some() {
                                     refresh_sites().await;
                                 }

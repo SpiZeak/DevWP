@@ -234,10 +234,9 @@ fn parse_domains(domain: &str, aliases: Option<&str>) -> Result<Vec<String>, Str
     Ok(domains)
 }
 
-fn regenerate_certificate(sites: &[Site]) -> Result<(), String> {
-    let cert_dir = crate::backend::utils::project_root().join("config/certs");
-
-    // Collect every domain and alias across all sites
+/// Collect every site name and alias across `sites` (same order, consecutive
+/// duplicates removed) — the input `regenerate_certificate` needs.
+fn collect_domains(sites: &[Site]) -> Vec<String> {
     let mut domains: Vec<String> = Vec::new();
     for s in sites {
         domains.push(s.name.clone());
@@ -250,6 +249,11 @@ fn regenerate_certificate(sites: &[Site]) -> Result<(), String> {
     // Sort before dedup: `dedup` alone only removes consecutive repeats.
     domains.sort();
     domains.dedup();
+    domains
+}
+
+fn regenerate_certificate(domains: &[String]) -> Result<(), String> {
+    let cert_dir = crate::backend::utils::project_root().join("config/certs");
 
     if domains.is_empty() {
         return Ok(());
@@ -265,7 +269,7 @@ fn regenerate_certificate(sites: &[Site]) -> Result<(), String> {
     let s_key_out = key_out.to_str().ok_or("Non-UTF8 cert path")?.to_string();
 
     let mut args = vec!["-cert-file", &s_cert_out, "-key-file", &s_key_out];
-    let domain_refs: Vec<&str> = domains.iter().map(|d| d.as_str()).collect();
+    let domain_refs: Vec<&str> = domains.iter().map(String::as_str).collect();
     args.extend(domain_refs);
 
     info!(
@@ -901,10 +905,11 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
     drop(_lock);
 
     // Regenerate TLS certificate in background — this can be slow with many sites.
-    // The callback runs on a worker thread, so it only touches SyncSignal state.
-    let sites_for_cert = sites.clone();
+    // The callback runs on a worker thread, so it only touches SyncSignal state;
+    // only the domain strings are moved, not the whole site list.
+    let domains_for_cert = collect_domains(&sites);
     run_cert_regen(move || {
-        if let Err(e) = regenerate_certificate(&sites_for_cert) {
+        if let Err(e) = regenerate_certificate(&domains_for_cert) {
             emit_notification(
                 NotificationType::Warning,
                 format!("Certificate regeneration failed: {e}"),
@@ -949,9 +954,9 @@ pub fn delete_site(site: Site) -> Result<(), String> {
     drop(_lock);
 
     // Regenerate TLS certificate in background — worker thread, SyncSignal only.
-    let sites_for_cert = sites.clone();
+    let domains_for_cert = collect_domains(&sites);
     run_cert_regen(move || {
-        if let Err(e) = regenerate_certificate(&sites_for_cert) {
+        if let Err(e) = regenerate_certificate(&domains_for_cert) {
             emit_notification(
                 NotificationType::Warning,
                 format!("Certificate regeneration failed: {e}"),
@@ -1024,12 +1029,13 @@ pub fn update_site(site: Site, data: SiteUpdateRequest) -> Result<(), String> {
         .cloned()
         .unwrap_or(site);
 
+    let existing_name = existing.name.clone();
     let old_aliases = existing.aliases.clone();
 
     let updated = Site {
         aliases: updated_field(data.aliases, existing.aliases.clone()),
         web_root: updated_field(data.web_root, existing.web_root.clone()),
-        ..existing.clone()
+        ..existing
     };
 
     update_or_insert_site(&mut sites, updated.clone());
@@ -1037,8 +1043,8 @@ pub fn update_site(site: Site, data: SiteUpdateRequest) -> Result<(), String> {
     drop(_lock);
 
     // Remove old alias hosts entries, regenerate cert and nginx config, add new ones
-    let _ = remove_hosts_entry(&existing.name, old_aliases.as_deref());
-    let _ = regenerate_certificate(&sites);
+    let _ = remove_hosts_entry(&existing_name, old_aliases.as_deref());
+    let _ = regenerate_certificate(&collect_domains(&sites));
     generate_nginx_config(
         &updated.name,
         updated.aliases.as_deref(),

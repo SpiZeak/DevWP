@@ -9,7 +9,7 @@ pub fn SettingsModal(is_open: bool, on_close: EventHandler<()>) -> Element {
     let mut webroot_path = use_signal(String::new);
     let mut original_webroot_path = use_signal(String::new);
     let mut loading = use_signal(|| false);
-    let saving = use_signal(|| false);
+    let mut saving = use_signal(|| false);
 
     // Load settings on mount. The modal is mounted per-open (see app.rs), so
     // this runs fresh every time it is opened.
@@ -23,72 +23,56 @@ pub fn SettingsModal(is_open: bool, on_close: EventHandler<()>) -> Element {
         });
     });
 
-    let has_changes = webroot_path.read().clone() != original_webroot_path.read().clone();
+    let has_changes = *webroot_path.read() != *original_webroot_path.read();
 
-    let handle_save = EventHandler::new({
-        let webroot_s = webroot_path.clone();
-        let mut original_s = original_webroot_path.clone();
-        let mut saving_s = saving.clone();
-        move |_: ()| {
-            *saving_s.write() = true;
-            let path = webroot_s.read().clone();
-            spawn(async move {
-                let result = settings::save_setting("webroot_path", &path);
-                if result.success {
-                    *original_s.write() = path;
-                    state::push_notification(
-                        NotificationType::Success,
-                        "Settings saved successfully",
-                    );
-                } else {
-                    state::push_notification(
-                        NotificationType::Error,
-                        result
-                            .error
-                            .unwrap_or_else(|| "Failed to save settings".to_string()),
-                    );
-                }
-                *saving_s.write() = false;
-            });
-        }
-    });
-
-    let handle_close = EventHandler::new({
-        let mut webroot_s = webroot_path.clone();
-        let original_s = original_webroot_path.clone();
-        let on_close = on_close.clone();
-        move |_: ()| {
-            // Reset to original values
-            *webroot_s.write() = original_s.read().clone();
-            on_close.call(());
-        }
-    });
-
-    let handle_pick_directory = {
-        let mut webroot_s = webroot_path.clone();
-        move |_ev: MouseEvent| {
-            // rfd must run synchronously on the main thread (GTK panics otherwise).
-            let current = webroot_s.read().clone();
-            if let Some(selected) = settings::pick_directory(Some(current)) {
-                *webroot_s.write() = selected;
+    let handle_save = EventHandler::new(move |_: ()| {
+        *saving.write() = true;
+        let path = webroot_path.read().clone();
+        spawn(async move {
+            let result = settings::save_setting("webroot_path", &path);
+            if result.success {
+                *original_webroot_path.write() = path;
+                state::push_notification(NotificationType::Success, "Settings saved successfully");
+            } else {
+                state::push_notification(
+                    NotificationType::Error,
+                    result
+                        .error
+                        .unwrap_or_else(|| "Failed to save settings".to_string()),
+                );
             }
+            *saving.write() = false;
+        });
+    });
+
+    let handle_close = EventHandler::new(move |_: ()| {
+        // Reset to original values
+        *webroot_path.write() = original_webroot_path.read().clone();
+        on_close.call(());
+    });
+
+    let handle_pick_directory = move |_ev: MouseEvent| {
+        // rfd must run synchronously on the main thread (GTK panics otherwise).
+        let current = webroot_path.read().clone();
+        if let Some(selected) = settings::pick_directory(Some(current)) {
+            *webroot_path.write() = selected;
         }
     };
 
-    let is_loading = loading.read().clone();
+    let is_loading = *loading.read();
     let path = webroot_path.read().clone();
-    let is_saving = saving.read().clone();
+    let is_saving = *saving.read();
 
     rsx! {
         ModalBase {
             is_open: is_open,
-            on_close: handle_close,
+            on_close: handle_close.clone(),
             title: "Settings".to_string(),
-            max_width_class: Some("max-w-md".to_string()),
-            overlay_class: Some("bg-black bg-opacity-50".to_string()),
+            max_width_class: Some("max-w-md"),
+            overlay_class: Some("bg-black bg-opacity-50"),
             if is_loading {
                 div { class: "flex justify-center py-8",
-                    Spinner { title: "Loading settings...".to_string() }
+                    Spinner { title: "Loading settings..." }
                 }
             } else {
                 div { class: "space-y-6",
@@ -99,7 +83,7 @@ pub fn SettingsModal(is_open: bool, on_close: EventHandler<()>) -> Element {
                                 id: "webroot-path",
                                 "type": "text",
                                 class: "flex-1 bg-gunmetal-500 p-3 border border-gunmetal-600 focus:border-pumpkin-500 rounded focus:outline-none text-seasalt",
-                                value: {path.clone()},
+                                value: {path},
                                 placeholder: "/path/to/webroot",
                                 oninput: move |ev| {
                                     *webroot_path.write() = ev.value();
@@ -110,7 +94,7 @@ pub fn SettingsModal(is_open: bool, on_close: EventHandler<()>) -> Element {
                                 class: "bg-gunmetal-500 hover:bg-gunmetal-600 px-3 py-3 border border-gunmetal-600 rounded text-seasalt-400 hover:text-seasalt transition-colors",
                                 title: "Browse for directory",
                                 onclick: handle_pick_directory,
-                                Icon { content: "📁".to_string(), class: "text-sm".to_string() }
+                                Icon { content: "📁", class: "text-sm" }
                             }
                         }
                         div { class: "mt-1 text-seasalt-400 text-xs",
@@ -132,7 +116,7 @@ pub fn SettingsModal(is_open: bool, on_close: EventHandler<()>) -> Element {
                             disabled: !has_changes || is_saving,
                             onclick: move |_ev: MouseEvent| handle_save.call(()),
                             if is_saving {
-                                Spinner { svg_class: "size-4".to_string() }
+                                Spinner { svg_class: "size-4" }
                             }
                             if is_saving { "Saving..." } else { "Save Settings" }
                         }

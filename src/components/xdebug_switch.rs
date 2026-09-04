@@ -47,7 +47,11 @@ pub fn XdebugSwitch() -> Element {
                         Toggle {
                             checked: enabled,
                             disabled: toggling,
-                            title: if enabled { "Switch to Performance Mode" } else { "Switch to Debug Mode" },
+                            title: Some(if enabled {
+                                "Switch to Performance Mode"
+                            } else {
+                                "Switch to Debug Mode"
+                            }),
                             onchange: move |checked| {
                                 // Use the checkbox's value instead of a blind
                                 // flip: if the GUI signal and the ini file

@@ -3,9 +3,9 @@ use dioxus::prelude::*;
 #[component]
 pub fn Toggle(
     #[props(optional)] checked: Option<bool>,
-    #[props(optional)] title: Option<String>,
+    #[props(optional)] title: Option<&'static str>,
     #[props(optional)] onchange: Option<EventHandler<bool>>,
-    #[props(optional)] class: Option<String>,
+    #[props(optional)] class: Option<&'static str>,
     #[props(optional)] disabled: Option<bool>,
 ) -> Element {
     let disabled = disabled.unwrap_or(false);

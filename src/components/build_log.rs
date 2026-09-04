@@ -27,7 +27,7 @@ pub fn BuildLog(is_building: bool) -> Element {
     // Auto-scroll to the bottom when new lines arrive.
     use_effect(move || {
         let count = logs_sig.read().len();
-        if count > 0 && is_open.read().clone() {
+        if count > 0 && *is_open.read() {
             let _ = eval(
                 "const el = document.getElementById('build-log-content'); if (el) el.scrollTop = el.scrollHeight;",
             )
@@ -35,12 +35,13 @@ pub fn BuildLog(is_building: bool) -> Element {
         }
     });
 
-    let logs = logs_sig.read().clone();
+    // Hold the read guard instead of cloning every log line per render.
+    let logs = logs_sig.read();
     if !is_building && logs.is_empty() {
         return Ok(VNode::placeholder());
     }
 
-    let open = is_open.read().clone();
+    let open = *is_open.read();
 
     rsx! {
         div { class: "bg-gunmetal-600 mt-4 rounded-lg overflow-hidden animate-fade-in-up",
@@ -76,8 +77,8 @@ pub fn BuildLog(is_building: bool) -> Element {
                 if logs.is_empty() {
                     span { class: "text-seasalt-400", "Waiting for output…" }
                 } else {
-                    for (i, line) in logs.iter().cloned().enumerate() {
-                        div { key: "{i}", class: "break-all whitespace-pre-wrap", {line} }
+                    for (i, line) in logs.iter().enumerate() {
+                        div { key: "{i}", class: "break-all whitespace-pre-wrap", {line.clone()} }
                     }
                 }
             }

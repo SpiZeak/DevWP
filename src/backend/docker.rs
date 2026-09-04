@@ -883,8 +883,8 @@ type PortBindings = HashMap<String, Option<Vec<bollard::models::PortBinding>>>;
 fn compose_port_bindings(cfg: &ServiceConfig) -> Result<(Vec<String>, PortBindings), String> {
     let mut exposed: Vec<String> = cfg.expose.clone().unwrap_or_default();
     let mut port_bindings: PortBindings = HashMap::new();
-    for spec in cfg.ports.clone().unwrap_or_default() {
-        let mapping = compose::parse_port_mapping(&spec)?;
+    for spec in cfg.ports.iter().flatten() {
+        let mapping = compose::parse_port_mapping(spec)?;
         let key = format!("{}/{}", mapping.container_port, mapping.proto);
         exposed.push(key.clone());
         port_bindings.insert(

@@ -171,14 +171,14 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
                         class: "flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer",
                         title: "About DevWP",
                         onclick: move |_| on_open_versions.call(()),
-                        Icon { content: "ℹ".to_string(), class: "text-lg".to_string() }
+                        Icon { content: "ℹ", class: "text-lg" }
                     }
                     button {
                         "type": "button",
                         class: "flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer",
                         title: "Settings",
                         onclick: move |_| on_open_settings.call(()),
-                        Icon { content: "⚙".to_string(), class: "text-lg".to_string() }
+                        Icon { content: "⚙", class: "text-lg" }
                     }
                 }
             }
@@ -245,7 +245,7 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
                                         });
                                     },
                                     if show_spinner {
-                                        Spinner { svg_class: "size-6".to_string() }
+                                        Spinner { svg_class: "size-6" }
                                     } else {
                                         span { "↻" }
                                     }

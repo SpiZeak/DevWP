@@ -623,8 +623,8 @@ fn cmd_site_create(args: SiteCreateArgs) -> Result<(), String> {
     let domain = format_domain(&args.domain);
     let request = SiteCreateRequest {
         domain: domain.clone(),
-        web_root: args.web_root.clone(),
-        aliases: args.aliases.clone(),
+        web_root: args.web_root,
+        aliases: args.aliases,
         multisite: args.multisite.map(|kind| MultisiteConfig {
             enabled: true,
             site_type: match kind {
@@ -633,10 +633,10 @@ fn cmd_site_create(args: SiteCreateArgs) -> Result<(), String> {
             },
         }),
         wordpress: wants_wordpress.then(|| WordPressInstallConfig {
-            title: args.wp_title.clone().unwrap_or_default(),
-            admin_user: args.wp_user.clone().unwrap_or_default(),
+            title: args.wp_title.unwrap_or_default(),
+            admin_user: args.wp_user.unwrap_or_default(),
             admin_password: wp_password.unwrap_or_default(),
-            admin_email: args.wp_email.clone().unwrap_or_default(),
+            admin_email: args.wp_email.unwrap_or_default(),
         }),
     };
 
@@ -679,8 +679,8 @@ fn cmd_site_update(args: SiteUpdateArgs) -> Result<(), String> {
     site::update_site(
         site,
         SiteUpdateRequest {
-            aliases: args.aliases.clone(),
-            web_root: args.web_root.clone(),
+            aliases: args.aliases,
+            web_root: args.web_root,
         },
     )?;
     outln("Site updated.");
@@ -760,8 +760,8 @@ fn cmd_services_status(json: bool) -> Result<(), String> {
         "NAME"
     ));
     for c in &containers {
-        let health = c.health.clone().unwrap_or_else(|| "-".to_string());
-        let version = c.version.clone().unwrap_or_else(|| "-".to_string());
+        let health = c.health.as_deref().unwrap_or("-");
+        let version = c.version.as_deref().unwrap_or("-");
         outln(format!(
             "{:<name_w$}  {:<13}  {:<8}  {version}",
             c.name,
@@ -781,7 +781,7 @@ fn cmd_services_start() -> Result<(), String> {
     let result = lifecycle::start_services_sync();
     let logs = state::build_logs();
     for line in &logs[seen.min(logs.len())..] {
-        outln(line.clone());
+        outln(line);
     }
     result?;
     outln("Services started.");

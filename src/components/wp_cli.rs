@@ -2,78 +2,62 @@ use crate::backend::site::Site;
 use crate::backend::wp_cli::{self, WpCliRequest};
 use crate::components::ui::{ModalBase, OutputPanel, Spinner};
 use dioxus::prelude::*;
+use std::rc::Rc;
 
 #[component]
-pub fn WpCliModal(site: Site, on_close: EventHandler<()>) -> Element {
+pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
     let mut command = use_signal(String::new);
-    let output = use_signal(String::new);
-    let error = use_signal(String::new);
-    let loading = use_signal(|| false);
+    let mut output = use_signal(String::new);
+    let mut error = use_signal(String::new);
+    let mut loading = use_signal(|| false);
 
-    let site_title = site.name.clone();
+    let site_for_run = Rc::clone(&site);
     let handle_run = EventHandler::new(move |_: ()| {
-        let command_s = command.clone();
-        let mut output_s = output.clone();
-        let mut error_s = error.clone();
-        let mut loading_s = loading.clone();
-        let site_s = site.clone();
-        {
-            *loading_s.write() = true;
-            *output_s.write() = String::new();
-            *error_s.write() = String::new();
-            let cmd = command_s.read().clone();
-            let request = WpCliRequest {
-                site: site_s.clone(),
-                command: cmd,
-            };
-            spawn(async move {
-                let result = wp_cli::run_wp_cli(request).await;
-                match result {
-                    Ok(value) => {
-                        *output_s.write() = value
-                            .get("output")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
-                        *error_s.write() = value
-                            .get("error")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
-                    }
-                    Err(e) => {
-                        *error_s.write() = e;
-                    }
+        *loading.write() = true;
+        *output.write() = String::new();
+        *error.write() = String::new();
+        let request = WpCliRequest {
+            site: (*site_for_run).clone(),
+            command: command.read().clone(),
+        };
+        spawn(async move {
+            let result = wp_cli::run_wp_cli(request).await;
+            match result {
+                Ok(value) => {
+                    *output.write() = value
+                        .get("output")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    *error.write() = value
+                        .get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
                 }
-                *loading_s.write() = false;
-            });
-        }
+                Err(e) => {
+                    *error.write() = e;
+                }
+            }
+            *loading.write() = false;
+        });
     });
 
-    let handle_close = EventHandler::new({
-        let mut command_s = command.clone();
-        let mut output_s = output.clone();
-        let mut error_s = error.clone();
-        let loading_s = loading.clone();
-        let on_close = on_close.clone();
-        move |_: ()| {
-            // Guard every close path (X, overlay, Escape) while a command is
-            // running — the spawned task writes this scope's signals.
-            if *loading_s.read() {
-                return;
-            }
-            *command_s.write() = String::new();
-            *output_s.write() = String::new();
-            *error_s.write() = String::new();
-            on_close.call(());
+    let handle_close = EventHandler::new(move |_: ()| {
+        // Guard every close path (X, overlay, Escape) while a command is
+        // running — the spawned task writes this scope's signals.
+        if *loading.read() {
+            return;
         }
+        *command.write() = String::new();
+        *output.write() = String::new();
+        *error.write() = String::new();
+        on_close.call(());
     });
 
     let cmd = command.read().clone();
-    let out = output.read().clone();
-    let err = error.read().clone();
-    let is_loading = loading.read().clone();
-    let has_output = !out.is_empty() || !err.is_empty();
+    let is_loading = *loading.read();
+    let has_output = !output.read().is_empty() || !error.read().is_empty();
 
     let footer = rsx! {
         div { class: "flex justify-end gap-2.5",
@@ -90,7 +74,7 @@ pub fn WpCliModal(site: Site, on_close: EventHandler<()>) -> Element {
                 class: "bg-pumpkin hover:bg-pumpkin-600 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt-400 transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed",
                 disabled: cmd.trim().is_empty() || is_loading,
                 if is_loading {
-                    Spinner { svg_class: "size-6".to_string(), title: "Loading WP-CLI response...".to_string() }
+                    Spinner { svg_class: "size-6", title: "Loading WP-CLI response..." }
                 } else {
                     "Run"
                 }
@@ -102,12 +86,12 @@ pub fn WpCliModal(site: Site, on_close: EventHandler<()>) -> Element {
         ModalBase {
             is_open: true,
             on_close: handle_close.clone(),
-            title: "Run WP-CLI Command — {site_title}",
+            title: format!("Run WP-CLI Command — {}", site.name),
             footer: Some(footer),
             form { id: "wp-cli-form",
                 onsubmit: move |ev| {
                     ev.prevent_default();
-                    if !loading.read().clone() && !command.read().clone().trim().is_empty() {
+                    if !*loading.read() && !command.read().trim().is_empty() {
                         handle_run.call(());
                     }
                 },
@@ -124,9 +108,9 @@ pub fn WpCliModal(site: Site, on_close: EventHandler<()>) -> Element {
                             *command.write() = ev.value();
                         },
                         onkeydown: move |ev| {
-                            if ev.key() == Key::Enter && !loading.read().clone() {
+                            if ev.key() == Key::Enter && !*loading.read() {
                                 ev.prevent_default();
-                                if !command.read().clone().trim().is_empty() {
+                                if !command.read().trim().is_empty() {
                                     handle_run.call(());
                                 }
                             }

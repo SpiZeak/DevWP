@@ -7,8 +7,8 @@ pub fn ModalBase(
     on_close: EventHandler<()>,
     title: String,
     children: Element,
-    #[props(optional)] overlay_class: Option<String>,
-    #[props(optional)] max_width_class: Option<String>,
+    #[props(optional)] overlay_class: Option<&'static str>,
+    #[props(optional)] max_width_class: Option<&'static str>,
     #[props(optional)] hide_close: Option<bool>,
     #[props(optional)] footer: Option<Element>,
 ) -> Element {
@@ -16,8 +16,8 @@ pub fn ModalBase(
         return Ok(VNode::placeholder());
     }
 
-    let overlay_class = overlay_class.unwrap_or_else(|| "bg-warm-charcoal/70".to_string());
-    let max_width_class = max_width_class.unwrap_or_else(|| "max-w-lg".to_string());
+    let overlay_class = overlay_class.unwrap_or("bg-warm-charcoal/70");
+    let max_width_class = max_width_class.unwrap_or("max-w-lg");
     let title_id = format!(
         "modal-title-{}",
         title.to_lowercase().replace(char::is_whitespace, "-")
@@ -47,10 +47,10 @@ pub fn ModalBase(
                         button {
                             "type": "button",
                             class: "flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer",
-                            "aria-label": "Close {title.clone()}",
-                            title: "Close {title.clone()}",
+                            "aria-label": "Close {title}",
+                            title: "Close {title}",
                             onclick: move |_| on_close.call(()),
-                            Icon { content: "✕".to_string(), class: "text-lg".to_string() }
+                            Icon { content: "✕", class: "text-lg" }
                         }
                     }
                 }

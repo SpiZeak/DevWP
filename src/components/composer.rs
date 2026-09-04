@@ -2,26 +2,27 @@ use crate::backend::site::Site;
 use crate::backend::wp_cli;
 use crate::components::ui::{ModalBase, OutputPanel, Spinner};
 use dioxus::prelude::*;
+use std::rc::Rc;
 
 #[component]
-pub fn ComposerModal(site: Site, on_close: EventHandler<()>) -> Element {
+pub fn ComposerModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
     let mut output = use_signal(String::new);
     let mut error = use_signal(String::new);
     let mut loading = use_signal(|| false);
     let mut confirmed = use_signal(|| false);
 
     // Run composer update after the user confirms.
-    let site_for_run = site.clone();
+    let site_for_run = Rc::clone(&site);
     use_effect(move || {
-        if !confirmed.read().clone() {
+        if !*confirmed.read() {
             return;
         }
         *loading.write() = true;
         *output.write() = String::new();
         *error.write() = String::new();
-        let site = site_for_run.clone();
+        let site = Rc::clone(&site_for_run);
         spawn(async move {
-            let result = wp_cli::run_composer_update(site).await;
+            let result = wp_cli::run_composer_update((*site).clone()).await;
             match result {
                 Ok(value) => {
                     *output.write() = value
@@ -43,27 +44,21 @@ pub fn ComposerModal(site: Site, on_close: EventHandler<()>) -> Element {
         });
     });
 
-    let handle_close = EventHandler::new({
-        let mut output_s = output.clone();
-        let mut error_s = error.clone();
-        let mut confirmed_s = confirmed.clone();
-        let on_close = on_close.clone();
-        move |_: ()| {
-            if loading.read().clone() {
-                return;
-            }
-            *output_s.write() = String::new();
-            *error_s.write() = String::new();
-            *confirmed_s.write() = false;
-            on_close.call(());
+    let handle_close = EventHandler::new(move |_: ()| {
+        // Guard every close path (X, overlay, Escape) while a command is
+        // running — the spawned task writes this scope's signals.
+        if *loading.read() {
+            return;
         }
+        *output.write() = String::new();
+        *error.write() = String::new();
+        *confirmed.write() = false;
+        on_close.call(());
     });
 
-    let out = output.read().clone();
-    let err = error.read().clone();
-    let is_loading = loading.read().clone();
-    let is_confirmed = confirmed.read().clone();
-    let has_output = !out.is_empty() || !err.is_empty();
+    let is_loading = *loading.read();
+    let is_confirmed = *confirmed.read();
+    let has_output = !output.read().is_empty() || !error.read().is_empty();
 
     let footer = rsx! {
         div { class: "flex justify-end gap-2.5",
@@ -91,7 +86,7 @@ pub fn ComposerModal(site: Site, on_close: EventHandler<()>) -> Element {
         ModalBase {
             is_open: true,
             on_close: handle_close,
-            title: "Composer Update — {site.name}",
+            title: format!("Composer Update — {}", site.name),
             footer: Some(footer),
             if !is_confirmed {
                 div { class: "text-center py-4",
@@ -102,7 +97,7 @@ pub fn ComposerModal(site: Site, on_close: EventHandler<()>) -> Element {
                         "Run "
                         code { class: "bg-gunmetal-500 px-1.5 py-0.5 rounded font-bold text-pumpkin text-sm", "composer update" }
                         " for "
-                        span { class: "font-semibold", {site.name} }
+                        span { class: "font-semibold", "{site.name}" }
                         "?"
                     }
                     p { class: "mb-6 text-seasalt-400 text-xs",
@@ -128,8 +123,8 @@ pub fn ComposerModal(site: Site, on_close: EventHandler<()>) -> Element {
             } else if is_loading && !has_output {
                 div { class: "flex justify-center items-center gap-3 py-6",
                     Spinner {
-                        svg_class: "size-6 text-pumpkin".to_string(),
-                        title: "Running composer update...".to_string(),
+                        svg_class: "size-6 text-pumpkin",
+                        title: "Running composer update...",
                     }
                     span { class: "text-seasalt-400 text-sm", "Running composer update…" }
                 }

@@ -2,11 +2,11 @@ use dioxus::prelude::*;
 
 #[component]
 pub fn Icon(
-    #[props(optional)] content: Option<String>,
-    #[props(optional)] class: Option<String>,
+    #[props(optional)] content: Option<&'static str>,
+    #[props(optional)] class: Option<&'static str>,
 ) -> Element {
     let class = format!("font-mono {}", class.unwrap_or_default());
-    let content = content.unwrap_or_else(|| "\u{f1e50}".to_string());
+    let content = content.unwrap_or("\u{f1e50}");
     rsx! {
         span { class: {class}, "aria-hidden": "true", {content} }
     }
