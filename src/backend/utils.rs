@@ -62,8 +62,11 @@ pub struct NotificationPayload {
 /// Walk up from CWD until we find the directory containing `compose.yml`.
 /// When launched via a symlinked install (e.g. `/usr/local/bin/devwp` →
 /// `…/DevWP/target/release/devwp`) with CWD outside the checkout, CWD finds
-/// nothing — so also walk up from the resolved executable path before
-/// falling back to CWD.
+/// nothing — so also walk up from the resolved executable path. Copied
+/// binaries (e.g. `~/.local/bin/devwp`) have neither their CWD nor their exe
+/// path inside a checkout, so as a last resort fall back to the root recorded
+/// by a previous in-checkout launch (see [`remember_project_root`]). Only
+/// when that is missing too do we give up and return CWD.
 /// Memoized: the checkout cannot move while the process is running, and this
 /// walks the directory tree on every call from hot paths (config paths, state
 /// files, command execution).
@@ -77,6 +80,8 @@ pub fn project_root() -> PathBuf {
                     .ok()
                     .and_then(|exe| find_project_root(&exe))
             })
+            .inspect(|root| remember_project_root(root))
+            .or_else(recalled_project_root)
             .unwrap_or(cwd)
     })
     .clone()
@@ -90,6 +95,48 @@ fn find_project_root(start: &std::path::Path) -> Option<PathBuf> {
         }
         dir = dir.parent()?.to_path_buf();
     }
+}
+
+/// Where the discovered checkout location is persisted for install binaries
+/// that cannot rediscover it by walking up from CWD or the executable.
+fn project_root_hint_path() -> PathBuf {
+    home_dir()
+        .join(".config")
+        .join("devwp")
+        .join("project-root")
+}
+
+/// Record `root` so later out-of-checkout launches can find the checkout.
+/// Best effort: the hint is re-validated on read, so a stale or missing entry
+/// only costs discovery, never correctness. Skipped for tests so they never
+/// mutate the developer's real hint file.
+fn remember_project_root(root: &Path) {
+    if cfg!(test) || TEST_MODE.load(Ordering::SeqCst) {
+        return;
+    }
+    let hint = project_root_hint_path();
+    if let Some(dir) = hint.parent() {
+        if fs::create_dir_all(dir).is_ok() {
+            let _ = fs::write(&hint, root.display().to_string());
+        }
+    }
+}
+
+/// Read and validate the persisted hint: it must still point at a directory
+/// containing `compose.yml`.
+fn recalled_project_root() -> Option<PathBuf> {
+    let hint = fs::read_to_string(project_root_hint_path()).ok()?;
+    project_root_from_hint(&hint)
+}
+
+fn project_root_from_hint(hint: &str) -> Option<PathBuf> {
+    let root = PathBuf::from(hint.trim());
+    // The hint names a persisted on-disk location; a relative path (incl. an
+    // empty/garbage file) would resolve against an arbitrary CWD instead.
+    if !root.is_absolute() {
+        return None;
+    }
+    (root.join("compose.yml").is_file()).then_some(root)
 }
 
 static TEST_MODE: AtomicBool = AtomicBool::new(false);
@@ -272,6 +319,25 @@ mod tests {
 
         fs::remove_dir_all(&base).ok();
         fs::remove_dir_all(&bare).ok();
+    }
+
+    #[test]
+    fn project_root_hint_is_trimmed_and_validated() {
+        let base = std::env::temp_dir().join("devwp-utils-hint");
+        fs::create_dir_all(&base).expect("create dir");
+        fs::write(base.join("compose.yml"), "services: {}\n").expect("write compose.yml");
+
+        let good = base.display().to_string();
+        assert_eq!(project_root_from_hint(&good), Some(base.clone()));
+        assert_eq!(
+            project_root_from_hint(&format!("{good}\n")),
+            Some(base.clone())
+        );
+        // A hint whose checkout no longer exists (or never did) is rejected.
+        assert_eq!(project_root_from_hint("/nonexistent/devwp"), None);
+        assert_eq!(project_root_from_hint(""), None);
+
+        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]

@@ -367,8 +367,13 @@ fn generate_nginx_config(
     web_root: Option<&str>,
     multisite: Option<&MultisiteConfig>,
 ) -> Result<(), String> {
-    let template = fs::read_to_string(nginx_template_path())
-        .map_err(|e| format!("Failed to read nginx template: {e}"))?;
+    let template_path = nginx_template_path();
+    let template = fs::read_to_string(&template_path).map_err(|e| {
+        format!(
+            "Failed to read nginx template {}: {e} — start DevWP once from the repository checkout so its location is recorded",
+            template_path.display()
+        )
+    })?;
 
     let active_type = match multisite {
         Some(m) if m.enabled => Some(m.site_type),
