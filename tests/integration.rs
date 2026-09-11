@@ -160,6 +160,29 @@ fn settings_crud_roundtrip_in_test_state() {
 }
 
 #[test]
+fn wp_cli_history_persists_and_dedupes_in_test_state() {
+    with_runtime(|| {
+        with_test_state(|| {
+            wp_cli::record_history("example.test", "plugin list");
+            wp_cli::record_history("example.test", "core version");
+            // Re-running a command moves it to the newest slot.
+            wp_cli::record_history("example.test", "plugin list");
+            wp_cli::record_history("other.test", "post list");
+
+            let recorded = wp_cli::load_history();
+            let commands: Vec<&str> = recorded.iter().map(|e| e.command.as_str()).collect();
+            assert_eq!(commands, ["core version", "plugin list", "post list"]);
+
+            // Clearing is scoped to one site.
+            wp_cli::clear_history("example.test");
+            let after_clear = wp_cli::load_history();
+            let remaining: Vec<&str> = after_clear.iter().map(|e| e.command.as_str()).collect();
+            assert_eq!(remaining, ["post list"]);
+        });
+    });
+}
+
+#[test]
 fn xdebug_toggle_roundtrip_on_running_stack() {
     if !docker_available() {
         eprintln!("SKIP: docker unavailable");

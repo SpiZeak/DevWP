@@ -8,6 +8,7 @@
 use crate::backend::docker::{Container, DockerStatus, DockerStatusPayload};
 use crate::backend::site::Site;
 use crate::backend::utils::{NotificationPayload, NotificationType};
+use crate::backend::wp_cli::WpCliHistoryEntry;
 use dioxus::prelude::*;
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -75,6 +76,9 @@ global_value!(
     false
 );
 sync_state!(sites_signal, Vec<Site>, Vec::new);
+// WP-CLI command history (oldest → newest); persistence is owned by the
+// wp_cli backend, which refreshes this signal after every disk write.
+sync_state!(wp_cli_history_signal, Vec<WpCliHistoryEntry>, Vec::new);
 global_value!(
     sites_loading_signal,
     sites_loading,
@@ -102,6 +106,7 @@ pub fn init_globals() {
     let _ = xdebug_toggling_signal();
     let _ = sites_signal();
     let _ = sites_loading_signal();
+    let _ = wp_cli_history_signal();
     let _ = shutdown_done_signal();
 }
 
@@ -245,4 +250,16 @@ pub fn sites() -> ReadableRef<'static, SyncSignal<Vec<Site>>, Vec<Site>> {
 pub fn set_sites(sites: Vec<Site>) {
     let mut sig = *sites_signal();
     *sig.write() = sites;
+}
+
+// ── WP-CLI history ────────────────────────────────────────────
+
+pub fn wp_cli_history(
+) -> ReadableRef<'static, SyncSignal<Vec<WpCliHistoryEntry>>, Vec<WpCliHistoryEntry>> {
+    wp_cli_history_signal().read()
+}
+
+pub fn set_wp_cli_history(history: Vec<WpCliHistoryEntry>) {
+    let mut sig = *wp_cli_history_signal();
+    *sig.write() = history;
 }

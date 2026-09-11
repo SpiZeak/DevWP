@@ -1,7 +1,11 @@
 use crate::backend::docker::{exec_in_container, ExecOptions};
 use crate::backend::site::{validate_site_name, Site};
-use crate::backend::utils::DOCKER_SITE_ROOT_PATH;
+use crate::backend::utils::{
+    ensure_state_root, load_json_or_default, save_json, DOCKER_SITE_ROOT_PATH,
+};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use std::sync::Mutex;
 
 pub const WP_CLI_ERROR_REPORTING: &str = "error_reporting=E_ALL & ~E_DEPRECATED & ~E_WARNING";
 pub const PHP_CONTAINER_NAME: &str = "devwp_php";
@@ -155,8 +159,14 @@ pub async fn run_wp_cli(request: WpCliRequest) -> Result<serde_json::Value, Stri
         working_dir: Some(work_dir.clone()),
         env: Vec::new(),
     };
+    let history_site = request.site.name.clone();
+    let history_command = request.command.clone();
 
     tokio::task::spawn_blocking(move || {
+        // Record the attempt before exec: shell-style history keeps failed
+        // commands too, and this one path covers both the GUI modal and
+        // `devwp wp`.
+        record_history(&history_site, &history_command);
         let argv = wp_cli_argv(&cmd_parts);
         let cmd_refs: Vec<&str> = argv.iter().map(|s| s.as_str()).collect();
         let output = exec_in_container(PHP_CONTAINER_NAME, &cmd_refs, &opts)?;
@@ -183,12 +193,95 @@ pub async fn run_wp_cli(request: WpCliRequest) -> Result<serde_json::Value, Stri
     .map_err(|e| format!("Task join error: {e}"))?
 }
 
+// ── Command history ───────────────────────────────────────────
+
+/// Number of commands retained in the history file (oldest dropped first).
+pub const MAX_HISTORY_ENTRIES: usize = 100;
+
+/// Serializes read-modify-write cycles on wp-cli-history.json (mirrors
+/// `settings.rs::SETTINGS_LOCK`) so concurrent saves cannot lose updates.
+static HISTORY_LOCK: Mutex<()> = Mutex::new(());
+
+/// One previously run command, scoped to the site it ran against.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WpCliHistoryEntry {
+    pub site: String,
+    pub command: String,
+}
+
+pub fn history_file() -> Result<PathBuf, String> {
+    Ok(ensure_state_root()?.join("wp-cli-history.json"))
+}
+
+/// Stored oldest → newest. A missing or corrupt file yields an empty
+/// history (the corrupt copy is backed up by `load_json_or_default`).
+pub fn load_history() -> Vec<WpCliHistoryEntry> {
+    match history_file() {
+        Ok(path) => load_json_or_default(&path),
+        Err(_) => Vec::new(),
+    }
+}
+
+/// Pure core of [`record_history`]: drop any earlier identical entry for the
+/// site (re-running a command moves it to the newest slot instead of
+/// duplicating it), append the new entry, and cap the list at
+/// [`MAX_HISTORY_ENTRIES`].
+fn push_history_entry(entries: &mut Vec<WpCliHistoryEntry>, site: &str, command: &str) {
+    entries.retain(|e| !(e.site == site && e.command == command));
+    entries.push(WpCliHistoryEntry {
+        site: site.to_string(),
+        command: command.to_string(),
+    });
+    let excess = entries.len().saturating_sub(MAX_HISTORY_ENTRIES);
+    entries.drain(..excess);
+}
+
+/// Record a command run for `site`, persist it, and refresh the global
+/// signal. Failures are logged, not fatal — history is a convenience.
+pub fn record_history(site: &str, command: &str) {
+    let _lock = HISTORY_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut history = load_history();
+    push_history_entry(&mut history, site, command);
+    persist_history(&history);
+    crate::state::set_wp_cli_history(history);
+}
+
+/// Forget every recorded command for `site`; other sites keep theirs.
+pub fn clear_history(site: &str) {
+    let _lock = HISTORY_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut history = load_history();
+    history.retain(|e| e.site != site);
+    persist_history(&history);
+    crate::state::set_wp_cli_history(history);
+}
+
+fn persist_history(history: &[WpCliHistoryEntry]) {
+    if let Ok(path) = history_file() {
+        if let Err(e) = save_json(&path, history, "wp-cli history") {
+            tracing::warn!("Failed to save wp-cli history: {e}");
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::is_read_only_wp_command;
+    use super::{
+        is_read_only_wp_command, push_history_entry, WpCliHistoryEntry, MAX_HISTORY_ENTRIES,
+    };
 
     fn args(list: &[&str]) -> Vec<String> {
         list.iter().map(|s| s.to_string()).collect()
+    }
+
+    fn entry(site: &str, command: &str) -> WpCliHistoryEntry {
+        WpCliHistoryEntry {
+            site: site.to_string(),
+            command: command.to_string(),
+        }
     }
 
     #[test]
@@ -224,5 +317,40 @@ mod tests {
             "b"
         ])));
         assert!(!is_read_only_wp_command(&args(&[])));
+    }
+
+    #[test]
+    fn history_push_moves_repeated_command_to_newest() {
+        let mut history = Vec::new();
+        push_history_entry(&mut history, "a.test", "plugin list");
+        push_history_entry(&mut history, "a.test", "core version");
+        // Same command for a different site is a separate entry.
+        push_history_entry(&mut history, "b.test", "plugin list");
+        push_history_entry(&mut history, "a.test", "plugin list");
+
+        assert_eq!(
+            history,
+            vec![
+                entry("a.test", "core version"),
+                entry("b.test", "plugin list"),
+                entry("a.test", "plugin list"),
+            ]
+        );
+    }
+
+    #[test]
+    fn history_push_caps_the_list_dropping_oldest() {
+        let mut history = Vec::new();
+        for i in 0..MAX_HISTORY_ENTRIES + 5 {
+            push_history_entry(&mut history, "a.test", &format!("cmd-{i}"));
+        }
+
+        assert_eq!(history.len(), MAX_HISTORY_ENTRIES);
+        assert_eq!(history.first().map(|e| e.command.as_str()), Some("cmd-5"));
+        let newest = format!("cmd-{}", MAX_HISTORY_ENTRIES + 4);
+        assert_eq!(
+            history.last().map(|e| e.command.as_str()),
+            Some(newest.as_str())
+        );
     }
 }
