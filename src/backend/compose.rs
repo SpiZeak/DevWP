@@ -466,7 +466,7 @@ mod tests {
         );
         assert_eq!(
             compose.services["redis"].image_ref("redis"),
-            "redis:8.8-alpine"
+            "redis:8.10-alpine"
         );
         assert_eq!(
             compose.services["mailpit"].image_ref("mailpit"),
