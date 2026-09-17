@@ -773,10 +773,10 @@ fn cmd_services_status(json: bool) -> Result<(), String> {
 }
 
 fn cmd_services_start() -> Result<(), String> {
-    outln("Starting services (the first run may build images)...");
+    outln("Starting services (building and pulling images)...");
     // The Bollard lifecycle streams build/pull output into the global build
-    // log instead of stdout; drain whatever accumulated so first-run builds
-    // stay visible (and failures diagnosable) in headless mode.
+    // log instead of stdout; drain whatever accumulated so builds stay
+    // visible (and failures diagnosable) in headless mode.
     let seen = state::build_logs().len();
     let result = lifecycle::start_services_sync();
     let logs = state::build_logs();

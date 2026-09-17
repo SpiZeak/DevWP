@@ -63,9 +63,9 @@ health gates). Build/pull progress streams into `BUILD_LOGS`. See
 
 - **Startup** — `app.rs` mounts, `lifecycle::start_services()` marks the five
   services as building and orchestrates the stack through the Docker Engine
-  API (ensure network/volumes, build php/nginx or pull images, create/start
-  containers in dependency order, wait for dependency health), then refreshes
-  container status.
+  API (ensure network/volumes, rebuild php/nginx with `--pull` and refresh
+  pulled images, create/start containers in dependency order, wait for
+  dependency health), then refreshes container status.
 - **Shutdown** — the window starts in `WindowCloseBehaviour::WindowHides`.
   `use_wry_event_handler` observes `CloseRequested` and spawns
   `lifecycle::stop_services()` (stop + remove project containers; volumes and

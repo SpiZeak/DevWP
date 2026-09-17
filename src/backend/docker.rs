@@ -769,24 +769,9 @@ pub(crate) async fn ensure_volumes(docker: &Docker, names: &[String]) -> Result<
     Ok(())
 }
 
-pub(crate) async fn image_exists(docker: &Docker, image: &str) -> Result<bool, String> {
-    match docker.inspect_image(image).await {
-        Ok(_) => Ok(true),
-        Err(e) if is_not_found(&e) => Ok(false),
-        Err(e) => Err(format!("inspect image `{image}`: {e}")),
-    }
-}
-
-/// Pull `image` unless it already exists (`docker pull`), streaming progress
-/// into the build log under `service`.
-pub(crate) async fn ensure_image(
-    docker: &Docker,
-    image: &str,
-    service: &str,
-) -> Result<(), String> {
-    if image_exists(docker, image).await? {
-        return Ok(());
-    }
+/// Pull the latest `image` (`docker compose pull`), streaming progress into
+/// the build log under `service`.
+pub(crate) async fn pull_image(docker: &Docker, image: &str, service: &str) -> Result<(), String> {
     state::push_build_log(service, &format!("Pulling {image}..."));
     let mut options_builder = CreateImageOptionsBuilder::new();
     // The API takes repo and tag separately; split at the last colon that is
@@ -818,8 +803,8 @@ pub(crate) async fn ensure_image(
     Ok(())
 }
 
-/// Build a service image from its build context (`docker compose build`),
-/// streaming BuildKit/classic step output into the build log.
+/// Build a service image from its build context (`docker compose build
+/// --pull`), streaming BuildKit/classic step output into the build log.
 pub(crate) async fn build_image(
     docker: &Docker,
     service: &str,
@@ -840,7 +825,10 @@ pub(crate) async fn build_image(
     let mut options = BuildImageOptionsBuilder::default()
         .dockerfile(build.dockerfile.as_deref().unwrap_or("Dockerfile"))
         .t(image)
-        .rm(true);
+        .rm(true)
+        // `build --pull`: re-check registries for newer base images instead
+        // of trusting the local cache.
+        .pull("true");
     if let Some(args) = &build.args {
         options = options.buildargs(args);
     }

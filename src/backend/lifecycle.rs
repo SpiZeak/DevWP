@@ -1,10 +1,11 @@
 //! Application lifecycle: stack startup on launch and teardown on close.
 //!
 //! Startup orchestrates the compose stack directly through the Docker Engine
-//! API (Bollard) — network/volumes, images (build php/nginx, pull the rest),
-//! containers in `depends_on` order with health gates. Teardown stops and
-//! removes the project's containers; volumes and the network are kept so data
-//! survives and the next start is fast.
+//! API (Bollard) — network/volumes, an image refresh pass (rebuild php/nginx
+//! with `--pull`, pull the latest tags for the rest), then containers in
+//! `depends_on` order with health gates. Teardown stops and removes the
+//! project's containers; volumes and the network are kept so data survives
+//! and the next start is fast.
 //!
 //! Close interception pattern (Dioxus 0.7 has no prevent-close API):
 //! the window starts with `WindowCloseBehaviour::WindowHides`. When the user
@@ -22,8 +23,8 @@ use crate::state;
 use std::path::Path;
 use tracing::{error, info};
 
-/// `docker compose up -d nginx` equivalent with build logging, mirroring the
-/// previous app startup sequence. Called once from the UI on mount.
+/// `docker compose build --pull` + `docker compose pull` + `docker compose
+/// up -d` equivalent with build logging. Called once from the UI on mount.
 pub async fn start_services() {
     info!("Starting Docker services...");
     state::set_docker_status(DockerStatus::Starting, "Starting services...");
@@ -81,8 +82,9 @@ pub fn start_services_sync() -> Result<(), String> {
     })?
 }
 
-/// Bring the stack up: shared resources first, then each service in
-/// dependency order (gate on dependency health before starting dependents).
+/// Bring the stack up: shared resources first, then an image refresh pass
+/// over every service, then each container in dependency order (gate on
+/// dependency health before starting dependents).
 async fn start_stack(
     client: &bollard::Docker,
     compose: &ComposeFile,
@@ -90,6 +92,19 @@ async fn start_stack(
 ) -> Result<(), String> {
     docker::ensure_network(client).await?;
     docker::ensure_volumes(client, &compose.volume_names()).await?;
+
+    // Image pass — refresh every image before any container starts: rebuild
+    // buildable services with `--pull` (base images re-checked, layer cache
+    // reused) and pull the latest tag for prebuilt images.
+    for service in order {
+        let config = &compose.services[service];
+        let image = config.image_ref(service);
+        if config.build.is_some() {
+            docker::build_image(client, service, &image, config).await?;
+        } else {
+            docker::pull_image(client, &image, service).await?;
+        }
+    }
 
     for service in order {
         let config = &compose.services[service];
@@ -106,16 +121,6 @@ async fn start_stack(
         }
 
         let image = config.image_ref(service);
-        if config.build.is_some() {
-            // compose builds only when the image is absent; it never rebuilds
-            // an existing tag on plain `up`.
-            if !docker::image_exists(client, &image).await? {
-                docker::build_image(client, service, &image, config).await?;
-            }
-        } else {
-            docker::ensure_image(client, &image, service).await?;
-        }
-
         docker::ensure_service_container(client, service, config, &image).await?;
     }
 
