@@ -1,7 +1,36 @@
+use crate::backend::docker::{self, ServicePhase};
 use crate::components::ui::use_sync_signal;
 use crate::state;
 use dioxus::document::eval;
 use dioxus::prelude::*;
+
+/// Distinct color per `[service]` log tag; falls back for unknown services.
+fn tag_color(service: &str) -> &'static str {
+    match service {
+        "startup" => "text-seasalt-400",
+        "php" => "text-pumpkin",
+        "nginx" => "text-emerald-400",
+        "mariadb" => "text-crimson",
+        "redis" => "text-amber",
+        "mailpit" => "text-pumpkin-300",
+        _ => "text-seasalt-300",
+    }
+}
+
+fn phase_verb(phase: ServicePhase) -> &'static str {
+    match phase {
+        ServicePhase::Building => "building…",
+        ServicePhase::Pulling => "pulling…",
+        ServicePhase::Starting => "starting…",
+    }
+}
+
+/// Split a `[{service}] {line}` build-log entry into its tag and body.
+/// Returns `None` for lines without a service tag.
+fn split_log_line(line: &str) -> Option<(&str, &str)> {
+    let (tag, rest) = line.split_once("] ")?;
+    tag.strip_prefix('[').map(|service| (service, rest))
+}
 
 #[component]
 pub fn BuildLog(is_building: bool) -> Element {
@@ -24,12 +53,28 @@ pub fn BuildLog(is_building: bool) -> Element {
 
     let logs_sig = state::build_logs_signal();
 
-    // Auto-scroll to the bottom when new lines arrive.
+    // Auto-scroll to the bottom as new lines arrive, but only while the user
+    // is already at the bottom — scrolling up pins the view there. Stickiness
+    // lives in a `data-` attribute updated by a scroll listener installed on
+    // first attach (and re-installed whenever the element remounts).
     use_effect(move || {
         let count = logs_sig.read().len();
         if count > 0 && *is_open.read() {
             let _ = eval(
-                "const el = document.getElementById('build-log-content'); if (el) el.scrollTop = el.scrollHeight;",
+                r#"
+const el = document.getElementById('build-log-content');
+if (el) {
+  if (!el.dataset.stickInit) {
+    el.dataset.stickInit = '1';
+    el.dataset.stick = '1';
+    el.addEventListener('scroll', () => {
+      el.dataset.stick =
+        el.scrollHeight - el.scrollTop - el.clientHeight < 24 ? '1' : '0';
+    });
+  }
+  if (el.dataset.stick !== '0') el.scrollTop = el.scrollHeight;
+}
+"#,
             )
             .send(());
         }
@@ -37,6 +82,7 @@ pub fn BuildLog(is_building: bool) -> Element {
 
     // Hold the read guard instead of cloning every log line per render.
     let logs = logs_sig.read();
+    let progress = state::service_progress_signal().read().clone();
     if !is_building && logs.is_empty() {
         return Ok(VNode::placeholder());
     }
@@ -56,6 +102,27 @@ pub fn BuildLog(is_building: bool) -> Element {
                 "aria-controls": "build-log-content",
                 span { class: "font-medium text-seasalt text-sm",
                     if is_building { "Build Output" } else { "Build Output (complete)" }
+                }
+                div { class: "mx-2 flex flex-1 justify-end items-center gap-2 min-w-0 overflow-hidden",
+                    for service in docker::STACK_SERVICES {
+                        if let Some(p) = progress.get(service) {
+                            span {
+                                key: "{service}",
+                                class: "text-xs text-seasalt-400 whitespace-nowrap",
+                                {format!("{service} ")}
+                                {
+                                    match p.percent {
+                                        Some(percent) => rsx! {
+                                            span { class: "text-amber", "{percent}%" }
+                                        },
+                                        None => rsx! {
+                                            span { class: "text-amber", {phase_verb(p.phase)} }
+                                        },
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 span {
                     class: "text-seasalt-400 text-xs transition-transform duration-200",
@@ -78,7 +145,14 @@ pub fn BuildLog(is_building: bool) -> Element {
                     span { class: "text-seasalt-400", "Waiting for output…" }
                 } else {
                     for (i, line) in logs.iter().enumerate() {
-                        div { key: "{i}", class: "break-all whitespace-pre-wrap", {line.clone()} }
+                        div { key: "{i}", class: "break-all whitespace-pre-wrap",
+                            if let Some((service, rest)) = split_log_line(line) {
+                                span { class: "font-medium {tag_color(service)}", "[{service}] " }
+                                "{rest}"
+                            } else {
+                                {line.clone()}
+                            }
+                        }
                     }
                 }
             }

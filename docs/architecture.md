@@ -25,6 +25,7 @@ behind a `OnceLock`, exposed through accessor functions):
 
 - `containers_signal` — Docker Engine API container listing (project label filter)
 - `building_services_signal` — service → building flag
+- `service_progress_signal` — service → startup phase + aggregate percent (Services panel progress bars)
 - `docker_status_signal` — status banner (idle/starting/complete/error/stopping/stopped)
 - `build_logs_signal` — `[{service}] {line}` strings, ANSI-stripped, capped at 500
 - `notifications_signal` — one-way toasts (auto-dismissed by the UI)

@@ -56,6 +56,17 @@
   }
 }
 
+/* Indeterminate progress-bar segment sliding across its track. The offsets
+   are multiples of the segment's own width (w-1/3 of the track). */
+@keyframes progress-indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
+
 /* ── Root ──────────────────────────────────────────────────── */
 @layer base {
   html,
@@ -125,5 +136,9 @@
 
   .animate-fade-in {
     animation: fade-in 0.18s ease-out both;
+  }
+
+  .animate-progress-indeterminate {
+    animation: progress-indeterminate 1.4s ease-in-out infinite;
   }
 }

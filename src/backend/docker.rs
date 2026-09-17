@@ -230,6 +230,50 @@ pub struct DockerStatusPayload {
     pub message: String,
 }
 
+/// Startup phase of a single stack service, driving the Services panel
+/// progress bar.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ServicePhase {
+    Building,
+    Pulling,
+    Starting,
+}
+
+impl ServicePhase {
+    pub fn label(self) -> &'static str {
+        match self {
+            ServicePhase::Building => "Building image…",
+            ServicePhase::Pulling => "Pulling image…",
+            ServicePhase::Starting => "Starting…",
+        }
+    }
+}
+
+/// Live progress of one service during stack startup.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ServiceProgress {
+    pub phase: ServicePhase,
+    /// 0–100 aggregate; `None` while the phase has no measurable progress
+    /// (e.g. builds, which stream no structured percentages).
+    pub percent: Option<u8>,
+}
+
+impl ServiceProgress {
+    pub fn determinate(phase: ServicePhase, percent: u8) -> Self {
+        Self {
+            phase,
+            percent: Some(percent),
+        }
+    }
+
+    pub fn indeterminate(phase: ServicePhase) -> Self {
+        Self {
+            phase,
+            percent: None,
+        }
+    }
+}
+
 // ── Exec (replaces `docker exec`) ─────────────────────────────
 
 /// Extra settings for [`exec_in_container`].
@@ -770,9 +814,14 @@ pub(crate) async fn ensure_volumes(docker: &Docker, names: &[String]) -> Result<
 }
 
 /// Pull the latest `image` (`docker compose pull`), streaming progress into
-/// the build log under `service`.
+/// the build log under `service` and aggregate layer progress into the
+/// service progress signal.
 pub(crate) async fn pull_image(docker: &Docker, image: &str, service: &str) -> Result<(), String> {
     state::push_build_log(service, &format!("Pulling {image}..."));
+    state::set_service_progress(
+        service,
+        ServiceProgress::indeterminate(ServicePhase::Pulling),
+    );
     let mut options_builder = CreateImageOptionsBuilder::new();
     // The API takes repo and tag separately; split at the last colon that is
     // not part of a digest reference.
@@ -785,6 +834,9 @@ pub(crate) async fn pull_image(docker: &Docker, image: &str, service: &str) -> R
     } else {
         options_builder = options_builder.from_image(image);
     }
+    // Per-layer (current, total) accumulators; layers already present locally
+    // never report a total, so the aggregate only spans layers being fetched.
+    let mut layers: HashMap<String, (u64, u64)> = HashMap::new();
     let mut stream = docker.create_image(Some(options_builder.build()), None, None);
     while let Some(item) = stream.next().await {
         let info = item.map_err(|e| format!("pull `{image}`: {e}"))?;
@@ -795,16 +847,47 @@ pub(crate) async fn pull_image(docker: &Docker, image: &str, service: &str) -> R
         {
             return Err(format!("pull `{image}`: {message}"));
         }
+        if let (Some(id), Some(detail)) = (info.id.as_deref(), info.progress_detail.as_ref()) {
+            layers.insert(
+                id.to_string(),
+                (
+                    detail.current.unwrap_or(0).max(0) as u64,
+                    detail.total.unwrap_or(0).max(0) as u64,
+                ),
+            );
+            let current: u64 = layers.values().map(|(c, _)| c).sum();
+            let total: u64 = layers.values().map(|(_, t)| t).sum();
+            if let Some(raw) = current.checked_mul(100).and_then(|c| c.checked_div(total)) {
+                // Cap below 100 until the stream closes — already-present
+                // layers are excluded from the sums, so 100% here can lag.
+                let percent = raw.min(99) as u8;
+                state::set_service_progress(
+                    service,
+                    ServiceProgress::determinate(ServicePhase::Pulling, percent),
+                );
+            }
+        }
         if let Some(status) = info.status {
-            state::push_build_log(service, &status);
+            // Per-layer events (Downloading/Extracting/Already exists/…)
+            // carry the layer id and are visualized by the progress bar;
+            // log only section-level lines to keep the build log scannable.
+            if info.id.is_none() {
+                state::push_build_log(service, &status);
+            }
         }
     }
+    state::set_service_progress(
+        service,
+        ServiceProgress::determinate(ServicePhase::Pulling, 100),
+    );
     state::push_build_log(service, &format!("Pulled {image}"));
     Ok(())
 }
 
 /// Build a service image from its build context (`docker compose build
 /// --pull`), streaming BuildKit/classic step output into the build log.
+/// The stream carries no structured percentages, so the service progress
+/// stays indeterminate for the whole build.
 pub(crate) async fn build_image(
     docker: &Docker,
     service: &str,
@@ -820,6 +903,10 @@ pub(crate) async fn build_image(
         return Err(format!("Build context `{}` not found", context.display()));
     }
     state::push_build_log(service, &format!("Building {image}..."));
+    state::set_service_progress(
+        service,
+        ServiceProgress::indeterminate(ServicePhase::Building),
+    );
     let tarball = tar_directory(&context)?;
 
     let mut options = BuildImageOptionsBuilder::default()

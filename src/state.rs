@@ -5,7 +5,7 @@
 //! in a `SyncSignal` so writes are safe from any thread. UI-only state stays
 //! in local `Signal`s inside the components.
 
-use crate::backend::docker::{Container, DockerStatus, DockerStatusPayload};
+use crate::backend::docker::{Container, DockerStatus, DockerStatusPayload, ServiceProgress};
 use crate::backend::site::Site;
 use crate::backend::utils::{NotificationPayload, NotificationType};
 use crate::backend::wp_cli::WpCliHistoryEntry;
@@ -44,9 +44,13 @@ macro_rules! global_value {
 }
 
 pub type BuildingServices = HashMap<String, bool>;
+/// Per-service startup progress (keyed by compose service name), driving the
+/// Services panel progress bars; cleared together with the building flags.
+pub type ServiceProgressMap = HashMap<String, ServiceProgress>;
 
 sync_state!(containers_signal, Vec<Container>, Vec::new);
 sync_state!(building_services_signal, BuildingServices, HashMap::new);
+sync_state!(service_progress_signal, ServiceProgressMap, HashMap::new);
 sync_state!(docker_status_signal, DockerStatusPayload, || {
     DockerStatusPayload {
         status: DockerStatus::Idle,
@@ -99,6 +103,7 @@ global_value!(
 pub fn init_globals() {
     let _ = containers_signal();
     let _ = building_services_signal();
+    let _ = service_progress_signal();
     let _ = docker_status_signal();
     let _ = build_logs_signal();
     let _ = notifications_signal();
@@ -153,6 +158,27 @@ pub fn mark_service_building(name: impl Into<String>, building: bool) {
 pub fn clear_building() {
     let mut sig = *building_services_signal();
     sig.write().clear();
+    let mut progress_sig = *service_progress_signal();
+    progress_sig.write().clear();
+}
+
+// ── Service progress ──────────────────────────────────────────
+
+/// Progress for a container, accepting either the full container name
+/// (`devwp_php`) or the bare compose service name (`php`).
+pub fn service_progress(container_or_service: &str) -> Option<ServiceProgress> {
+    let map = service_progress_signal().read();
+    let service = container_or_service
+        .strip_prefix("devwp_")
+        .unwrap_or(container_or_service);
+    map.get(container_or_service)
+        .or_else(|| map.get(service))
+        .copied()
+}
+
+pub fn set_service_progress(service: &str, progress: ServiceProgress) {
+    let mut sig = *service_progress_signal();
+    sig.write().insert(service.to_string(), progress);
 }
 
 // ── Docker status ─────────────────────────────────────────────

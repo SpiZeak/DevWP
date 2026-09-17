@@ -1,9 +1,9 @@
 use crate::backend::docker;
-use crate::backend::docker::{Container, ContainerState, DockerStatus};
+use crate::backend::docker::{Container, ContainerState, DockerStatus, ServiceProgress};
 use crate::backend::lifecycle;
 use crate::backend::utils::NotificationType;
 use crate::components::brand_logo::{BrandLogo, SI_DOCKER, SI_MARIADB, SI_NGINX, SI_PHP, SI_REDIS};
-use crate::components::ui::{use_sync_signal, Icon, Spinner};
+use crate::components::ui::{use_sync_signal, Icon, ProgressBar, Spinner};
 use crate::components::{BuildLog, XdebugSwitch};
 use crate::state;
 use dioxus::prelude::*;
@@ -32,10 +32,21 @@ fn container_icon(container_or_service: &str) -> Element {
     }
 }
 
-fn status_text(container: &Container, building: bool) -> Option<(String, String)> {
+fn status_text(
+    container: &Container,
+    building: bool,
+    progress: Option<ServiceProgress>,
+) -> Option<(String, String)> {
     // Returns (text, color class)
     if building {
-        return Some(("Building...".to_string(), "text-amber".to_string()));
+        let text = match progress {
+            Some(p) => match p.percent {
+                Some(percent) => format!("{} {}%", p.phase.label(), percent),
+                None => p.phase.label().to_string(),
+            },
+            None => "Building...".to_string(),
+        };
+        return Some((text, "text-amber".to_string()));
     }
     if container.state == ContainerState::Pending {
         return Some(("Starting...".to_string(), "text-seasalt-400".to_string()));
@@ -185,9 +196,10 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
             ul { class: "gap-3 grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] m-0 p-0 list-none",
                 for (index, container) in all_items.iter().enumerate() {
                     {
-                        let building = is_building(&building_services, &container.name);
-                        let border = border_class(container, building);
-                        let status = status_text(container, building);
+                         let building = is_building(&building_services, &container.name);
+                         let border = border_class(container, building);
+                         let progress = state::service_progress(&container.name);
+                         let status = status_text(container, building, progress);
                         let item_id = container.id.clone();
                         let item_name = container.name.clone();
                         let is_restarting = restart_map.get(&item_id).copied().unwrap_or(false);
@@ -210,14 +222,21 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
                                     } else {
                                         { container_icon(&item_name) }
                                     }
-                                    div { class: "flex flex-col text-left",
-                                        div { class: "flex items-center gap-1.5",
-                                             span { class: "overflow-hidden font-medium text-sm text-ellipsis whitespace-nowrap", "{docker::display_name(&item_name)}" }
-                                        }
-                                        if let Some((text, color)) = status {
-                                            span { class: "mt-0.5 text-xs {color}", {text} }
-                                        }
-                                    }
+                                     div { class: "flex flex-col text-left",
+                                         div { class: "flex items-center gap-1.5",
+                                              span { class: "overflow-hidden font-medium text-sm text-ellipsis whitespace-nowrap", "{docker::display_name(&item_name)}" }
+                                         }
+                                         if let Some((text, color)) = status {
+                                             span { class: "mt-0.5 text-xs {color}", {text} }
+                                         }
+                                         if building {
+                                             if let Some(p) = progress {
+                                                 div { class: "mt-1",
+                                                     ProgressBar { percent: p.percent, label: item_name.clone() }
+                                                 }
+                                             }
+                                         }
+                                     }
                                 }
                                 button {
                                     "type": "button",

@@ -16,7 +16,8 @@
 
 use crate::backend::compose::{self, ComposeFile};
 use crate::backend::docker::{
-    self, DockerStatus, DEPENDENCY_HEALTH_TIMEOUT, DEPENDENCY_RUNNING_TIMEOUT,
+    self, DockerStatus, ServicePhase, ServiceProgress, DEPENDENCY_HEALTH_TIMEOUT,
+    DEPENDENCY_RUNNING_TIMEOUT,
 };
 use crate::backend::utils;
 use crate::state;
@@ -121,6 +122,10 @@ async fn start_stack(
         }
 
         let image = config.image_ref(service);
+        state::set_service_progress(
+            service,
+            ServiceProgress::indeterminate(ServicePhase::Starting),
+        );
         docker::ensure_service_container(client, service, config, &image).await?;
     }
 
