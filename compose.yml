@@ -36,7 +36,9 @@ services:
     # downgrading an existing 13 volume to a stable 12.x is not supported.
     image: mariadb:13.0-rc
     environment:
-      MARIADB_ROOT_HOST: 'localhost'
+      # Sites connect from the php container over TCP as root; must stay '%' or
+      # fresh volume initialization refuses them (root@localhost only).
+      MARIADB_ROOT_HOST: '%'
       # Must match DB_ROOT_PASSWORD / DB_ROOT_USER in src/backend/utils.rs
       MARIADB_ROOT_PASSWORD: root
       MARIADB_AUTO_UPGRADE: true
