@@ -29,6 +29,7 @@ use http_body_util::{Either, Full};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 const STATUS_TIMEOUT: Duration = Duration::from_secs(30);
@@ -393,6 +394,198 @@ async fn wait_for_exit_code(
     Err(format!(
         "exec in `{container}` finished without reporting an exit code"
     ))
+}
+
+/// Result of a cancellable streaming exec.
+pub struct StreamingExecResult {
+    pub output: ExecOutput,
+    pub cancelled: bool,
+}
+
+/// Per-exec token for pid files (monotonic counter; the timestamp keeps it
+/// unique across process restarts).
+static EXEC_TOKEN_SEQ: AtomicU64 = AtomicU64::new(0);
+
+/// How far cancellation has escalated for a streaming exec.
+enum KillStage {
+    Idle,
+    TermSent(Instant),
+    KillSent(Instant),
+}
+
+/// Signal the process whose container-namespace PID is stored in `pidfile`.
+/// Best-effort: a missing file (process already gone) is not an error.
+async fn signal_pidfile_process(docker: &Docker, container: &str, pidfile: &str, signal: &str) {
+    let cmd = format!("kill -s {signal} \"$(cat {pidfile})\" 2>/dev/null || true");
+    let _ = exec_in_container_async(
+        docker,
+        container,
+        &["sh", "-c", &cmd],
+        &ExecOptions::default(),
+    )
+    .await;
+}
+
+/// Run a command inside a container, streaming demuxed output through
+/// `on_output(text, is_stderr)` as it arrives and supporting cancellation
+/// through `cancelled`. The command is wrapped in a shell that records its
+/// PID to a per-exec file before `exec`ing, because the Docker Engine API
+/// has no kill-exec endpoint — signalling that PID is the only way to stop
+/// exactly this process. On cancel the process gets SIGTERM, escalating to
+/// SIGKILL after a grace period.
+pub fn exec_in_container_streaming(
+    container: &str,
+    cmd: &[&str],
+    opts: &ExecOptions,
+    cancelled: &AtomicBool,
+    on_output: &mut dyn FnMut(&str, bool),
+) -> Result<StreamingExecResult, String> {
+    docker_block_on(async {
+        let docker = docker_client(EXEC_TIMEOUT)?;
+        exec_in_container_streaming_async(&docker, container, cmd, opts, cancelled, on_output).await
+    })?
+}
+
+async fn exec_in_container_streaming_async(
+    docker: &Docker,
+    container: &str,
+    cmd: &[&str],
+    opts: &ExecOptions,
+    cancelled: &AtomicBool,
+    on_output: &mut dyn FnMut(&str, bool),
+) -> Result<StreamingExecResult, String> {
+    let token = format!(
+        "{:x}-{:x}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_micros())
+            .unwrap_or_default(),
+        EXEC_TOKEN_SEQ.fetch_add(1, Ordering::Relaxed)
+    );
+    let pidfile = format!("/tmp/.devwp-exec-{token}.pid");
+    let script = format!("echo $$ > {pidfile}; exec \"$@\"");
+    let mut wrapped = vec![
+        "sh".to_string(),
+        "-c".to_string(),
+        script,
+        "exec".to_string(),
+    ];
+    wrapped.extend(cmd.iter().map(|s| (*s).to_string()));
+
+    let exec = docker
+        .create_exec(
+            container,
+            CreateExecOptions::<String> {
+                cmd: Some(wrapped),
+                attach_stdout: Some(true),
+                attach_stderr: Some(true),
+                working_dir: opts.working_dir.clone(),
+                env: (!opts.env.is_empty()).then(|| opts.env.clone()),
+                ..Default::default()
+            },
+        )
+        .await
+        .map_err(|e| format!("exec in `{container}`: {}", describe_daemon_error(&e)))?;
+
+    let mut stdout = String::new();
+    let mut stderr = String::new();
+    let mut was_cancelled = false;
+    let mut kill_stage = KillStage::Idle;
+
+    match docker
+        .start_exec(&exec.id, None)
+        .await
+        .map_err(|e| format!("start exec in `{container}`: {e}"))?
+    {
+        StartExecResults::Attached { mut output, .. } => {
+            loop {
+                tokio::select! {
+                    chunk = output.next() => {
+                        let Some(chunk) = chunk else { break };
+                        let chunk =
+                            chunk.map_err(|e| format!("exec stream in `{container}`: {e}"))?;
+                        match chunk {
+                            LogOutput::StdOut { message } => {
+                                let text = String::from_utf8_lossy(&message);
+                                on_output(&text, false);
+                                stdout.push_str(&text);
+                            }
+                            LogOutput::StdErr { message } => {
+                                let text = String::from_utf8_lossy(&message);
+                                on_output(&text, true);
+                                stderr.push_str(&text);
+                            }
+                            LogOutput::Console { message } => {
+                                let text = String::from_utf8_lossy(&message);
+                                on_output(&text, false);
+                                stdout.push_str(&text);
+                            }
+                            LogOutput::StdIn { .. } => {}
+                        }
+                    }
+                    _ = tokio::time::sleep(Duration::from_millis(100)) => {
+                        if !cancelled.load(Ordering::Relaxed) {
+                            continue;
+                        }
+                        was_cancelled = true;
+                        match kill_stage {
+                            KillStage::Idle => {
+                                signal_pidfile_process(docker, container, &pidfile, "TERM").await;
+                                kill_stage = KillStage::TermSent(Instant::now());
+                            }
+                            KillStage::TermSent(sent)
+                                if sent.elapsed() >= Duration::from_secs(2) =>
+                            {
+                                signal_pidfile_process(docker, container, &pidfile, "KILL").await;
+                                kill_stage = KillStage::KillSent(Instant::now());
+                            }
+                            // SIGKILL ignored for 3s — the stream is stuck
+                            // (kill failed or the daemon hung it up badly);
+                            // abandon it and return what we have.
+                            KillStage::KillSent(sent)
+                                if sent.elapsed() >= Duration::from_secs(3) =>
+                            {
+                                break;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+        StartExecResults::Detached => {}
+    }
+
+    // Best-effort pid-file cleanup; the process is gone either way.
+    let rm = format!("rm -f {pidfile} 2>/dev/null");
+    let _ = exec_in_container_async(
+        docker,
+        container,
+        &["sh", "-c", &rm],
+        &ExecOptions::default(),
+    )
+    .await;
+
+    if was_cancelled {
+        return Ok(StreamingExecResult {
+            output: ExecOutput {
+                stdout,
+                stderr,
+                exit_code: -1,
+            },
+            cancelled: true,
+        });
+    }
+
+    let exit_code = wait_for_exit_code(docker, &exec.id, container).await?;
+    Ok(StreamingExecResult {
+        output: ExecOutput {
+            stdout,
+            stderr,
+            exit_code,
+        },
+        cancelled: false,
+    })
 }
 
 // ── Container listing (replaces `docker compose ps -a`) ───────

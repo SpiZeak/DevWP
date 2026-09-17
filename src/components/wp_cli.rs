@@ -1,16 +1,26 @@
 use crate::backend::site::Site;
 use crate::backend::wp_cli::{self, WpCliRequest};
-use crate::components::ui::{ModalBase, OutputPanel, Spinner};
+use crate::components::ui::{use_sync_signal, ModalBase, OutputPanel, Spinner};
 use crate::state;
 use dioxus::prelude::*;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 #[component]
 pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
     let mut command = use_signal(String::new);
-    let mut output = use_signal(String::new);
-    let mut error = use_signal(String::new);
+    // SyncSignals: the streaming callback writes these from the blocking
+    // exec thread, which plain `Signal` (not `Send`) cannot handle.
+    let mut output = use_sync_signal(String::new());
+    let mut error = use_sync_signal(String::new());
     let mut loading = use_signal(|| false);
+    // Set while the kill signal is in flight (between the user clicking
+    // Cancel and the exec task finishing); the button shows "Cancelling…".
+    let mut cancelling = use_signal(|| false);
+    // Shared with the blocking exec thread: `true` makes the container-side
+    // process receive TERM (then KILL).
+    let cancel_flag = use_hook(|| Arc::new(AtomicBool::new(false)));
     // Index into the site's newest-first history list while recalling with
     // the arrow keys; `None` = not navigating (editing a fresh command).
     let mut history_pos = use_signal(|| None::<usize>);
@@ -36,36 +46,55 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
         .collect();
 
     let site_for_run = Rc::clone(&site);
+    let cancel_for_button = Arc::clone(&cancel_flag);
     let handle_run = EventHandler::new(move |_: ()| {
         *loading.write() = true;
+        *cancelling.write() = false;
         *output.write() = String::new();
         *error.write() = String::new();
         *history_pos.write() = None;
         *history_draft.write() = String::new();
+        cancel_flag.store(false, Ordering::Relaxed);
         let request = WpCliRequest {
             site: (*site_for_run).clone(),
             command: command.read().clone(),
         };
+        let cancel_for_task = Arc::clone(&cancel_flag);
+        let mut out_signal = output;
+        let mut err_signal = error;
         spawn(async move {
-            let result = wp_cli::run_wp_cli(request).await;
+            let result =
+                wp_cli::run_wp_cli_interactive(request, cancel_for_task, move |text, is_err| {
+                    if is_err {
+                        *err_signal.write() += text;
+                    } else {
+                        *out_signal.write() += text;
+                    }
+                })
+                .await;
             match result {
                 Ok(value) => {
-                    *output.write() = value
-                        .get("output")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string();
-                    *error.write() = value
-                        .get("error")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string();
+                    if value.get("cancelled").and_then(|v| v.as_bool()) == Some(true) {
+                        *error.write() = "Command cancelled.".to_string();
+                    } else {
+                        *output.write() = value
+                            .get("output")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+                        *error.write() = value
+                            .get("error")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+                    }
                 }
                 Err(e) => {
                     *error.write() = e;
                 }
             }
             *loading.write() = false;
+            *cancelling.write() = false;
         });
     });
 
@@ -91,6 +120,7 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
 
     let cmd = command.read().clone();
     let is_loading = *loading.read();
+    let is_cancelling = *cancelling.read();
     let has_output = !output.read().is_empty() || !error.read().is_empty();
     let has_history = !site_history.is_empty();
     // The input's key handler needs the list too, and the RSX loop below
@@ -101,10 +131,19 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
         div { class: "flex justify-end gap-2.5",
             button {
                 "type": "button",
-                class: "bg-gunmetal-500 hover:bg-gunmetal-600 px-4 py-2 border-0 rounded text-seasalt-400 hover:text-seasalt transition-colors duration-200 cursor-pointer",
-                disabled: is_loading,
-                onclick: move |_ev: MouseEvent| handle_close.clone().call(()),
-                "Cancel"
+                class: "bg-gunmetal-500 hover:bg-gunmetal-600 px-4 py-2 border-0 rounded text-seasalt-400 hover:text-seasalt transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
+                // While a command runs this cancels it (TERM → KILL in the
+                // container); once idle it closes the modal.
+                disabled: is_cancelling,
+                onclick: move |_ev: MouseEvent| {
+                    if *loading.read() {
+                        *cancelling.write() = true;
+                        cancel_for_button.store(true, Ordering::Relaxed);
+                    } else {
+                        handle_close.clone().call(());
+                    }
+                },
+                if is_cancelling { "Cancelling…" } else { "Cancel" }
             }
             button {
                 "type": "submit",
