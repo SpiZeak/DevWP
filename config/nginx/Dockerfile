@@ -1,4 +1,4 @@
-FROM nginx:1.31.4-alpine-slim AS builder
+FROM nginx:alpine-slim AS builder
 
 ARG LIBRESSL_VERSION=4.3.2
 
@@ -61,7 +61,7 @@ RUN cd nginx-${NGINX_VERSION} && \
 	make -j"$(nproc)" && \
 	make install
 
-FROM nginx:1.30.4-alpine-slim
+FROM nginx:alpine-slim
 
 ARG LIBRESSL_VERSION=4.3.2
 ARG USER_ID=1000

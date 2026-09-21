@@ -462,15 +462,12 @@ mod tests {
         assert_eq!(compose.services["nginx"].image_ref("nginx"), "devwp-nginx");
         assert_eq!(
             compose.services["mariadb"].image_ref("mariadb"),
-            "mariadb:13.0-rc"
+            "mariadb:latest"
         );
-        assert_eq!(
-            compose.services["redis"].image_ref("redis"),
-            "redis:8.10-alpine"
-        );
+        assert_eq!(compose.services["redis"].image_ref("redis"), "redis:alpine");
         assert_eq!(
             compose.services["mailpit"].image_ref("mailpit"),
-            "axllent/mailpit:v1.31"
+            "axllent/mailpit:latest"
         );
     }
 

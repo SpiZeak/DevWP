@@ -1,4 +1,4 @@
-FROM php:8.5-fpm-alpine
+FROM php:fpm-alpine
 
 WORKDIR /src/www
 

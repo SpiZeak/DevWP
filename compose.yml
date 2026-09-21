@@ -32,9 +32,9 @@ services:
 
   mariadb:
     container_name: devwp_mariadb
-    # 13 is still an RC line (13.0-rc floats within 13.0.x for RC fixes);
-    # downgrading an existing 13 volume to a stable 12.x is not supported.
-    image: mariadb:13.0-rc
+    # Floating tag: latest advances to new majors on its own; downgrading an
+    # existing data volume to an older major line is not supported.
+    image: mariadb:latest
     environment:
       # Sites connect from the php container over TCP as root; must stay '%' or
       # fresh volume initialization refuses them (root@localhost only).
@@ -62,7 +62,7 @@ services:
 
   redis:
     container_name: devwp_redis
-    image: redis:8.10-alpine
+    image: redis:alpine
     ports:
       - '127.0.0.1:6379:6379'
     command: redis-server
@@ -113,7 +113,7 @@ services:
 
   mailpit:
     container_name: devwp_mailpit
-    image: axllent/mailpit:v1.31
+    image: axllent/mailpit:latest
     expose:
       - '1025' # smtp server
     ports:
