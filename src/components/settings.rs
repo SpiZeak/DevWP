@@ -69,7 +69,6 @@ pub fn SettingsModal(is_open: bool, on_close: EventHandler<()>) -> Element {
             on_close: handle_close.clone(),
             title: "Settings".to_string(),
             max_width_class: Some("max-w-md"),
-            overlay_class: Some("bg-black bg-opacity-50"),
             if is_loading {
                 div { class: "flex justify-center py-8",
                     Spinner { title: "Loading settings..." }
@@ -82,7 +81,7 @@ pub fn SettingsModal(is_open: bool, on_close: EventHandler<()>) -> Element {
                             input {
                                 id: "webroot-path",
                                 "type": "text",
-                                class: "flex-1 bg-gunmetal-500 p-3 border border-gunmetal-600 focus:border-pumpkin-500 rounded focus:outline-none text-seasalt",
+                                class: "flex-1 bg-sunken p-3 border border-border focus:border-accent rounded-md focus:outline-none text-seasalt",
                                 value: {path},
                                 placeholder: "/path/to/webroot",
                                 oninput: move |ev| {
@@ -91,28 +90,28 @@ pub fn SettingsModal(is_open: bool, on_close: EventHandler<()>) -> Element {
                             }
                             button {
                                 "type": "button",
-                                class: "bg-gunmetal-500 hover:bg-gunmetal-600 px-3 py-3 border border-gunmetal-600 rounded text-seasalt-400 hover:text-seasalt transition-colors",
+                                class: "bg-transparent hover:bg-raised px-3 border border-border rounded-md text-muted hover:text-seasalt transition-colors cursor-pointer",
                                 title: "Browse for directory",
                                 onclick: handle_pick_directory,
                                 Icon { content: "📁", class: "text-sm" }
                             }
                         }
-                        div { class: "mt-1 text-seasalt-400 text-xs",
+                        div { class: "mt-1 text-muted text-xs",
                             "Default path where WordPress sites will be created. Default: "
-                            code { class: "bg-gunmetal-500 px-1 rounded", "$HOME/www" }
+                            code { class: "bg-sunken px-1 rounded", "$HOME/www" }
                         }
                     }
-                    div { class: "flex justify-end gap-2.5 pt-4 border-gunmetal-600 border-t",
+                    div { class: "flex justify-end gap-2.5 pt-4 border-border border-t",
                         button {
                             "type": "button",
-                            class: "bg-gunmetal-500 hover:bg-gunmetal-600 px-4 py-2 border-0 rounded text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50",
+                            class: "bg-transparent hover:bg-raised px-4 py-2 rounded-md text-muted hover:text-seasalt transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40",
                             disabled: is_saving,
                             onclick: move |_ev: MouseEvent| handle_close.call(()),
                             "Cancel"
                         }
                         button {
                             "type": "button",
-                            class: "flex items-center gap-2 bg-pumpkin hover:bg-pumpkin-600 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt-400 transition-colors cursor-pointer disabled:cursor-not-allowed",
+                            class: "flex items-center gap-2 bg-accent hover:bg-accent-hover disabled:opacity-40 px-4 py-2 rounded-md text-on-accent transition-colors cursor-pointer disabled:cursor-not-allowed",
                             disabled: !has_changes || is_saving,
                             onclick: move |_ev: MouseEvent| handle_save.call(()),
                             if is_saving {

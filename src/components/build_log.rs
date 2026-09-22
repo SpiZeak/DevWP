@@ -7,7 +7,7 @@ use dioxus::prelude::*;
 /// Distinct color per `[service]` log tag; falls back for unknown services.
 fn tag_color(service: &str) -> &'static str {
     match service {
-        "startup" => "text-seasalt-400",
+        "startup" => "text-muted",
         "php" => "text-pumpkin",
         "nginx" => "text-emerald-400",
         "mariadb" => "text-crimson",
@@ -90,10 +90,10 @@ if (el) {
     let open = *is_open.read();
 
     rsx! {
-        div { class: "bg-gunmetal-600 mt-4 rounded-lg overflow-hidden animate-fade-in-up",
+        div { class: "bg-sunken border border-border mt-4 rounded-md overflow-hidden animate-fade-in-up",
             button {
                 "type": "button",
-                class: "flex justify-between items-center hover:bg-gunmetal-500 px-3 py-2 w-full text-left transition-colors",
+                class: "flex justify-between items-center hover:bg-raised px-3 py-2 w-full text-left transition-colors",
                 onclick: move |_ev: MouseEvent| {
                     let mut open = is_open.write();
                     *open = !*open;
@@ -108,7 +108,7 @@ if (el) {
                         if let Some(p) = progress.get(service) {
                             span {
                                 key: "{service}",
-                                class: "text-xs text-seasalt-400 whitespace-nowrap",
+                                class: "text-xs text-muted whitespace-nowrap",
                                 {format!("{service} ")}
                                 {
                                     match p.percent {
@@ -125,7 +125,7 @@ if (el) {
                     }
                 }
                 span {
-                    class: "text-seasalt-400 text-xs transition-transform duration-200",
+                    class: "text-muted text-xs transition-transform duration-200",
                     style: format!(
                         "display: inline-block; transform: {}",
                         if open { "rotate(0deg)" } else { "rotate(-90deg)" }
@@ -135,14 +135,14 @@ if (el) {
             }
             div {
                 id: "build-log-content",
-                class: "overflow-y-auto font-mono text-green-400 text-xs leading-relaxed transition-[max-height,padding] duration-300 ease-in-out",
+                class: "overflow-y-auto font-mono text-emerald-400 text-xs leading-relaxed transition-[max-height,padding] duration-300 ease-in-out",
                 style: format!(
                     "max-height: {}; padding: {}",
                     if open { "13rem" } else { "0" },
                     if open { "0.5rem 0.75rem" } else { "0 0.75rem" }
                 ),
                 if logs.is_empty() {
-                    span { class: "text-seasalt-400", "Waiting for output…" }
+                    span { class: "text-muted", "Waiting for output…" }
                 } else {
                     for (i, line) in logs.iter().enumerate() {
                         div { key: "{i}", class: "break-all whitespace-pre-wrap",

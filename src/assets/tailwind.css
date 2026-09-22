@@ -72,7 +72,7 @@
   html,
   body {
     height: 100%;
-    background-color: var(--color-warm-charcoal);
+    background-color: var(--color-bg);
     color: var(--color-seasalt);
     color-scheme: dark;
   }
@@ -89,12 +89,12 @@
   }
 
   .notification {
-    @apply shadow-xl px-4 py-3 rounded-lg max-w-xs font-medium text-sm pointer-events-auto;
-    animation: slide-in-right 0.28s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+    @apply px-4 py-3 rounded-md max-w-xs font-medium text-sm pointer-events-auto;
+    animation: slide-in-right 0.22s ease-out both;
   }
 
   .notification.leaving {
-    animation: slide-out-right 0.22s ease-in both;
+    animation: slide-out-right 0.2s ease-out both;
   }
 
   .notification.success {
@@ -114,28 +114,19 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-
-  /* Hover effects for buttons */
-  .btn-hover-lift {
-    @apply transition-all duration-200;
-  }
-
-  .btn-hover-lift:hover {
-    @apply shadow-lg -translate-y-0.5;
-  }
 }
 
 @layer utilities {
   .animate-fade-in-up {
-    animation: fade-in-up 0.28s ease-out both;
+    animation: fade-in-up 0.24s ease-out both;
   }
 
   .animate-scale-in {
-    animation: scale-in 0.22s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+    animation: scale-in 0.18s ease-out both;
   }
 
   .animate-fade-in {
-    animation: fade-in 0.18s ease-out both;
+    animation: fade-in 0.16s ease-out both;
   }
 
   .animate-progress-indeterminate {

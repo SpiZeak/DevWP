@@ -76,21 +76,21 @@ pub fn CreateSiteModal(
     let web_root_cur = web_root_sanitize(&web_root.read());
 
     let webroot_help = rsx! {
-        div { class: "mt-2 text-seasalt text-xs",
+        div { class: "mt-2 text-muted text-xs",
             "Site will be created in www/"
-            span { class: "font-bold text-pumpkin", {formatted_domain.clone()} }
+            span { class: "font-medium text-accent", {formatted_domain.clone()} }
             if web_root_cur.is_empty() {
                 ". Web server will point to the site root."
             } else {
                 ". Web server will point to www/"
-                span { class: "font-bold text-pumpkin", {formatted_domain.clone()} }
+                span { class: "font-medium text-accent", {formatted_domain.clone()} }
                 "/"
-                span { class: "font-bold text-pumpkin", {web_root_cur.clone()} }
+                span { class: "font-medium text-accent", {web_root_cur.clone()} }
                 "."
             }
             br {}
             "Accessible at https://"
-            span { class: "font-bold text-pumpkin", {formatted_domain.clone()} }
+            span { class: "font-medium text-accent", {formatted_domain.clone()} }
         }
     };
 
@@ -98,13 +98,13 @@ pub fn CreateSiteModal(
         div { class: "flex justify-end gap-2.5",
             button {
                 "type": "button",
-                class: "bg-gunmetal-400 hover:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt-300 hover:text-seasalt transition-colors cursor-pointer",
+                class: "bg-transparent hover:bg-raised px-4 py-2 rounded-md text-muted hover:text-seasalt transition-colors cursor-pointer",
                 onclick: move |_| on_close.call(()),
                 "Cancel"
             }
             button {
                 "type": "button",
-                class: "bg-pumpkin hover:bg-pumpkin-600 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt-300 cursor-pointer disabled:cursor-not-allowed",
+                class: "bg-accent hover:bg-accent-hover disabled:opacity-40 px-4 py-2 rounded-md text-on-accent cursor-pointer disabled:cursor-not-allowed",
                 disabled: is_submit_disabled,
                 onclick: move |_ev: MouseEvent| handle_submit.call(()),
                 "Create"
@@ -154,7 +154,7 @@ pub fn CreateSiteModal(
                         },
                     }
                     label {
-                        class: "ml-3 font-medium text-seasalt hover:text-pumpkin transition-colors cursor-pointer",
+                        class: "ml-3 font-medium text-seasalt hover:text-accent transition-colors cursor-pointer",
                         onclick: move |_| {
                             let mut e = multisite_enabled.write();
                             *e = !*e;
@@ -192,7 +192,7 @@ pub fn CreateSiteModal(
                         },
                     }
                     label {
-                        class: "ml-3 font-medium text-seasalt hover:text-pumpkin transition-colors cursor-pointer",
+                        class: "ml-3 font-medium text-seasalt hover:text-accent transition-colors cursor-pointer",
                         onclick: move |_| {
                             let mut e = wp_enabled.write();
                             *e = !*e;
@@ -201,7 +201,7 @@ pub fn CreateSiteModal(
                     }
                 }
                 if wp_on {
-                    div { class: "bg-gunmetal-400 mt-4 p-4 border border-gunmetal-300/30 rounded-lg",
+                    div { class: "bg-sunken mt-4 p-4 border border-border rounded-md",
                         FormInput {
                             label: "Site Title",
                             value: wp_title.read().clone(),
@@ -210,7 +210,7 @@ pub fn CreateSiteModal(
                                 *wp_title.write() = v;
                             },
                         }
-                        p { class: "mb-3 font-semibold text-seasalt-300 text-xs uppercase tracking-wider", "Admin Credentials" }
+                        p { class: "mb-3 font-medium text-muted text-xs uppercase tracking-wider", "Admin Credentials" }
                         div { class: "gap-3 grid grid-cols-2",
                             FormInput {
                                 label: "Username",
@@ -262,11 +262,11 @@ fn MultisiteOption(
     onclick: EventHandler<()>,
 ) -> Element {
     let classes = format!(
-        "flex items-center gap-1.5 px-3 py-1.5 rounded cursor-pointer transition-all border-2 {}",
+        "flex items-center gap-1.5 px-3 py-1.5 rounded-md cursor-pointer transition-colors border {}",
         if is_selected {
-            "border-pumpkin bg-gunmetal-400 text-pumpkin font-semibold"
+            "border-accent text-accent font-medium"
         } else {
-            "border-gunmetal-500 bg-gunmetal-500 hover:bg-gunmetal-400 hover:text-pumpkin hover:border-gunmetal-400"
+            "border-border text-muted hover:text-seasalt hover:border-muted"
         }
     );
     rsx! {
@@ -274,7 +274,7 @@ fn MultisiteOption(
             onclick: move |_| onclick.call(()),
             {label}
             span {
-                class: format!("ml-1 text-xs {}", if is_selected { "text-pumpkin-300" } else { "text-seasalt-300" }),
+                class: format!("ml-1 text-xs {}", if is_selected { "text-accent" } else { "text-faint" }),
                 "({example})"
             }
         }

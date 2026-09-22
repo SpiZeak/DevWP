@@ -131,7 +131,7 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
         div { class: "flex justify-end gap-2.5",
             button {
                 "type": "button",
-                class: "bg-gunmetal-500 hover:bg-gunmetal-600 px-4 py-2 border-0 rounded text-seasalt-400 hover:text-seasalt transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed",
+                class: "bg-transparent hover:bg-raised px-4 py-2 rounded-md text-muted hover:text-seasalt transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40",
                 // While a command runs this cancels it (TERM → KILL in the
                 // container); once idle it closes the modal.
                 disabled: is_cancelling,
@@ -148,7 +148,7 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
             button {
                 "type": "submit",
                 form: "wp-cli-form",
-                class: "bg-pumpkin hover:bg-pumpkin-600 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt-400 transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed",
+                class: "bg-accent hover:bg-accent-hover disabled:opacity-40 px-4 py-2 rounded-md text-on-accent transition-colors cursor-pointer disabled:cursor-not-allowed",
                 disabled: cmd.trim().is_empty() || is_loading,
                 if is_loading {
                     Spinner { svg_class: "size-6", title: "Loading WP-CLI response..." }
@@ -177,7 +177,7 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
                     input {
                         id: "wp-cli-command",
                         "type": "text",
-                        class: "bg-gunmetal-500 p-2 border border-gunmetal-600 focus:border-pumpkin-500 rounded focus:outline-none w-full text-seasalt",
+                        class: "bg-sunken p-2 border border-border focus:border-accent rounded-md focus:outline-none w-full text-seasalt",
                         value: {cmd},
                         placeholder: "e.g. plugin list",
                         disabled: is_loading,
@@ -222,11 +222,11 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
                             }
                         },
                     }
-                    div { class: "mt-1 text-seasalt-400 text-xs",
+                    div { class: "mt-1 text-muted text-xs",
                         "Only enter the command after "
-                        span { class: "font-bold", "wp" }
+                        span { class: "font-medium", "wp" }
                         ", e.g. "
-                        code { class: "bg-gunmetal-500 px-1 rounded", "plugin list" }
+                        code { class: "bg-sunken px-1 rounded", "plugin list" }
                         if has_history {
                             ". Use ↑/↓ to recall history."
                         }
@@ -239,7 +239,7 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
                         span { class: "block text-seasalt text-sm", "History" }
                         button {
                             "type": "button",
-                            class: "bg-transparent hover:bg-gunmetal-600 px-2 py-1 border-0 rounded text-seasalt-400 hover:text-seasalt text-xs transition-colors cursor-pointer",
+                            class: "bg-transparent hover:bg-raised px-2 py-1 rounded text-muted hover:text-seasalt text-xs transition-colors cursor-pointer",
                             onclick: {
                                 let site_name = site.name.clone();
                                 move |_| {
@@ -249,12 +249,12 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
                             "Clear"
                         }
                     }
-                    div { class: "flex flex-col gap-1 max-h-40 overflow-y-auto bg-warm-charcoal-200 p-2 border border-gunmetal-600 rounded",
+                    div { class: "flex flex-col gap-1 max-h-40 overflow-y-auto bg-sunken p-2 border border-border rounded-md",
                         for (index, entry) in site_history.into_iter().enumerate() {
                             button {
                                 key: "{index}",
                                 "type": "button",
-                                class: "bg-transparent hover:bg-gunmetal-500 py-1.5 px-2 border-0 rounded text-left font-mono text-seasalt-400 hover:text-seasalt text-xs truncate transition-colors cursor-pointer",
+                                class: "bg-transparent hover:bg-raised py-1.5 px-2 rounded text-left font-mono text-muted hover:text-seasalt text-xs truncate transition-colors cursor-pointer",
                                 title: {entry.clone()},
                                 onclick: move |_| {
                                     handle_select_history.clone().call(entry.clone());

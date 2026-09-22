@@ -110,16 +110,15 @@ pub fn SiteList() -> Element {
                 },
             );
         }
+        // Hide the modal while provisioning runs — the list's provisioning
+        // entry (and the failure notification, if any) take over from here.
+        // Closing unmounts the modal, so its `submitting` latch resets.
+        *create_open.write() = false;
         spawn(async move {
             let result = tokio::task::spawn_blocking(move || site::create_site(data)).await;
             if unwrap_task_result(result, &format!("Provisioning failed for {domain}")).is_some() {
-                *create_open.write() = false;
                 refresh_sites().await;
                 let _ = system::open_external(&format!("https://{domain}"));
-            } else {
-                // Close the latched "submitting" modal; the failure is
-                // surfaced as a notification.
-                *create_open.write() = false;
             }
         });
     };
@@ -127,13 +126,10 @@ pub fn SiteList() -> Element {
     rsx! {
         div { class: "w-full",
             div { class: "flex justify-between items-center mb-6 w-full",
-                div { class: "flex items-center gap-3",
-                    div { class: "flex justify-center items-center bg-linear-to-br from-gunmetal-700 to-gunmetal-600 rounded-lg w-8 h-8",
-                        Icon { content: "\u{f0328}", class: "text-warm-charcoal text-lg" }
-                    }
-                    h3 { class: "font-bold text-seasalt text-2xl", "Sites" }
+                div { class: "flex items-center gap-2.5",
+                    h3 { class: "font-semibold text-seasalt text-lg", "Sites" }
                     if !sites.read().is_empty() {
-                        span { class: "bg-gunmetal-500 px-3 py-1 rounded-full font-medium text-seasalt-300 text-sm",
+                        span { class: "bg-sunken px-2.5 py-0.5 rounded-full text-muted text-xs",
                             if !query.trim().is_empty() {
                                 "{filtered_sites.len()}/{sites.read().len()}"
                             } else {
@@ -143,13 +139,13 @@ pub fn SiteList() -> Element {
                     }
                 }
                 button {
-                    class: "group flex justify-center items-center gap-2 bg-pumpkin hover:bg-pumpkin-600 hover:shadow-lg rounded-lg size-10 font-semibold text-warm-charcoal hover:scale-105 transition-all duration-200 cursor-pointer",
+                    class: "flex justify-center items-center bg-accent hover:bg-accent-hover disabled:opacity-40 rounded-md size-9 text-on-accent transition-colors cursor-pointer disabled:cursor-not-allowed",
                     title: "Create a new site",
                     "type": "button",
                     onclick: move |_| {
                         *create_open.write() = true;
                     },
-                    Icon { content: "\u{f067}", class: "text-xl" }
+                    Icon { content: "\u{f067}", class: "text-lg" }
                 }
             }
             if let Some(site) = selected {
@@ -176,20 +172,20 @@ pub fn SiteList() -> Element {
                     if !sites.read().is_empty() {
                         div { class: "mb-4",
                             div { class: "relative",
-                                Icon { content: "\u{f0349}", class: "top-1/2 left-3 absolute text-seasalt-400 text-lg -translate-y-1/2 transform" }
+                                Icon { content: "\u{f0349}", class: "top-1/2 left-3 absolute text-muted text-lg -translate-y-1/2 transform" }
                                 input {
                                     "type": "text",
                                     value: {query.clone()},
                                     "aria-label": "Search sites",
                                     placeholder: "Search sites by name, path, or URL...",
-                                    class: "bg-gunmetal-500 py-2.5 pr-4 pl-10 border border-gunmetal-600 focus:border-pumpkin rounded-lg focus:outline-none focus:ring-1 focus:ring-pumpkin w-full text-seasalt transition-colors placeholder-seasalt-400",
+                                    class: "bg-sunken py-2 pr-4 pl-9 border border-border focus:border-accent rounded-md focus:outline-none w-full text-seasalt transition-colors placeholder:text-faint",
                                     oninput: move |ev| {
                                         *search_query.write() = ev.value();
                                     },
                                 }
                                 if !query.is_empty() {
                                     button {
-                                        class: "top-1/2 right-3 absolute text-seasalt-400 hover:text-seasalt transition-colors -translate-y-1/2 transform",
+                                        class: "top-1/2 right-3 absolute text-muted hover:text-seasalt transition-colors -translate-y-1/2 transform",
                                         title: "Clear search",
                                         "type": "button",
                                         onclick: move |_| {
@@ -202,24 +198,22 @@ pub fn SiteList() -> Element {
                         }
                     }
                     div { class: "relative",
-                        div { class: "bg-gunmetal-500 shadow-2xl rounded-xl overflow-hidden",
-                            ul { class: "py-2 overflow-y-auto scrollbar-hide max-h-[calc(100vh-14rem)]",
+                        div { class: "bg-surface border border-border rounded-lg overflow-hidden",
+                            ul { class: "overflow-y-auto scrollbar-hide max-h-[calc(100vh-14rem)] divide-y divide-border",
                                 if loading {
                                     li { class: "flex justify-center items-center py-12",
                                         div { class: "flex items-center gap-3",
-                                            Spinner { svg_class: "size-6 text-pumpkin" }
-                                            span { class: "text-seasalt-300 text-lg", "Loading sites..." }
+                                            Spinner { svg_class: "size-6 text-accent" }
+                                            span { class: "text-muted text-sm", "Loading sites..." }
                                         }
                                     }
                                 } else if filtered_sites.is_empty() {
                                     li { class: "flex flex-col justify-center items-center px-6 py-16 text-center",
-                                        div { class: "flex justify-center items-center bg-gunmetal-500 mb-4 rounded-full w-16 h-16",
-                                            Icon { content: Some(if !query.trim().is_empty() { "\u{f0349}" } else { "\u{f0328}" }), class: "text-seasalt-400 text-3xl" }
-                                        }
-                                        h4 { class: "mb-2 font-semibold text-seasalt text-xl",
+                                        Icon { content: Some(if !query.trim().is_empty() { "\u{f0349}" } else { "\u{f0328}" }), class: "text-faint text-3xl" }
+                                        h4 { class: "mt-4 mb-1 font-medium text-seasalt text-base",
                                             if !query.trim().is_empty() { "No sites found" } else { "No sites yet" }
                                         }
-                                        p { class: "max-w-xs text-seasalt-400 text-sm",
+                                        p { class: "max-w-xs text-muted text-sm",
                                             if !query.trim().is_empty() {
                                                 "No sites match \"{query}\". Try a different search term."
                                             } else {
@@ -229,7 +223,7 @@ pub fn SiteList() -> Element {
                                         if !query.trim().is_empty() {
                                             button {
                                                 "type": "button",
-                                                class: "mt-3 text-pumpkin hover:text-pumpkin-600 text-sm underline transition-colors",
+                                                class: "mt-3 text-accent hover:text-accent-hover text-sm transition-colors cursor-pointer",
                                                 onclick: move |_| {
                                                     *search_query.write() = String::new();
                                                 },
@@ -238,11 +232,10 @@ pub fn SiteList() -> Element {
                                         }
                                     }
                                 } else {
-                                    for (index, site) in filtered_sites.iter().enumerate() {
+                                    for site in filtered_sites.iter() {
                                         SiteItem {
                                             key: "{site.name}",
                                             site: Rc::clone(site),
-                                            is_last: index == filtered_sites.len() - 1,
                                             on_select_site: move |s: Rc<Site>| {
                                                 *selected_site.write() = Some(s);
                                             },

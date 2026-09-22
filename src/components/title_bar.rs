@@ -20,13 +20,13 @@ pub fn TitleBar() -> Element {
                     desktop_window().drag();
                 }
             },
-            span { class: "font-semibold tracking-wide text-seasalt-400 text-sm", "DevWP" }
+            span { class: "font-medium tracking-wide text-muted text-sm", "DevWP" }
             div {
                 class: "flex items-center gap-2",
                 onmousedown: move |ev| ev.stop_propagation(),
                 button {
                     "type": "button",
-                    class: "flex justify-center items-center hover:bg-gunmetal-500 rounded-md size-7 text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer",
+                    class: "flex justify-center items-center hover:bg-raised rounded-md size-7 text-muted hover:text-seasalt transition-colors cursor-pointer",
                     title: "Minimize",
                     "aria-label": "Minimize",
                     onclick: move |_| desktop_window().set_minimized(true),
@@ -36,7 +36,7 @@ pub fn TitleBar() -> Element {
                 }
                 button {
                     "type": "button",
-                    class: "flex justify-center items-center hover:bg-gunmetal-500 rounded-md size-7 text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer",
+                    class: "flex justify-center items-center hover:bg-raised rounded-md size-7 text-muted hover:text-seasalt transition-colors cursor-pointer",
                     title: "Maximize",
                     "aria-label": "Maximize",
                     onclick: move |_| desktop_window().toggle_maximized(),
@@ -46,7 +46,7 @@ pub fn TitleBar() -> Element {
                 }
                 button {
                     "type": "button",
-                    class: "flex justify-center items-center hover:bg-gunmetal-500 rounded-md size-7 text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer",
+                    class: "flex justify-center items-center hover:bg-raised rounded-md size-7 text-muted hover:text-seasalt transition-colors cursor-pointer",
                     title: "Close",
                     "aria-label": "Close",
                     onclick: move |_| {

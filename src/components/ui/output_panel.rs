@@ -42,7 +42,7 @@ where
             }
             pre {
                 id: {id.clone()},
-                class: format!("bg-warm-charcoal-200 p-2.5 border border-gunmetal-600 rounded {max_h} overflow-auto font-mono text-seasalt text-xs wrap-break-word whitespace-pre-wrap"),
+                class: format!("bg-sunken p-2.5 border border-border rounded-md {max_h} overflow-auto font-mono text-seasalt text-xs wrap-break-word whitespace-pre-wrap"),
                 if !out.is_empty() { span { class: "text-emerald", {out} } }
                 if !err.is_empty() { span { class: "text-crimson", {err} } }
                 if is_loading { span { class: "text-amber", "▊" } }

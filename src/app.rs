@@ -82,16 +82,14 @@ fn AppRoot() -> Element {
             handle_error: move |errors: ErrorContext| {
                 rsx! {
                     div { class: "flex flex-col justify-center items-center bg-warm-charcoal p-8 h-screen text-seasalt select-none",
-                        div { class: "flex justify-center items-center bg-crimson/10 mb-4 rounded-full w-16 h-16",
-                            span { class: "text-crimson text-3xl", "⚠" }
-                        }
-                        h1 { class: "mb-2 font-bold text-seasalt text-xl", "Something went wrong" }
-                        p { class: "mb-1 max-w-md text-seasalt-400 text-sm text-center",
+                        span { class: "text-crimson text-3xl", "⚠" }
+                        h1 { class: "mt-4 mb-2 font-semibold text-seasalt text-lg", "Something went wrong" }
+                        p { class: "mb-1 max-w-md text-muted text-sm text-center",
                             "DevWP encountered an unexpected error."
                         }
                         button {
                             "type": "button",
-                            class: "bg-pumpkin hover:bg-pumpkin-600 px-4 py-2 rounded font-semibold text-warm-charcoal transition-colors cursor-pointer",
+                            class: "mt-2 bg-accent hover:bg-accent-hover px-4 py-2 rounded-md font-medium text-on-accent transition-colors cursor-pointer",
                             onclick: move |_| errors.clear_errors(),
                             "Reload App"
                         }

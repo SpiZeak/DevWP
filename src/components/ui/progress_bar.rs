@@ -4,8 +4,7 @@ use dioxus::prelude::*;
 /// an indeterminate sliding segment for phases with no measurable progress.
 #[component]
 pub fn ProgressBar(percent: Option<u8>, #[props(optional)] label: Option<String>) -> Element {
-    let track =
-        "overflow-hidden bg-gunmetal-300 rounded-full h-1 w-full transition-opacity".to_string();
+    let track = "overflow-hidden bg-raised rounded-full h-1 w-full transition-opacity".to_string();
     match percent {
         Some(p) => rsx! {
             div {

@@ -6,6 +6,19 @@
   /* Colors */
   --color-*: initial;
 
+  /* Semantic roles (flat design). Components target these instead of raw
+     numbered shades so surfaces/borders stay consistent. */
+  --color-bg: #1a1a1a;
+  --color-surface: #1f2937;
+  --color-sunken: #19212c;
+  --color-raised: #26303e;
+  --color-border: #2e3a49;
+  --color-muted: #8196ab;
+  --color-faint: #506478;
+  --color-accent: #ff6b00;
+  --color-accent-hover: #cc5500;
+  --color-on-accent: #1a1a1a;
+
   /* Gunmetal */
   --color-gunmetal: #1f2937;
   --color-gunmetal-100: #06080b;

@@ -25,7 +25,7 @@ pub fn XdebugSwitch() -> Element {
                 div { class: "flex flex-col flex-1 mr-4",
                     div { class: "flex justify-between items-center mb-2",
                         div { class: "flex items-center gap-2",
-                            h3 { class: "m-0 font-medium text-seasalt-400", "Loading mode…" }
+                            h3 { class: "m-0 font-medium text-muted", "Loading mode…" }
                         }
                         Toggle { checked: false, disabled: true }
                     }

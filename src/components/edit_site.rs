@@ -35,19 +35,19 @@ pub fn EditSiteModal(
     let is_provisioning = site.status == SiteStatus::Provisioning;
 
     let webroot_help = rsx! {
-        div { class: "mt-2 text-seasalt text-xs",
+        div { class: "mt-2 text-muted text-xs",
             if web_root.read().is_empty() {
                 "Web server will point to the site root."
             } else {
                 "Web server will point to www/"
-                span { class: "font-bold text-pumpkin", "{site.name}" }
+                span { class: "font-medium text-accent", "{site.name}" }
                 "/"
-                span { class: "font-bold text-pumpkin", "{web_root.read()}" }
+                span { class: "font-medium text-accent", "{web_root.read()}" }
                 "."
             }
             br {}
             "Site accessible at "
-            span { class: "font-bold text-pumpkin", "{site.url}" }
+            span { class: "font-medium text-accent", "{site.url}" }
         }
     };
 
@@ -61,13 +61,13 @@ pub fn EditSiteModal(
         div { class: "flex justify-end gap-2.5",
             button {
                 "type": "button",
-                class: "bg-gunmetal-400 hover:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt-300 hover:text-seasalt transition-colors cursor-pointer",
+                class: "bg-transparent hover:bg-raised px-4 py-2 rounded-md text-muted hover:text-seasalt transition-colors cursor-pointer",
                 onclick: move |_| on_close.call(()),
                 "Cancel"
             }
             button {
                 "type": "button",
-                class: "bg-pumpkin hover:bg-pumpkin-600 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-warm-charcoal disabled:text-seasalt-400 transition-colors cursor-pointer disabled:cursor-not-allowed",
+                class: "bg-accent hover:bg-accent-hover disabled:opacity-40 px-4 py-2 rounded-md text-on-accent transition-colors cursor-pointer disabled:cursor-not-allowed",
                 disabled: !has_changes || *submitting.read(),
                 onclick: move |_ev: MouseEvent| {
                     *submitting_for_submit.write() = true;
@@ -88,12 +88,12 @@ pub fn EditSiteModal(
             on_close: on_close,
             title: "Edit Site Settings".to_string(),
             footer: Some(footer),
-            div { class: "bg-gunmetal-400 mb-4 p-3 border-pumpkin border-l-4 rounded-lg",
+            div { class: "bg-sunken mb-4 p-3 border border-border rounded-md",
                 div { class: "flex items-center gap-2 mb-1",
-                    Icon { content: "\u{f0328}", class: "text-pumpkin" }
-                    span { class: "font-semibold text-seasalt text-sm", "{site.name}" }
+                    Icon { content: "\u{f0328}", class: "text-accent" }
+                    span { class: "font-medium text-seasalt text-sm", "{site.name}" }
                 }
-                div { class: "text-seasalt-400 text-xs", "{site.path}" }
+                div { class: "text-muted text-xs", "{site.path}" }
             }
             FormInput {
                 label: "Aliases (optional, space-separated)",
@@ -112,14 +112,14 @@ pub fn EditSiteModal(
                     *web_root.write() = v.trim().trim_start_matches('/').trim_end_matches('/').to_string();
                 },
             }
-            div { class: "bg-gunmetal-400/60 mt-6 px-4 py-4 border border-gunmetal-600 rounded-lg",
-                h4 { class: "mb-2 font-semibold text-seasalt text-sm", "Danger Zone" }
-                p { class: "mb-3 text-seasalt-400 text-xs",
+            div { class: "bg-crimson/5 mt-6 px-4 py-4 border border-crimson/30 rounded-md",
+                h4 { class: "mb-2 font-medium text-seasalt text-sm", "Danger Zone" }
+                p { class: "mb-3 text-muted text-xs",
                     "Deleting this site removes the site directory, nginx config, and hosts entries. The MariaDB database is kept. This action cannot be undone."
                 }
                 button {
                     "type": "button",
-                    class: "bg-crimson hover:bg-crimson/80 disabled:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt disabled:text-seasalt-400 transition-colors cursor-pointer disabled:cursor-not-allowed",
+                    class: "bg-crimson hover:bg-crimson/80 disabled:opacity-40 px-4 py-2 rounded-md text-seasalt transition-colors cursor-pointer disabled:cursor-not-allowed",
                     title: "Delete Site",
                     disabled: is_provisioning,
                     onclick: move |_ev: MouseEvent| on_delete.call(Rc::clone(&site_for_delete_confirm)),

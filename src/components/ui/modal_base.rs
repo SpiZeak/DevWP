@@ -36,17 +36,17 @@ pub fn ModalBase(
                 }
             },
             div {
-                class: format!("bg-gunmetal-400 shadow-xl mx-4 p-6 rounded-lg w-[90%] {max_width_class} animate-scale-in overflow-y-auto max-h-[90vh]"),
+                class: format!("bg-surface border border-border mx-4 p-6 rounded-lg w-[90%] {max_width_class} animate-scale-in overflow-y-auto max-h-[90vh]"),
                 role: "document",
                 tabindex: -1,
                 onclick: move |ev| ev.stop_propagation(),
                 onkeydown: move |ev| ev.stop_propagation(),
                 div { class: "flex justify-between items-center mb-6",
-                    h2 { id: {title_id.clone()}, class: "font-semibold text-seasalt text-xl", {title.clone()} }
+                    h2 { id: {title_id.clone()}, class: "font-medium text-seasalt text-lg", {title.clone()} }
                     if !hide_close.unwrap_or(false) {
                         button {
                             "type": "button",
-                            class: "flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer",
+                            class: "flex justify-center items-center bg-transparent hover:bg-raised rounded-md size-8 text-muted hover:text-seasalt transition-colors cursor-pointer",
                             "aria-label": "Close {title}",
                             title: "Close {title}",
                             onclick: move |_| on_close.call(()),

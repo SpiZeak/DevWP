@@ -25,7 +25,7 @@ pub fn FormInput(
                 id: {input_id.clone()},
                 "type": {input_type},
                 value: {value},
-                class: "bg-gunmetal-400 p-2 border border-gunmetal-500 focus:border-pumpkin rounded focus:outline-none focus:ring-1 focus:ring-pumpkin w-full text-seasalt transition-colors",
+                class: "bg-sunken p-2 border border-border focus:border-accent rounded-md focus:outline-none w-full text-seasalt transition-colors",
                 placeholder: {placeholder},
                 autofocus: autofocus.unwrap_or(false),
                 oninput: move |ev| onchange.call(ev.value()),

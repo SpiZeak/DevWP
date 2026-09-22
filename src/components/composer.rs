@@ -65,7 +65,7 @@ pub fn ComposerModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
             if has_output && !is_loading {
                 button {
                     "type": "button",
-                    class: "bg-gunmetal-400 hover:bg-gunmetal-300 px-4 py-2 border-0 rounded text-seasalt-300 hover:text-seasalt transition-colors cursor-pointer",
+                    class: "bg-transparent hover:bg-raised px-4 py-2 border border-border rounded-md text-muted hover:text-seasalt transition-colors cursor-pointer",
                     onclick: move |_| {
                         *confirmed.write() = false;
                     },
@@ -74,7 +74,7 @@ pub fn ComposerModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
             }
             button {
                 "type": "button",
-                class: "bg-gunmetal-500 hover:bg-gunmetal-600 disabled:opacity-50 px-4 py-2 border-0 rounded text-seasalt-400 hover:text-seasalt transition-colors duration-200 cursor-pointer disabled:cursor-not-allowed",
+                class: "bg-transparent hover:bg-raised disabled:opacity-40 px-4 py-2 rounded-md text-muted hover:text-seasalt transition-colors cursor-pointer disabled:cursor-not-allowed",
                 disabled: is_loading,
                 onclick: move |_ev: MouseEvent| handle_close.call(()),
                 "Close"
@@ -90,29 +90,27 @@ pub fn ComposerModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
             footer: Some(footer),
             if !is_confirmed {
                 div { class: "text-center py-4",
-                    div { class: "flex justify-center items-center bg-amber/10 mb-4 rounded-full w-14 h-14 mx-auto",
-                        span { class: "text-amber text-2xl", "⚠" }
-                    }
-                    p { class: "mb-1 text-seasalt",
+                    span { class: "text-amber text-2xl", "⚠" }
+                    p { class: "mt-3 mb-1 text-seasalt",
                         "Run "
-                        code { class: "bg-gunmetal-500 px-1.5 py-0.5 rounded font-bold text-pumpkin text-sm", "composer update" }
+                        code { class: "bg-sunken px-1.5 py-0.5 rounded font-medium text-accent text-sm", "composer update" }
                         " for "
-                        span { class: "font-semibold", "{site.name}" }
+                        span { class: "font-medium", "{site.name}" }
                         "?"
                     }
-                    p { class: "mb-6 text-seasalt-400 text-xs",
+                    p { class: "mb-6 text-muted text-xs",
                         "This will update all Composer dependencies. It may take a moment."
                     }
                     div { class: "flex justify-center gap-3",
                         button {
                             "type": "button",
-                            class: "bg-gunmetal-500 hover:bg-gunmetal-600 px-4 py-2 rounded text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer",
+                            class: "bg-transparent hover:bg-raised px-4 py-2 rounded-md text-muted hover:text-seasalt transition-colors cursor-pointer",
                             onclick: move |_ev: MouseEvent| handle_close.call(()),
                             "Cancel"
                         }
                         button {
                             "type": "button",
-                            class: "bg-pumpkin hover:bg-pumpkin-600 px-4 py-2 rounded font-semibold text-warm-charcoal transition-colors cursor-pointer",
+                            class: "bg-accent hover:bg-accent-hover px-4 py-2 rounded-md font-medium text-on-accent transition-colors cursor-pointer",
                             onclick: move |_| {
                                 *confirmed.write() = true;
                             },
@@ -123,10 +121,10 @@ pub fn ComposerModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
             } else if is_loading && !has_output {
                 div { class: "flex justify-center items-center gap-3 py-6",
                     Spinner {
-                        svg_class: "size-6 text-pumpkin",
+                        svg_class: "size-6 text-accent",
                         title: "Running composer update...",
                     }
-                    span { class: "text-seasalt-400 text-sm", "Running composer update…" }
+                    span { class: "text-muted text-sm", "Running composer update…" }
                 }
             } else if has_output {
                 OutputPanel {

@@ -10,10 +10,7 @@ pub fn Spinner(
         "place-items-center grid rounded-lg w-full {}",
         class.unwrap_or_default()
     );
-    let svg_class = format!(
-        "text-seasalt-300 animate-spin {}",
-        svg_class.unwrap_or("size-10")
-    );
+    let svg_class = format!("text-faint animate-spin {}", svg_class.unwrap_or("size-10"));
     let title_text = title.unwrap_or("Loading");
     rsx! {
         div { class: {class}, title: {title_text},
@@ -36,7 +33,7 @@ pub fn Spinner(
                     stroke_width: "5",
                     stroke_linecap: "round",
                     stroke_linejoin: "round",
-                    class: "text-seasalt-900",
+                    class: "text-muted",
                 }
             }
         }

@@ -39,7 +39,7 @@ pub fn Toggle(
             }
             div {
                 "aria-hidden": "true",
-                class: "peer after:top-[2px] after:absolute relative bg-emerald-700 after:bg-seasalt peer-checked:bg-amber-600 after:border after:border-emerald-600 peer-checked:after:border-seasalt rounded-full after:rounded-full peer-focus:outline-none peer-focus:ring-amber-800 w-11 after:w-5 h-6 after:h-5 after:content-[''] after:transition-all rtl:peer-checked:after:-translate-x-full peer-checked:after:translate-x-full after:start-[2px]",
+                class: "peer after:top-[2px] after:absolute relative bg-raised after:bg-seasalt peer-checked:bg-accent rounded-full after:rounded-full peer-focus:outline-none w-11 after:w-5 h-6 after:h-5 after:content-[''] after:transition-all rtl:peer-checked:after:-translate-x-full peer-checked:after:translate-x-full after:start-[2px]",
             }
         }
     }

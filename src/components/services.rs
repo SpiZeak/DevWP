@@ -37,7 +37,9 @@ fn status_text(
     building: bool,
     progress: Option<ServiceProgress>,
 ) -> Option<(String, String)> {
-    // Returns (text, color class)
+    // Returns (text, color class). The colored label under the service name
+    // is the sole status indicator (no dot): emerald = running, amber =
+    // building/health-check, crimson = unhealthy/stopped, muted = waiting.
     if building {
         let text = match progress {
             Some(p) => match p.percent {
@@ -49,7 +51,7 @@ fn status_text(
         return Some((text, "text-amber".to_string()));
     }
     if container.state == ContainerState::Pending {
-        return Some(("Starting...".to_string(), "text-seasalt-400".to_string()));
+        return Some(("Starting...".to_string(), "text-muted".to_string()));
     }
     if container.health.as_deref() == Some("starting") {
         return Some(("Starting...".to_string(), "text-amber".to_string()));
@@ -57,10 +59,18 @@ fn status_text(
     if container.health.as_deref() == Some("unhealthy") {
         return Some(("Unhealthy".to_string(), "text-crimson".to_string()));
     }
-    container
-        .version
-        .clone()
-        .map(|v| (v, "text-seasalt".to_string()))
+    match container.state {
+        ContainerState::Exited | ContainerState::Stopped => {
+            Some(("Stopped".to_string(), "text-crimson".to_string()))
+        }
+        _ => Some((
+            container
+                .version
+                .clone()
+                .unwrap_or_else(|| "Running".to_string()),
+            "text-emerald-500".to_string(),
+        )),
+    }
 }
 
 #[component]
@@ -154,13 +164,13 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
             // status signal; surface them instead of showing "Starting…"
             // placeholders forever when the daemon is down or startup failed.
             if docker_status.status == DockerStatus::Error {
-                div { class: "flex justify-between items-center bg-crimson/10 mb-6 p-3 border border-crimson rounded-md",
+                div { class: "flex justify-between items-center bg-crimson/10 mb-6 p-3 border border-crimson/40 rounded-md",
                     div { class: "text-crimson text-xs font-medium",
                         {docker_status.message.clone()}
                     }
                     button {
                         "type": "button",
-                        class: "shrink-0 bg-pumpkin hover:bg-pumpkin-600 px-3 py-1.5 rounded text-warm-charcoal text-xs font-medium transition-colors cursor-pointer",
+                        class: "shrink-0 bg-accent hover:bg-accent-hover px-3 py-1.5 rounded-md text-on-accent text-xs font-medium transition-colors cursor-pointer",
                         onclick: move |_| {
                             spawn(async move {
                                 lifecycle::start_services().await;
@@ -179,14 +189,14 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
                 div { class: "flex items-center gap-2",
                     button {
                         "type": "button",
-                        class: "flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer",
+                        class: "flex justify-center items-center bg-transparent hover:bg-raised rounded-md size-8 text-muted hover:text-seasalt transition-colors cursor-pointer",
                         title: "About DevWP",
                         onclick: move |_| on_open_versions.call(()),
                         Icon { content: "ℹ", class: "text-lg" }
                     }
                     button {
                         "type": "button",
-                        class: "flex justify-center items-center bg-gunmetal-500 hover:bg-gunmetal-600 rounded-full size-8 text-seasalt-400 hover:text-seasalt transition-colors cursor-pointer",
+                        class: "flex justify-center items-center bg-transparent hover:bg-raised rounded-md size-8 text-muted hover:text-seasalt transition-colors cursor-pointer",
                         title: "Settings",
                         onclick: move |_| on_open_settings.call(()),
                         Icon { content: "⚙", class: "text-lg" }
@@ -197,7 +207,6 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
                 for (index, container) in all_items.iter().enumerate() {
                     {
                          let building = is_building(&building_services, &container.name);
-                         let border = border_class(container, building);
                          let progress = state::service_progress(&container.name);
                          let status = status_text(container, building, progress);
                         let item_id = container.id.clone();
@@ -214,7 +223,7 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
                         rsx! {
                             li {
                                 key: "{item_id}",
-                                class: format!("animate-fade-in-up flex justify-between items-center px-3 py-1.5 bg-gunmetal-500 rounded-md transition-colors hover:bg-gunmetal-500 {border}"),
+                                class: "animate-fade-in-up flex justify-between items-center px-3 py-1.5 bg-surface border border-border rounded-md transition-colors",
                                 style: format!("animation-delay: {}ms", index * 55),
                                 div { class: "flex items-center gap-2.5",
                                     if building {
@@ -240,7 +249,7 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
                                 }
                                 button {
                                     "type": "button",
-                                    class: "flex shrink-0 justify-center items-center bg-gunmetal-500 disabled:opacity-50 rounded-full size-7 text-2xl text-seasalt hover:text-warm-charcoal transition-all duration-200 cursor-pointer disabled:cursor-not-allowed",
+                                    class: "flex shrink-0 justify-center items-center bg-transparent hover:bg-raised disabled:opacity-40 rounded-md size-7 text-xl text-muted hover:text-seasalt transition-colors cursor-pointer disabled:cursor-not-allowed",
                                     disabled: is_restarting || building || is_placeholder,
                                     title: "Restart service",
                                     onclick: move |_| {
@@ -276,23 +285,5 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
             }
             BuildLog { is_building: any_building }
         }
-    }
-}
-
-fn border_class(container: &Container, is_building: bool) -> &'static str {
-    if is_building {
-        return "border-l-3 border-amber-500";
-    }
-    match container.state {
-        ContainerState::Pending => "",
-        ContainerState::Running => {
-            if container.health.as_deref() == Some("unhealthy") {
-                "border-l-3 border-orange-500"
-            } else {
-                "border-l-3 border-emerald-500"
-            }
-        }
-        ContainerState::Exited | ContainerState::Stopped => "border-l-3 border-crimson-500",
-        _ => "",
     }
 }
