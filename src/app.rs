@@ -1,5 +1,5 @@
 use crate::backend::lifecycle;
-use crate::components::{Notifications, Services, SettingsModal, SiteList, TitleBar, Versions};
+use crate::components::{Services, SettingsModal, SiteList, TitleBar, Versions};
 use crate::state;
 use dioxus::desktop::{
     tao::event::{Event, WindowEvent},
@@ -17,6 +17,10 @@ pub fn app() -> Element {
     // child scopes. Lazily-first-touching them in a child scope would tie
     // their storage to that scope's owner.
     state::init_globals();
+
+    // Follow the stack containers' logs for the Services panel (idempotent;
+    // threads reconnect until the containers exist, then forever).
+    crate::backend::docker::start_log_collectors();
 
     // Serve the embedded CSS/fonts under /assets/* on dioxus's own scheme.
     // A separate custom scheme is cross-origin to the dioxus:// page and
@@ -116,7 +120,6 @@ fn AppRoot() -> Element {
                     },
                 }
             }
-            Notifications {}
             // Mounted per-open so the settings form loads fresh each time.
             if settings_is_open {
                 SettingsModal {

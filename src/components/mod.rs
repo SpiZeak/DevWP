@@ -1,9 +1,8 @@
 pub mod brand_logo;
-pub mod build_log;
 pub mod composer;
 pub mod create_site;
 pub mod edit_site;
-pub mod notifications;
+pub mod service_logs;
 pub mod services;
 pub mod settings;
 pub mod site_info;
@@ -16,11 +15,10 @@ pub mod wp_cli;
 pub mod xdebug_switch;
 
 pub use brand_logo::BrandLogo;
-pub use build_log::BuildLog;
 pub use composer::ComposerModal;
 pub use create_site::CreateSiteModal;
 pub use edit_site::{EditSiteData, EditSiteModal};
-pub use notifications::Notifications;
+pub use service_logs::ServiceLogs;
 pub use services::Services;
 pub use settings::SettingsModal;
 pub use site_info::SiteInfo;

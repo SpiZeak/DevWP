@@ -52,11 +52,6 @@ pub struct NotificationPayload {
     #[serde(rename = "type")]
     pub notification_type: NotificationType,
     pub message: String,
-    /// Monotonic id assigned by `state::push_notification`. The toast UI
-    /// tracks this instead of the vec length, which stops moving new entries
-    /// once the cap in `push_notification` starts draining old ones.
-    #[serde(skip)]
-    pub seq: u64,
 }
 
 /// Walk up from CWD until we find the directory containing `compose.yml`.

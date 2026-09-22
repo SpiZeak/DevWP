@@ -4,7 +4,7 @@ use crate::backend::lifecycle;
 use crate::backend::utils::NotificationType;
 use crate::components::brand_logo::{BrandLogo, SI_DOCKER, SI_MARIADB, SI_NGINX, SI_PHP, SI_REDIS};
 use crate::components::ui::{use_sync_signal, Icon, ProgressBar, Spinner};
-use crate::components::{BuildLog, XdebugSwitch};
+use crate::components::{ServiceLogs, XdebugSwitch};
 use crate::state;
 use dioxus::prelude::*;
 use std::collections::HashMap;
@@ -156,10 +156,9 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
     }
 
     let restart_map = restarting.read().clone();
-    let any_building = !building_services.is_empty();
 
     rsx! {
-        div { class: "mr-6 mb-5 rounded-lg",
+        div { class: "mr-6 mb-5",
             // The lifecycle writes detailed failure reasons into the docker
             // status signal; surface them instead of showing "Starting…"
             // placeholders forever when the daemon is down or startup failed.
@@ -283,7 +282,7 @@ pub fn Services(on_open_settings: EventHandler<()>, on_open_versions: EventHandl
                     }
                 }
             }
-            BuildLog { is_building: any_building }
+            ServiceLogs {}
         }
     }
 }

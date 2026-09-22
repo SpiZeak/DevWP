@@ -18,8 +18,8 @@ use bollard::container::LogOutput;
 use bollard::exec::{CreateExecOptions, StartExecResults};
 use bollard::query_parameters::{
     BuildImageOptionsBuilder, CreateContainerOptionsBuilder, CreateImageOptionsBuilder,
-    ListContainersOptionsBuilder, ListVolumesOptionsBuilder, RemoveContainerOptionsBuilder,
-    StopContainerOptionsBuilder,
+    ListContainersOptionsBuilder, ListVolumesOptionsBuilder, LogsOptionsBuilder,
+    RemoveContainerOptionsBuilder, StopContainerOptionsBuilder,
 };
 use bollard::Docker;
 use bytes::Bytes;
@@ -645,6 +645,94 @@ pub const STACK_SERVICES: [&str; 5] = ["nginx", "php", "mariadb", "redis", "mail
 /// Container name for a stack service (`devwp_<service>`).
 pub fn container_name_for(service: &str) -> String {
     format!("devwp_{service}")
+}
+
+// ── Container log streaming ───────────────────────────────────
+
+/// Delay between log-follow (re)connect attempts. A container that is not up
+/// yet (or is restarting) is picked up on the next attempt.
+const LOG_FOLLOW_RETRY: Duration = Duration::from_secs(5);
+
+static LOG_COLLECTORS_STARTED: AtomicBool = AtomicBool::new(false);
+
+/// Spawn one background thread per stack service that follows the container
+/// logs forever and pushes formatted lines into the unified log signal
+/// ([`state::push_container_log`]). Idempotent: later calls are no-ops.
+pub fn start_log_collectors() {
+    if LOG_COLLECTORS_STARTED
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        return;
+    }
+    for service in STACK_SERVICES {
+        if let Err(e) = std::thread::Builder::new()
+            .name(format!("logs-{service}"))
+            .spawn(move || follow_container_logs_forever(service))
+        {
+            tracing::warn!("Failed to spawn log thread for {service}: {e}");
+        }
+    }
+}
+
+/// Follow one container's logs, reconnecting until the process exits. The
+/// first successful connect replays the recent tail; later reconnects (after
+/// a clean stream end — the container stopped) attach live-only, so history
+/// already captured in the signal is not duplicated.
+fn follow_container_logs_forever(service: &'static str) {
+    let mut first_connect = true;
+    loop {
+        let tail = if first_connect { "200" } else { "0" };
+        match follow_container_once(service, tail) {
+            Ok(()) => first_connect = false,
+            Err(e) => tracing::debug!("log follow `{service}`: {e}"),
+        }
+        std::thread::sleep(LOG_FOLLOW_RETRY);
+    }
+}
+
+/// Follow a container's log stream until it ends (container stop) or errors,
+/// chunk-buffering partial lines and pushing each complete line tagged with
+/// the service name.
+fn follow_container_once(service: &str, tail: &str) -> Result<(), String> {
+    let name = container_name_for(service);
+    docker_block_on(async move {
+        let docker = docker_client(BUILD_TIMEOUT)?;
+        let options = LogsOptionsBuilder::new()
+            .follow(true)
+            .stdout(true)
+            .stderr(true)
+            .tail(tail)
+            .build();
+        let stream = docker.logs(&name, Some(options));
+        let mut stream = std::pin::pin!(stream);
+        let mut partial = String::new();
+        while let Some(chunk) = stream.next().await {
+            let output = chunk.map_err(|e| format!("log stream `{name}`: {e}"))?;
+            let text = match output {
+                LogOutput::StdOut { message } | LogOutput::StdErr { message } => {
+                    String::from_utf8_lossy(&message).into_owned()
+                }
+                _ => continue,
+            };
+            partial.push_str(&text);
+            // Only complete lines (terminated by \n) are emitted; a trailing
+            // partial line stays buffered for the next chunk.
+            if let Some(end) = partial.rfind('\n') {
+                let complete: String = partial.drain(..=end).collect();
+                for line in complete.lines() {
+                    state::push_container_log(service, line);
+                }
+            }
+        }
+        if !partial.is_empty() {
+            state::push_container_log(service, &partial);
+        }
+        Ok(())
+    })
+    // The outer Result is runtime plumbing; the inner one is the stream
+    // outcome — keep the latter.
+    .and_then(std::convert::identity)
 }
 
 /// Human-friendly name for a stack service or `devwp_*` container name.

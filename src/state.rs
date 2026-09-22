@@ -60,10 +60,16 @@ sync_state!(docker_status_signal, DockerStatusPayload, || {
 /// Build log lines, pre-formatted as `[{service_name}] {line}`.
 pub const MAX_BUILD_LOG_LINES: usize = 500;
 sync_state!(build_logs_signal, Vec<String>, Vec::new);
-/// User-facing notifications (auto-dismissed by the UI); capped so a busy
-/// session can never grow the vec without bound.
+/// General container log lines (`[{tag}] {line}`): live container output
+/// from the background followers, lifecycle/build events (mirrored in
+/// [`push_build_log`]), and app notifications (via
+/// [`push_notification`]). Feeds the Services log panel.
+pub const MAX_CONTAINER_LOG_LINES: usize = 600;
+sync_state!(container_logs_signal, Vec<String>, Vec::new);
+/// User-facing notifications (pending warnings/errors are printed by the
+/// CLI after each command); capped so a busy session can never grow the vec
+/// without bound.
 pub const MAX_NOTIFICATIONS: usize = 100;
-static NOTIFICATION_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 sync_state!(notifications_signal, Vec<NotificationPayload>, Vec::new);
 global_value!(
     xdebug_enabled_signal,
@@ -106,6 +112,7 @@ pub fn init_globals() {
     let _ = service_progress_signal();
     let _ = docker_status_signal();
     let _ = build_logs_signal();
+    let _ = container_logs_signal();
     let _ = notifications_signal();
     let _ = xdebug_enabled_signal();
     let _ = xdebug_toggling_signal();
@@ -203,6 +210,7 @@ pub fn build_logs() -> ReadableRef<'static, SyncSignal<Vec<String>>, Vec<String>
 
 /// Append a raw docker log line (ANSI-stripped, trimmed, skipped if empty),
 /// formatted as `[{service_name}] {line}`, capped at [`MAX_BUILD_LOG_LINES`].
+/// Also mirrored into the unified container log panel.
 pub fn push_build_log(service_name: &str, line: &str) {
     let stripped = strip_ansi(line).trim().to_string();
     if stripped.is_empty() {
@@ -213,6 +221,31 @@ pub fn push_build_log(service_name: &str, line: &str) {
     logs.push(format!("[{service_name}] {stripped}"));
     if logs.len() > MAX_BUILD_LOG_LINES {
         let excess = logs.len() - MAX_BUILD_LOG_LINES;
+        logs.drain(..excess);
+    }
+    drop(logs);
+    push_container_log(service_name, &stripped);
+}
+
+// ── Container logs ────────────────────────────────────────────
+
+pub fn container_logs() -> ReadableRef<'static, SyncSignal<Vec<String>>, Vec<String>> {
+    container_logs_signal().read()
+}
+
+/// Append a raw container log line (ANSI-stripped, trimmed, skipped if
+/// empty), formatted as `[{service_name}] {line}`, capped at
+/// [`MAX_CONTAINER_LOG_LINES`].
+pub fn push_container_log(service_name: &str, line: &str) {
+    let stripped = strip_ansi(line).trim().to_string();
+    if stripped.is_empty() {
+        return;
+    }
+    let mut sig = *container_logs_signal();
+    let mut logs = sig.write();
+    logs.push(format!("[{service_name}] {stripped}"));
+    if logs.len() > MAX_CONTAINER_LOG_LINES {
+        let excess = logs.len() - MAX_CONTAINER_LOG_LINES;
         logs.drain(..excess);
     }
 }
@@ -250,16 +283,17 @@ pub fn notifications(
     notifications_signal().read()
 }
 
+/// Surface an app-level success/error/warning/info message. In the GUI it
+/// appears as a tagged line in the Services log panel (no toasts); the CLI
+/// prints pending warnings/errors to stderr after each command.
 pub fn push_notification(notification_type: NotificationType, message: impl Into<String>) {
-    use std::sync::atomic::Ordering;
-
-    let seq = NOTIFICATION_SEQ.fetch_add(1, Ordering::Relaxed) + 1;
+    let message = message.into();
+    push_container_log(&notification_type.to_string(), &message);
     let mut sig = *notifications_signal();
     let mut n = sig.write();
     n.push(NotificationPayload {
         notification_type,
-        message: message.into(),
-        seq,
+        message,
     });
     if n.len() > MAX_NOTIFICATIONS {
         let excess = n.len() - MAX_NOTIFICATIONS;

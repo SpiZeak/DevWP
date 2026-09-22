@@ -34,28 +34,6 @@
   }
 }
 
-@keyframes slide-in-right {
-  from {
-    opacity: 0;
-    transform: translateX(28px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes slide-out-right {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(28px);
-  }
-}
-
 /* Indeterminate progress-bar segment sliding across its track. The offsets
    are multiples of the segment's own width (w-1/3 of the track). */
 @keyframes progress-indeterminate {
@@ -83,28 +61,6 @@
 }
 
 @layer components {
-  /* Notification toasts */
-  .notification-container {
-    @apply right-5 bottom-5 z-50 fixed flex flex-col gap-2 pointer-events-none;
-  }
-
-  .notification {
-    @apply px-4 py-3 rounded-md max-w-xs font-medium text-sm pointer-events-auto;
-    animation: slide-in-right 0.22s ease-out both;
-  }
-
-  .notification.leaving {
-    animation: slide-out-right 0.2s ease-out both;
-  }
-
-  .notification.success {
-    @apply bg-emerald text-warm-charcoal;
-  }
-
-  .notification.error {
-    @apply bg-crimson text-seasalt;
-  }
-
   /* Custom scrollbar for webkit browsers */
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
