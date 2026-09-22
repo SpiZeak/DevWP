@@ -727,6 +727,17 @@ fn wp_config_create_argv(db_name: &str) -> Vec<String> {
     ]
 }
 
+/// `wp core multisite-convert` argv. `--subdomains` selects the subdomain
+/// topology; subdirectory (the WordPress default, and the fallback for
+/// `Unknown` legacy configs) needs no flag.
+fn wp_multisite_convert_argv(multisite: &MultisiteConfig) -> Vec<String> {
+    let mut argv = vec!["core".to_string(), "multisite-convert".to_string()];
+    if multisite.site_type == MultisiteType::Subdomain {
+        argv.push("--subdomains".to_string());
+    }
+    argv
+}
+
 /// Create the site's database via the mariadb container. Safe only because
 /// `validate_site_name` restricts the charset of everything that flows into
 /// `db_name` (alphanumerics plus `.`, `-`, `_`, and the `.`/`-` → `_` mapping
@@ -791,6 +802,31 @@ fn file_exists_in_php_container(work_dir: &str, relative_path: &str) -> Result<b
     Ok(output.success())
 }
 
+/// Whether the WordPress install at `work_dir` already runs as a multisite
+/// network (`wp core is-installed --network`; exit 1 is a valid "no", only
+/// container/API failures are errors).
+fn multisite_network_installed(work_dir: &str) -> Result<bool, String> {
+    let argv = [
+        "php".to_string(),
+        "-d".to_string(),
+        WP_CLI_ERROR_REPORTING.to_string(),
+        "/usr/local/bin/wp".to_string(),
+        "core".to_string(),
+        "is-installed".to_string(),
+        "--network".to_string(),
+    ];
+    let argv_refs: Vec<&str> = argv.iter().map(String::as_str).collect();
+    let output = exec_in_container(
+        PHP_CONTAINER_NAME,
+        &argv_refs,
+        &ExecOptions {
+            working_dir: Some(work_dir.to_string()),
+            env: Vec::new(),
+        },
+    )?;
+    Ok(output.success())
+}
+
 /// Error for a `wp-config.php` found in the directory above the install.
 /// WP-CLI's `config create` (like WordPress core) locates the config in the
 /// working directory *and one level up*, so a stray parent config aborts
@@ -814,6 +850,7 @@ fn install_wordpress(
     domain: &str,
     web_root: Option<&str>,
     config: &WordPressInstallConfig,
+    multisite: Option<&MultisiteConfig>,
 ) -> Result<(), String> {
     let work_dir = match web_root {
         Some(wr) => format!("{DOCKER_SITE_ROOT_PATH}/{domain}/{wr}"),
@@ -897,6 +934,32 @@ fn install_wordpress(
         format!("[{domain}] Running WordPress install..."),
     );
     run_wp("core install", &wp_install_args(domain, config))?;
+
+    // Multisite sites are provisioned by converting the freshly installed
+    // single site: `core multisite-convert` creates the network tables and
+    // (WP-CLI >= 2.5) writes the MULTISITE constants into wp-config.php.
+    // Like the steps above, this is skipped when the network already exists
+    // so a partially-failed provision can resume.
+    if let Some(multisite) = multisite.filter(|m| m.enabled) {
+        if multisite_network_installed(&work_dir)? {
+            emit_notification(
+                NotificationType::Info,
+                format!("[{domain}] Multisite network already present, skipping conversion"),
+            );
+        } else {
+            emit_notification(
+                NotificationType::Info,
+                format!(
+                    "[{domain}] Converting to multisite ({})...",
+                    multisite.site_type
+                ),
+            );
+            run_wp(
+                "core multisite-convert",
+                &wp_multisite_convert_argv(multisite),
+            )?;
+        }
+    }
 
     Ok(())
 }
@@ -1007,7 +1070,12 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
     }
 
     if let Some(wp_config) = &site.wordpress {
-        install_wordpress(&site.domain, site.web_root.as_deref(), wp_config)?;
+        install_wordpress(
+            &site.domain,
+            site.web_root.as_deref(),
+            wp_config,
+            site.multisite.as_ref(),
+        )?;
     }
 
     emit_notification(
@@ -1197,6 +1265,32 @@ mod tests {
         assert_eq!(db_name_for("example.test"), "example_test");
         assert_eq!(db_name_for("my-site.test"), "my_site_test");
         assert_eq!(db_name_for("plain"), "plain");
+    }
+
+    #[test]
+    fn wp_multisite_convert_argv_flags_only_subdomain() {
+        let convert_argv = |site_type| {
+            wp_multisite_convert_argv(&MultisiteConfig {
+                enabled: true,
+                site_type,
+            })
+        };
+        assert_eq!(
+            convert_argv(MultisiteType::Subdirectory),
+            vec!["core".to_string(), "multisite-convert".to_string()]
+        );
+        assert_eq!(
+            convert_argv(MultisiteType::Unknown),
+            vec!["core".to_string(), "multisite-convert".to_string()]
+        );
+        assert_eq!(
+            convert_argv(MultisiteType::Subdomain),
+            vec![
+                "core".to_string(),
+                "multisite-convert".to_string(),
+                "--subdomains".to_string()
+            ]
+        );
     }
 
     #[test]
