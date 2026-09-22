@@ -62,6 +62,19 @@ pub async fn toggle_xdebug() -> Result<bool, String> {
 /// restarting the php service. The CLI calls this directly so `on`/`off` are
 /// idempotent rather than blind toggles.
 pub async fn set_xdebug(target_enabled: bool) -> Result<bool, String> {
+    // The toggle restarts php, so refuse cleanly while the stack is down
+    // instead of flipping the ini and failing to apply it.
+    let guard = tokio::task::spawn_blocking(|| {
+        docker::require_containers_running_sync(&[crate::backend::wp_cli::PHP_CONTAINER_NAME])
+    })
+    .await
+    .map_err(|e| format!("Task join error: {e}"))
+    .and_then(|inner| inner);
+    if let Err(error) = guard {
+        emit_notification(NotificationType::Error, error.clone());
+        return Err(error);
+    }
+
     state::set_xdebug_toggling(true);
     state::set_xdebug_enabled(Some(target_enabled));
 

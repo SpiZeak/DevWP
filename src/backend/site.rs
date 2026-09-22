@@ -1,4 +1,4 @@
-use crate::backend::docker::{exec_in_container, ExecOptions};
+use crate::backend::docker::{exec_in_container, require_containers_running_sync, ExecOptions};
 use crate::backend::settings::{ensure_webroot_exists, get_webroot_from_settings};
 use crate::backend::utils::{
     emit_notification, ensure_state_root, home_dir, run_command, save_json, NotificationType,
@@ -774,6 +774,42 @@ fn wp_install_args(domain: &str, config: &WordPressInstallConfig) -> Vec<String>
     ]
 }
 
+/// Probe a file's existence in the php container via `php -r`. WP-CLI
+/// aborts `core download`/`config create` when the target files already
+/// exist, so re-provisioning must check first — a non-zero exit means
+/// "absent" (a valid answer), only API failures are errors.
+fn file_exists_in_php_container(work_dir: &str, relative_path: &str) -> Result<bool, String> {
+    let code = format!("exit( is_file( '{relative_path}' ) ? 0 : 1 );");
+    let output = exec_in_container(
+        PHP_CONTAINER_NAME,
+        &["php", "-r", &code],
+        &ExecOptions {
+            working_dir: Some(work_dir.to_string()),
+            env: Vec::new(),
+        },
+    )?;
+    Ok(output.success())
+}
+
+/// Error for a `wp-config.php` found in the directory above the install.
+/// WP-CLI's `config create` (like WordPress core) locates the config in the
+/// working directory *and one level up*, so a stray parent config aborts
+/// provisioning with the opaque "already exists" message — and letting
+/// WordPress load that file would silently connect the site to the wrong
+/// database.
+fn parent_config_conflict_error(domain: &str, web_root: Option<&str>) -> String {
+    let parent = match web_root {
+        Some(_) => format!("{DOCKER_SITE_ROOT_PATH}/{domain}"),
+        None => DOCKER_SITE_ROOT_PATH.to_string(),
+    };
+    format!(
+        "wp config create failed: a wp-config.php exists in {parent}, the directory \
+         above the WordPress install. WordPress would use it instead of a \
+         site-specific config and connect to the wrong database. Move it into \
+         the site directory or delete it, then retry."
+    )
+}
+
 fn install_wordpress(
     domain: &str,
     web_root: Option<&str>,
@@ -815,20 +851,40 @@ fn install_wordpress(
         }
     };
 
-    emit_notification(
-        NotificationType::Info,
-        format!("[{domain}] Downloading WordPress..."),
-    );
-    run_wp(
-        "core download",
-        &["core".to_string(), "download".to_string()],
-    )?;
+    // Each step is skipped when its output already exists, so retrying a
+    // partially-failed provision (or targeting a directory that already
+    // holds a wp-config.php) resumes instead of tripping WP-CLI's
+    // "already exists" guards.
+    if file_exists_in_php_container(&work_dir, "wp-load.php")? {
+        emit_notification(
+            NotificationType::Info,
+            format!("[{domain}] WordPress files already present, skipping download"),
+        );
+    } else {
+        emit_notification(
+            NotificationType::Info,
+            format!("[{domain}] Downloading WordPress..."),
+        );
+        run_wp(
+            "core download",
+            &["core".to_string(), "download".to_string()],
+        )?;
+    }
 
-    emit_notification(
-        NotificationType::Info,
-        format!("[{domain}] Creating wp-config.php..."),
-    );
-    run_wp("config create", &wp_config_create_argv(&db_name))?;
+    if file_exists_in_php_container(&work_dir, "wp-config.php")? {
+        emit_notification(
+            NotificationType::Info,
+            format!("[{domain}] wp-config.php already exists, skipping config create"),
+        );
+    } else if file_exists_in_php_container(&work_dir, "../wp-config.php")? {
+        return Err(parent_config_conflict_error(domain, web_root));
+    } else {
+        emit_notification(
+            NotificationType::Info,
+            format!("[{domain}] Creating wp-config.php..."),
+        );
+        run_wp("config create", &wp_config_create_argv(&db_name))?;
+    }
 
     emit_notification(
         NotificationType::Info,
@@ -867,6 +923,16 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
         validate_site_webroot(web_root)?;
     }
     validate_site_aliases(site.aliases.as_deref())?;
+
+    // Provisioning execs inside the stack (nginx reload, plus the WordPress
+    // installer in php/mariadb) — refuse before any host mutation while the
+    // required containers are down.
+    let mut required_containers: Vec<&str> = vec!["devwp_nginx"];
+    if site.wordpress.is_some() {
+        required_containers.push(PHP_CONTAINER_NAME);
+        required_containers.push(crate::backend::utils::DB_HOST);
+    }
+    require_containers_running_sync(&required_containers)?;
 
     let webroot = ensure_webroot_exists()?;
     let site_root = webroot.join(&site.domain);
@@ -952,6 +1018,10 @@ pub fn delete_site(site: Site) -> Result<(), String> {
     // Validate before any mutation — matches create_site/update_site ordering.
     validate_site_name(&site.name)?;
 
+    // The deletion ends with an nginx reload inside the container — refuse
+    // while nginx is down rather than deleting files it can no longer unload.
+    require_containers_running_sync(&["devwp_nginx"])?;
+
     let _lock = acquire_sites_lock()?;
     let mut sites = read_sites_checked()?;
     sites.retain(|existing| existing.name != site.name);
@@ -1024,6 +1094,10 @@ pub fn update_site(site: Site, data: SiteUpdateRequest) -> Result<(), String> {
         validate_site_webroot(web_root)?;
     }
     validate_site_aliases(data.aliases.as_deref())?;
+
+    // The update ends with an nginx reload inside the container — refuse
+    // while nginx is down rather than writing a config it cannot load.
+    require_containers_running_sync(&["devwp_nginx"])?;
 
     let _lock = acquire_sites_lock()?;
     let mut sites = read_sites_checked()?;
@@ -1118,6 +1192,25 @@ mod tests {
         assert_eq!(db_name_for("example.test"), "example_test");
         assert_eq!(db_name_for("my-site.test"), "my_site_test");
         assert_eq!(db_name_for("plain"), "plain");
+    }
+
+    #[test]
+    fn parent_config_conflict_error_names_webroot_without_web_root() {
+        let error = parent_config_conflict_error("example.test", None);
+        assert!(
+            error.contains("/src/www"),
+            "points at the webroot mount: {error}"
+        );
+        assert!(error.contains("wp-config.php"));
+    }
+
+    #[test]
+    fn parent_config_conflict_error_names_site_root_with_web_root() {
+        let error = parent_config_conflict_error("example.test", Some("public"));
+        assert!(
+            error.contains("/src/www/example.test"),
+            "points at the site root: {error}"
+        );
     }
 
     #[test]

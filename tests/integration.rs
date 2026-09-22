@@ -323,6 +323,51 @@ fn bollard_orchestration_down_and_up_roundtrip() {
                 .collect::<Vec<_>>()
         );
 
+        // While the stack is down, actions that exec inside it are refused
+        // with a clean error instead of a cryptic exec failure.
+        let refusal = block_on(wp_cli::run_wp_cli(WpCliRequest {
+            site: devwp::backend::site::Site {
+                name: "example.test".to_string(),
+                path: String::new(),
+                url: "https://example.test".to_string(),
+                status: devwp::backend::site::SiteStatus::Active,
+                aliases: None,
+                web_root: None,
+                multisite: None,
+            },
+            command: "--info".to_string(),
+        }))
+        .expect_err("wp-cli must be refused while the stack is down");
+        assert!(
+            refusal.contains("not running"),
+            "unexpected refusal: {refusal}"
+        );
+
+        let refusal = block_on(xdebug::set_xdebug(false))
+            .expect_err("xdebug toggle must be refused while the stack is down");
+        assert!(
+            refusal.contains("not running"),
+            "unexpected refusal: {refusal}"
+        );
+
+        let refusal = devwp::backend::site::create_site(devwp::backend::site::SiteCreateRequest {
+            domain: "refused.test".to_string(),
+            web_root: None,
+            aliases: None,
+            multisite: None,
+            wordpress: Some(devwp::backend::site::WordPressInstallConfig {
+                title: String::new(),
+                admin_user: String::new(),
+                admin_password: String::new(),
+                admin_email: String::new(),
+            }),
+        })
+        .expect_err("site create must be refused while the stack is down");
+        assert!(
+            refusal.contains("not running"),
+            "unexpected refusal: {refusal}"
+        );
+
         block_on(lifecycle::start_services());
         assert_eq!(
             state::docker_status().status,

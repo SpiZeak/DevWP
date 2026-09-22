@@ -55,6 +55,53 @@ pub(crate) async fn require_daemon(docker: &Docker) -> Result<(), String> {
         .map_err(|e| describe_daemon_error(&e))
 }
 
+/// Actionable refusal for an action attempted while the stack is down.
+fn stack_down_error(down: &[&str]) -> String {
+    format!(
+        "The DevWP services are not up: {} not running. Start the stack first — launch DevWP or run `devwp services start`.",
+        down.join(", ")
+    )
+}
+
+/// Guard for actions that exec inside the stack: verifies every named
+/// container exists and is running, refusing with an actionable message
+/// otherwise. A missing container counts as "not running" — the point is a
+/// clean refusal, not a Docker API error report.
+pub(crate) async fn require_containers_running(
+    docker: &Docker,
+    names: &[&str],
+) -> Result<(), String> {
+    require_daemon(docker).await?;
+    let mut down: Vec<&str> = Vec::new();
+    for name in names {
+        let running = match docker.inspect_container(name, None).await {
+            Ok(inspect) => inspect
+                .state
+                .and_then(|state| state.running)
+                .unwrap_or(false),
+            Err(e) if is_not_found(&e) => false,
+            Err(e) => return Err(format!("inspect `{name}`: {}", describe_daemon_error(&e))),
+        };
+        if !running {
+            down.push(name);
+        }
+    }
+    if down.is_empty() {
+        Ok(())
+    } else {
+        Err(stack_down_error(&down))
+    }
+}
+
+/// Sync variant of [`require_containers_running`] on its own runtime — safe
+/// from `spawn_blocking` bodies and plain sync code.
+pub fn require_containers_running_sync(names: &[&str]) -> Result<(), String> {
+    docker_block_on(async {
+        let docker = docker_client(STATUS_TIMEOUT)?;
+        require_containers_running(&docker, names).await
+    })?
+}
+
 /// Matches compose's `x-logging` anchor (json-file, 10 MB × 3 files).
 const LOG_DRIVER: &str = "json-file";
 
@@ -1480,6 +1527,19 @@ mod tests {
             exit_code: 1
         }
         .success());
+    }
+
+    #[test]
+    fn stack_down_error_names_containers_and_recovery() {
+        let message = stack_down_error(&["devwp_php"]);
+        assert!(message.contains("devwp_php"), "got: {message}");
+        assert!(message.contains("devwp services start"), "got: {message}");
+
+        let message = stack_down_error(&["devwp_nginx", "devwp_php"]);
+        assert!(
+            message.contains("devwp_nginx, devwp_php not running"),
+            "got: {message}"
+        );
     }
 
     #[test]

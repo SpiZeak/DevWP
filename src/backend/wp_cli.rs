@@ -1,4 +1,6 @@
-use crate::backend::docker::{exec_in_container, exec_in_container_streaming, ExecOptions};
+use crate::backend::docker::{
+    exec_in_container, exec_in_container_streaming, require_containers_running_sync, ExecOptions,
+};
 use crate::backend::site::{validate_site_name, Site};
 use crate::backend::utils::{
     ensure_state_root, load_json_or_default, save_json, DOCKER_SITE_ROOT_PATH,
@@ -181,6 +183,7 @@ pub async fn run_composer_update(site: Site) -> Result<serde_json::Value, String
     };
 
     let result = tokio::task::spawn_blocking(move || {
+        require_containers_running_sync(&[PHP_CONTAINER_NAME])?;
         let env = composer_auth
             .map(|auth| vec![format!("COMPOSER_AUTH={auth}")])
             .unwrap_or_default();
@@ -230,6 +233,9 @@ pub async fn run_wp_cli(request: WpCliRequest) -> Result<serde_json::Value, Stri
     let history_command = request.command.clone();
 
     tokio::task::spawn_blocking(move || {
+        // Refuse before recording history: a refused command never ran and
+        // must not pollute the shell-style history.
+        require_containers_running_sync(&[PHP_CONTAINER_NAME])?;
         // Record the attempt before exec: shell-style history keeps failed
         // commands too, and this one path covers both the GUI modal and
         // `devwp wp`.
@@ -281,6 +287,7 @@ pub async fn run_wp_cli_interactive(
     let history_command = request.command.clone();
 
     tokio::task::spawn_blocking(move || {
+        require_containers_running_sync(&[PHP_CONTAINER_NAME])?;
         record_history(&history_site, &history_command);
         let argv = wp_cli_argv(&cmd_parts);
         let cmd_refs: Vec<&str> = argv.iter().map(|s| s.as_str()).collect();
