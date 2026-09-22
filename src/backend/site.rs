@@ -977,7 +977,10 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
 
     // Regenerate TLS certificate in background — this can be slow with many sites.
     // The callback runs on a worker thread, so it only touches SyncSignal state;
-    // only the domain strings are moved, not the whole site list.
+    // only the domain strings are moved, not the whole site list. The nginx
+    // reload must happen inside the callback: nginx reads cert files at config
+    // load only, so reloading before mkcert finishes would keep serving the
+    // previous certificate until the next restart.
     let domains_for_cert = collect_domains(&sites);
     run_cert_regen(move || {
         if let Err(e) = regenerate_certificate(&domains_for_cert) {
@@ -991,9 +994,9 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
                 "TLS certificates regenerated for all sites",
             );
         }
+        nginx_reload();
     });
 
-    nginx_reload();
     if let Err(e) = add_hosts_entry(&site.domain, site.aliases.as_deref()) {
         emit_notification(
             NotificationType::Warning,
@@ -1028,17 +1031,6 @@ pub fn delete_site(site: Site) -> Result<(), String> {
     write_sites_unchecked(&sites)?;
     drop(_lock);
 
-    // Regenerate TLS certificate in background — worker thread, SyncSignal only.
-    let domains_for_cert = collect_domains(&sites);
-    run_cert_regen(move || {
-        if let Err(e) = regenerate_certificate(&domains_for_cert) {
-            emit_notification(
-                NotificationType::Warning,
-                format!("Certificate regeneration failed: {e}"),
-            );
-        }
-    });
-
     let webroot = get_webroot_from_settings();
     let canonical_webroot = fs::canonicalize(&webroot).unwrap_or(webroot);
     let path = if site.path.trim().is_empty() {
@@ -1067,7 +1059,20 @@ pub fn delete_site(site: Site) -> Result<(), String> {
         let _ = fs::remove_file(conf_path);
     }
 
-    nginx_reload();
+    // Regenerate TLS certificate in the background, then reload nginx from the
+    // same callback — nginx reads cert files at config load only, so the reload
+    // must not race (or precede) the regenerated certificate landing on disk.
+    let domains_for_cert = collect_domains(&sites);
+    run_cert_regen(move || {
+        if let Err(e) = regenerate_certificate(&domains_for_cert) {
+            emit_notification(
+                NotificationType::Warning,
+                format!("Certificate regeneration failed: {e}"),
+            );
+        }
+        nginx_reload();
+    });
+
     let _ = remove_hosts_entry(&site.name, site.aliases.as_deref());
 
     emit_notification(
