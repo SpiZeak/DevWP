@@ -10,6 +10,7 @@ pub fn SiteItem(
     on_composer_update: EventHandler<Rc<Site>>,
     on_open_wp_cli: EventHandler<Rc<Site>>,
     on_edit_site: EventHandler<Rc<Site>>,
+    on_export_site: EventHandler<Rc<Site>>,
     on_select_site: EventHandler<Rc<Site>>,
 ) -> Element {
     let is_provisioning = site.status == SiteStatus::Provisioning;
@@ -23,6 +24,7 @@ pub fn SiteItem(
     let site_for_composer = Rc::clone(&site);
     let site_for_wpcli = Rc::clone(&site);
     let site_for_edit = Rc::clone(&site);
+    let site_for_export = Rc::clone(&site);
 
     rsx! {
         li {
@@ -85,6 +87,17 @@ pub fn SiteItem(
                             on_composer_update.call(Rc::clone(&site_for_composer));
                         },
                         Icon { content: "\u{f03d7}", class: "text-2xl" }
+                    }
+                    button {
+                        "type": "button",
+                        class: "bg-transparent hover:bg-raised disabled:opacity-40 rounded-md size-9 text-muted hover:text-seasalt transition-colors cursor-pointer disabled:cursor-not-allowed",
+                        title: "Export Site",
+                        disabled: is_provisioning,
+                        onclick: move |ev: MouseEvent| {
+                            ev.stop_propagation();
+                            on_export_site.call(Rc::clone(&site_for_export));
+                        },
+                        Icon { content: "\u{f0203}", class: "text-2xl" }
                     }
                     button {
                         "type": "button",

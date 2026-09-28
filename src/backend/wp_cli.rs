@@ -33,6 +33,22 @@ fn wp_cli_argv(extra: &[String]) -> Vec<String> {
     argv
 }
 
+/// Parse a raw wp-cli command string into argv, tolerating (and stripping) a
+/// leading `wp` token — users used to the `wp` shell binary naturally type
+/// `wp plugin list`, which must not run as `wp wp plugin list`. Parsing first
+/// means quoted arguments containing "wp" are left alone. An empty command
+/// (or one that was only `wp`) is refused.
+fn parse_wp_command(command: &str) -> Result<Vec<String>, String> {
+    let mut parts = shell_words::split(command).map_err(|e| format!("Invalid command: {e}"))?;
+    if parts.first().map(String::as_str) == Some("wp") {
+        parts.remove(0);
+    }
+    if parts.is_empty() {
+        return Err("Empty command".to_string());
+    }
+    Ok(parts)
+}
+
 /// Whether a wp-cli command is side-effect free, so re-running it with
 /// `--debug` (to flush WP-CLI's buffered error output) can never duplicate a
 /// partial mutation. Global flags (`--url=…`, `--skip-plugins`, …) precede
@@ -223,8 +239,7 @@ pub async fn run_composer_update(site: Site) -> Result<serde_json::Value, String
 pub async fn run_wp_cli(request: WpCliRequest) -> Result<serde_json::Value, String> {
     let work_dir = container_work_dir(&request.site)?;
 
-    let cmd_parts: Vec<String> =
-        shell_words::split(&request.command).map_err(|e| format!("Invalid command: {e}"))?;
+    let cmd_parts: Vec<String> = parse_wp_command(&request.command)?;
     let opts = ExecOptions {
         working_dir: Some(work_dir.clone()),
         env: Vec::new(),
@@ -277,8 +292,7 @@ pub async fn run_wp_cli_interactive(
 ) -> Result<serde_json::Value, String> {
     let work_dir = container_work_dir(&request.site)?;
 
-    let cmd_parts: Vec<String> =
-        shell_words::split(&request.command).map_err(|e| format!("Invalid command: {e}"))?;
+    let cmd_parts: Vec<String> = parse_wp_command(&request.command)?;
     let opts = ExecOptions {
         working_dir: Some(work_dir),
         env: Vec::new(),
@@ -435,8 +449,8 @@ fn persist_history(history: &[WpCliHistoryEntry]) {
 #[cfg(test)]
 mod tests {
     use super::{
-        filter_php_noise, is_read_only_wp_command, push_history_entry, PhpNoiseStreamFilter,
-        WpCliHistoryEntry, MAX_HISTORY_ENTRIES,
+        filter_php_noise, is_read_only_wp_command, parse_wp_command, push_history_entry,
+        PhpNoiseStreamFilter, WpCliHistoryEntry, MAX_HISTORY_ENTRIES,
     };
 
     fn args(list: &[&str]) -> Vec<String> {
@@ -448,6 +462,37 @@ mod tests {
             site: site.to_string(),
             command: command.to_string(),
         }
+    }
+
+    #[test]
+    fn parse_wp_command_strips_leading_wp_token() {
+        assert_eq!(
+            parse_wp_command("wp plugin list").expect("parse"),
+            args(&["plugin", "list"])
+        );
+        // Bare commands are unaffected.
+        assert_eq!(
+            parse_wp_command("plugin list").expect("parse"),
+            args(&["plugin", "list"])
+        );
+        // Only the first token is stripped, quoted "wp" stays part of argv.
+        assert_eq!(
+            parse_wp_command("wp eval 'echo wp;'").expect("parse"),
+            args(&["eval", "echo wp;"])
+        );
+        // Flags still come first after the strip.
+        assert_eq!(
+            parse_wp_command("wp --skip-plugins core version").expect("parse"),
+            args(&["--skip-plugins", "core", "version"])
+        );
+    }
+
+    #[test]
+    fn parse_wp_command_rejects_empty_commands() {
+        assert!(parse_wp_command("").is_err());
+        assert!(parse_wp_command("   ").is_err());
+        // A command that was nothing but the prefix.
+        assert!(parse_wp_command("wp").is_err());
     }
 
     #[test]

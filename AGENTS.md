@@ -52,6 +52,7 @@ src/
 │   ├── docker.rs      Bollard (Docker Engine API) client: exec, status, restart, orchestration primitives
 │   ├── lifecycle.rs   start/stop the stack via Bollard (network/volumes/images/containers, health gates)
 │   ├── site.rs        create/edit/delete sites, nginx configs, /etc/hosts, certs
+│   ├── transfer.rs    site export/import as .tar.xz (xz preset 9e), incl. DB dump/restore
 │   ├── settings.rs    settings.json CRUD
 │   ├── wp_cli.rs      WP-CLI execution inside the php container
 │   ├── xdebug.rs      toggle xdebug on/off
@@ -62,6 +63,8 @@ src/
 │   ├── site_list / site_item / site_info / create_site / edit_site
 │   ├── services / settings / versions / build_log / composer
 │   ├── wp_cli / xdebug_switch / notifications / brand_logo / title_bar
+│   ├── transfer.rs    export/import task starters + in-flight transfer modal;
+│                     app.rs registers window-wide drag & drop → import
 └── (tests/integration.rs at repo root: backend tests vs the real compose stack)
 ```
 

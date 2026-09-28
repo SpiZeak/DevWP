@@ -1,4 +1,5 @@
 use crate::backend::lifecycle;
+use crate::components::transfer::{is_site_archive, start_site_import, TransferModal};
 use crate::components::{Services, SettingsModal, SiteList, TitleBar, Versions};
 use crate::state;
 use dioxus::desktop::{
@@ -6,10 +7,33 @@ use dioxus::desktop::{
     use_asset_handler, use_window, use_wry_event_handler, window as desktop_window,
     WindowCloseBehaviour,
 };
+use dioxus::html::HasFileData;
 use dioxus::prelude::*;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static SHUTDOWN_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+/// Import the first `.tar.xz` site archive among the dropped files; anything
+/// else dropped is refused with a hint. On desktop the synthetic drag event
+/// carries the real file paths.
+fn handle_file_drop(ev: DragEvent) {
+    ev.prevent_default();
+    let archives: Vec<PathBuf> = ev
+        .files()
+        .iter()
+        .map(|file| file.path())
+        .filter(|path| is_site_archive(path))
+        .collect();
+    if let Some(archive) = archives.first() {
+        start_site_import(archive.clone());
+    } else {
+        state::push_notification(
+            crate::backend::utils::NotificationType::Warning,
+            "Drop a DevWP site archive (.tar.xz) on the window to import it",
+        );
+    }
+}
 
 /// Root component.
 pub fn app() -> Element {
@@ -81,71 +105,82 @@ fn AppRoot() -> Element {
     let versions_is_open = *versions_open.read();
 
     rsx! {
-        TitleBar {}
-        ErrorBoundary {
-            handle_error: move |errors: ErrorContext| {
-                rsx! {
-                    div { class: "flex flex-col justify-center items-center bg-warm-charcoal p-8 h-screen text-seasalt select-none",
-                        span { class: "text-crimson text-3xl", "⚠" }
-                        h1 { class: "mt-4 mb-2 font-semibold text-seasalt text-lg", "Something went wrong" }
-                        p { class: "mb-1 max-w-md text-muted text-sm text-center",
-                            "DevWP encountered an unexpected error."
-                        }
-                        button {
-                            "type": "button",
-                            class: "mt-2 bg-accent hover:bg-accent-hover px-4 py-2 rounded-md font-medium text-on-accent transition-colors cursor-pointer",
-                            onclick: move |_| errors.clear_errors(),
-                            "Reload App"
+        // Whole-window drag & drop target: dropping a .tar.xz site archive
+        // anywhere starts an import. `ondragover` must prevent default or the
+        // webview would navigate to the dropped file instead of dropping.
+        div {
+            class: "flex flex-col h-screen w-full",
+            ondragover: move |ev: DragEvent| ev.prevent_default(),
+            ondrop: handle_file_drop,
+            TitleBar {}
+            ErrorBoundary {
+                handle_error: move |errors: ErrorContext| {
+                    rsx! {
+                        div { class: "flex flex-col justify-center items-center bg-warm-charcoal p-8 h-screen text-seasalt select-none",
+                            span { class: "text-crimson text-3xl", "⚠" }
+                            h1 { class: "mt-4 mb-2 font-semibold text-seasalt text-lg", "Something went wrong" }
+                            p { class: "mb-1 max-w-md text-muted text-sm text-center",
+                                "DevWP encountered an unexpected error."
+                            }
+                            button {
+                                "type": "button",
+                                class: "mt-2 bg-accent hover:bg-accent-hover px-4 py-2 rounded-md font-medium text-on-accent transition-colors cursor-pointer",
+                                onclick: move |_| errors.clear_errors(),
+                                "Reload App"
+                            }
                         }
                     }
-                }
-            },
-            h1 { class: "sr-only", "DevWP" }
-            div { class: "grid grid-cols-[40%_60%] p-6 w-full",
-                Services {
-                    on_open_settings: move |_| {
-                        *settings_open.write() = true;
-                    },
-                    on_open_versions: move |_| {
-                        *versions_open.write() = true;
-                    },
-                }
-                SiteList {}
-            }
-            if versions_is_open {
-                Versions {
-                    is_open: true,
-                    on_close: move |_| {
-                        *versions_open.write() = false;
-                    },
-                }
-            }
-            // Mounted per-open so the settings form loads fresh each time.
-            if settings_is_open {
-                SettingsModal {
-                    is_open: true,
-                    on_close: move |_| {
-                        *settings_open.write() = false;
-                    },
-                }
-            }
-            footer { class: "mt-auto p-6 text-seasalt text-sm text-center",
-                p { class: "inline-block opacity-25 hover:opacity-100 m-0 font-medium transition-opacity",
-                    "Crafted by "
-                    a {
-                        href: "https://github.com/SpiZeak",
-                        target: "_blank",
-                        rel: "noopener noreferrer",
-                        class: "group inline-flex items-center gap-1 hover:text-pumpkin transition-colors",
-                        onclick: move |ev| {
-                            ev.prevent_default();
-                            let _ = crate::backend::system::open_external("https://github.com/SpiZeak");
+                },
+                h1 { class: "sr-only", "DevWP" }
+                div { class: "grid grid-cols-[40%_60%] p-6 w-full",
+                    Services {
+                        on_open_settings: move |_| {
+                            *settings_open.write() = true;
                         },
-                        "SpiZeak"
-                        span { class: "opacity-0 group-hover:opacity-100 transition-opacity", "↗" }
+                        on_open_versions: move |_| {
+                            *versions_open.write() = true;
+                        },
+                    }
+                    SiteList {}
+                }
+                if versions_is_open {
+                    Versions {
+                        is_open: true,
+                        on_close: move |_| {
+                            *versions_open.write() = false;
+                        },
+                    }
+                }
+                // Mounted per-open so the settings form loads fresh each time.
+                if settings_is_open {
+                    SettingsModal {
+                        is_open: true,
+                        on_close: move |_| {
+                            *settings_open.write() = false;
+                        },
+                    }
+                }
+                footer { class: "mt-auto p-6 text-seasalt text-sm text-center",
+                    p { class: "inline-block opacity-25 hover:opacity-100 m-0 font-medium transition-opacity",
+                        "Crafted by "
+                        a {
+                            href: "https://github.com/SpiZeak",
+                            target: "_blank",
+                            rel: "noopener noreferrer",
+                            class: "group inline-flex items-center gap-1 hover:text-pumpkin transition-colors",
+                            onclick: move |ev| {
+                                ev.prevent_default();
+                                let _ = crate::backend::system::open_external("https://github.com/SpiZeak");
+                            },
+                            "SpiZeak"
+                            span { class: "opacity-0 group-hover:opacity-100 transition-opacity", "↗" }
+                        }
                     }
                 }
             }
+            // Single instance: covers the site-list toolbar flows and drag
+            // & drop imports; renders nothing while no transfer runs.
+            TransferModal {}
         }
     }
 }

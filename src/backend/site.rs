@@ -236,7 +236,7 @@ fn parse_domains(domain: &str, aliases: Option<&str>) -> Result<Vec<String>, Str
 
 /// Collect every site name and alias across `sites` (same order, consecutive
 /// duplicates removed) — the input `regenerate_certificate` needs.
-fn collect_domains(sites: &[Site]) -> Vec<String> {
+pub(crate) fn collect_domains(sites: &[Site]) -> Vec<String> {
     let mut domains: Vec<String> = Vec::new();
     for s in sites {
         domains.push(s.name.clone());
@@ -252,7 +252,7 @@ fn collect_domains(sites: &[Site]) -> Vec<String> {
     domains
 }
 
-fn regenerate_certificate(domains: &[String]) -> Result<(), String> {
+pub(crate) fn regenerate_certificate(domains: &[String]) -> Result<(), String> {
     let cert_dir = crate::backend::utils::project_root().join("config/certs");
 
     if domains.is_empty() {
@@ -327,7 +327,7 @@ pub fn find_mkcert() -> Result<String, String> {
 /// config must never be applied (and would fail the running nginx otherwise).
 /// A transport failure of the check itself also skips the reload — we cannot
 /// know the config is safe to apply.
-fn nginx_reload() {
+pub(crate) fn nginx_reload() {
     let test = exec_in_container("devwp_nginx", &["nginx", "-t"], &ExecOptions::default());
     match test {
         Ok(output) if output.success() => {}
@@ -361,7 +361,7 @@ fn nginx_reload() {
     }
 }
 
-fn generate_nginx_config(
+pub(crate) fn generate_nginx_config(
     domain: &str,
     aliases: Option<&str>,
     web_root: Option<&str>,
@@ -446,7 +446,7 @@ fn generate_nginx_config(
     Ok(())
 }
 
-fn add_hosts_entry(domain: &str, aliases: Option<&str>) -> Result<(), String> {
+pub(crate) fn add_hosts_entry(domain: &str, aliases: Option<&str>) -> Result<(), String> {
     let domains = parse_domains(domain, aliases)?;
     let hosts_path = Path::new(HOSTS_FILE_PATH);
     let current = fs::read_to_string(hosts_path).unwrap_or_default();
@@ -742,7 +742,7 @@ fn wp_multisite_convert_argv(multisite: &MultisiteConfig) -> Vec<String> {
 /// `validate_site_name` restricts the charset of everything that flows into
 /// `db_name` (alphanumerics plus `.`, `-`, `_`, and the `.`/`-` → `_` mapping
 /// happens before this point).
-fn create_database(db_name: &str) -> Result<(), String> {
+pub(crate) fn create_database(db_name: &str) -> Result<(), String> {
     let sql = format!("CREATE DATABASE IF NOT EXISTS `{db_name}`");
     let user_arg = format!("-u{}", crate::backend::utils::DB_ROOT_USER);
     let pass_arg = format!("-p{}", crate::backend::utils::DB_ROOT_PASSWORD);
@@ -967,7 +967,7 @@ fn install_wordpress(
 /// Regenerate the shared TLS certificate for `sites`. In the GUI this runs
 /// on a worker thread (mkcert can be slow with many sites); in headless
 /// (CLI) mode it must run inline so the process cannot exit mid-run.
-fn run_cert_regen<F>(job: F)
+pub(crate) fn run_cert_regen<F>(job: F)
 where
     F: FnOnce() + Send + 'static,
 {
@@ -976,6 +976,20 @@ where
     } else {
         std::thread::spawn(job);
     }
+}
+
+/// Insert or update a site entry in sites.json under the sites lock. Used by
+/// [`crate::backend::transfer`] after import restored the site on disk.
+pub fn upsert_site(site: Site) -> Result<(), String> {
+    let _lock = acquire_sites_lock()?;
+    let mut sites = read_sites_checked()?;
+    update_or_insert_site(&mut sites, site);
+    write_sites_unchecked(&sites)
+}
+
+/// Whether a site with this name is already registered in sites.json.
+pub fn site_entry_exists(name: &str) -> bool {
+    get_sites().iter().any(|s| s.name == name)
 }
 
 pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {

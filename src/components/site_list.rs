@@ -1,6 +1,7 @@
 use crate::backend::site::{self, Site, SiteCreateRequest, SiteStatus, SiteUpdateRequest};
 use crate::backend::system;
 use crate::backend::utils::NotificationType;
+use crate::components::transfer::{is_site_archive, start_site_export, start_site_import};
 use crate::components::ui::{Icon, Spinner};
 use crate::components::{
     ComposerModal, CreateSiteModal, EditSiteData, EditSiteModal, SiteInfo, SiteItem, WpCliModal,
@@ -123,6 +124,35 @@ pub fn SiteList() -> Element {
         });
     };
 
+    let handle_export_site = EventHandler::new(move |s: Rc<Site>| {
+        // rfd must run on the UI thread; the export itself goes to a
+        // blocking task with the chosen destination.
+        let site = (*s).clone();
+        let dest = rfd::FileDialog::new()
+            .set_title("Export Site")
+            .set_file_name(format!("{}.tar.xz", site.name))
+            .add_filter("DevWP site archive", &["tar.xz"])
+            .save_file();
+        if let Some(dest) = dest {
+            start_site_export(site, dest);
+        }
+    });
+
+    let handle_import_site = move || {
+        let archive = rfd::FileDialog::new()
+            .set_title("Import Site")
+            .add_filter("DevWP site archive", &["tar.xz"])
+            .pick_file();
+        match archive {
+            Some(path) if is_site_archive(&path) => start_site_import(path),
+            Some(_) => state::push_notification(
+                NotificationType::Error,
+                "Not a DevWP site archive (expected a .tar.xz file)",
+            ),
+            None => {}
+        }
+    };
+
     rsx! {
         div { class: "w-full",
             div { class: "flex justify-between items-center mb-6 w-full",
@@ -138,14 +168,23 @@ pub fn SiteList() -> Element {
                         }
                     }
                 }
-                button {
-                    class: "flex justify-center items-center bg-accent hover:bg-accent-hover disabled:opacity-40 rounded-md size-9 text-on-accent transition-colors cursor-pointer disabled:cursor-not-allowed",
-                    title: "Create a new site",
-                    "type": "button",
-                    onclick: move |_| {
-                        *create_open.write() = true;
-                    },
-                    Icon { content: "\u{f067}", class: "text-lg" }
+                div { class: "flex items-center gap-2",
+                    button {
+                        class: "flex justify-center items-center bg-transparent hover:bg-raised border border-border rounded-md size-9 text-muted hover:text-seasalt transition-colors cursor-pointer",
+                        title: "Import a site from a .tar.xz archive (or drop one on the window)",
+                        "type": "button",
+                        onclick: move |_| handle_import_site(),
+                        Icon { content: "\u{f0202}", class: "text-lg" }
+                    }
+                    button {
+                        class: "flex justify-center items-center bg-accent hover:bg-accent-hover disabled:opacity-40 rounded-md size-9 text-on-accent transition-colors cursor-pointer disabled:cursor-not-allowed",
+                        title: "Create a new site",
+                        "type": "button",
+                        onclick: move |_| {
+                            *create_open.write() = true;
+                        },
+                        Icon { content: "\u{f067}", class: "text-lg" }
+                    }
                 }
             }
             if let Some(site) = selected {
@@ -166,6 +205,7 @@ pub fn SiteList() -> Element {
                     on_edit_site: move |s: Rc<Site>| {
                         *edit_site_site.write() = Some(s);
                     },
+                    on_export_site: handle_export_site.clone(),
                 }
             } else {
                 { rsx! {
@@ -251,6 +291,7 @@ pub fn SiteList() -> Element {
                                             on_edit_site: move |s: Rc<Site>| {
                                                 *edit_site_site.write() = Some(s);
                                             },
+                                            on_export_site: handle_export_site.clone(),
                                         }
                                     }
                                 }

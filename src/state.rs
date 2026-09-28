@@ -7,6 +7,7 @@
 
 use crate::backend::docker::{Container, DockerStatus, DockerStatusPayload, ServiceProgress};
 use crate::backend::site::Site;
+use crate::backend::transfer::SiteTransferJob;
 use crate::backend::utils::{NotificationPayload, NotificationType};
 use crate::backend::wp_cli::WpCliHistoryEntry;
 use dioxus::prelude::*;
@@ -86,6 +87,9 @@ global_value!(
     false
 );
 sync_state!(sites_signal, Vec<Site>, Vec::new);
+// In-flight site export/import; `None` when idle. Written by the blocking
+// transfer workers, rendered as a modal.
+sync_state!(site_transfer_signal, Option<SiteTransferJob>, || None);
 // WP-CLI command history (oldest → newest); persistence is owned by the
 // wp_cli backend, which refreshes this signal after every disk write.
 sync_state!(wp_cli_history_signal, Vec<WpCliHistoryEntry>, Vec::new);
@@ -117,6 +121,7 @@ pub fn init_globals() {
     let _ = xdebug_enabled_signal();
     let _ = xdebug_toggling_signal();
     let _ = sites_signal();
+    let _ = site_transfer_signal();
     let _ = sites_loading_signal();
     let _ = wp_cli_history_signal();
     let _ = shutdown_done_signal();
@@ -310,6 +315,27 @@ pub fn sites() -> ReadableRef<'static, SyncSignal<Vec<Site>>, Vec<Site>> {
 pub fn set_sites(sites: Vec<Site>) {
     let mut sig = *sites_signal();
     *sig.write() = sites;
+}
+
+// ── Site export/import ────────────────────────────────────────
+
+pub fn site_transfer(
+) -> ReadableRef<'static, SyncSignal<Option<SiteTransferJob>>, Option<SiteTransferJob>> {
+    site_transfer_signal().read()
+}
+
+pub fn set_site_transfer(job: Option<SiteTransferJob>) {
+    let mut sig = *site_transfer_signal();
+    *sig.write() = job;
+}
+
+/// Update the progress message when a transfer is running; a no-op when idle.
+pub fn update_site_transfer_message(message: impl Into<String>) {
+    let mut sig = *site_transfer_signal();
+    let mut job = sig.write();
+    if let Some(job) = job.as_mut() {
+        job.message = message.into();
+    }
 }
 
 // ── WP-CLI history ────────────────────────────────────────────

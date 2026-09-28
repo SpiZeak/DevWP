@@ -31,6 +31,8 @@ shell-words = "1"
 tar = "0.4"
 tokio = { version = "1", features = ["full", "rt"] }
 tracing = "0.1"
+# "static" vendors liblzma, so no system liblzma-dev is required to build
+xz2 = { version = "0.1", features = ["static"] }
 
 # cargo-packager (see https://docs.rs/cargo-packager/latest/cargo_packager/config/struct.Config.html)
 # Artifact naming (binary name "devwp", product name "DevWP"):

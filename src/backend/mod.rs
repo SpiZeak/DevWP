@@ -4,6 +4,7 @@ pub mod lifecycle;
 pub mod settings;
 pub mod site;
 pub mod system;
+pub mod transfer;
 pub mod utils;
 pub mod wp_cli;
 pub mod xdebug;

@@ -361,6 +361,97 @@ pub fn exec_in_container(
     })?
 }
 
+/// Run a command inside a container while streaming `input` through the
+/// exec's stdin (`docker exec -i`), capturing demuxed stdout/stderr and the
+/// exit code. Used to restore SQL dumps without temp files or bind mounts.
+pub fn exec_in_container_with_stdin(
+    container: &str,
+    cmd: &[&str],
+    opts: &ExecOptions,
+    input: &[u8],
+) -> Result<ExecOutput, String> {
+    docker_block_on(async {
+        let docker = docker_client(EXEC_TIMEOUT)?;
+        exec_in_container_with_stdin_async(&docker, container, cmd, opts, input).await
+    })?
+}
+
+async fn exec_in_container_with_stdin_async(
+    docker: &Docker,
+    container: &str,
+    cmd: &[&str],
+    opts: &ExecOptions,
+    stdin_bytes: &[u8],
+) -> Result<ExecOutput, String> {
+    use tokio::io::AsyncWriteExt;
+
+    let exec = docker
+        .create_exec(
+            container,
+            CreateExecOptions::<String> {
+                cmd: Some(cmd.iter().map(|s| (*s).to_string()).collect()),
+                attach_stdin: Some(true),
+                attach_stdout: Some(true),
+                attach_stderr: Some(true),
+                working_dir: opts.working_dir.clone(),
+                env: (!opts.env.is_empty()).then(|| opts.env.clone()),
+                ..Default::default()
+            },
+        )
+        .await
+        .map_err(|e| format!("exec in `{container}`: {}", describe_daemon_error(&e)))?;
+
+    let mut stdout = String::new();
+    let mut stderr = String::new();
+    match docker
+        .start_exec(&exec.id, None)
+        .await
+        .map_err(|e| format!("start exec in `{container}`: {e}"))?
+    {
+        StartExecResults::Attached {
+            mut output,
+            mut input,
+        } => {
+            {
+                let mut writer = input.as_mut();
+                writer
+                    .write_all(stdin_bytes)
+                    .await
+                    .map_err(|e| format!("write stdin in `{container}`: {e}"))?;
+                writer
+                    .flush()
+                    .await
+                    .map_err(|e| format!("flush stdin in `{container}`: {e}"))?;
+            }
+            // Dropping the writer closes the stdin half so the process
+            // sees EOF and can finish.
+            drop(input);
+            while let Some(chunk) = output.next().await {
+                match chunk.map_err(|e| format!("exec stream in `{container}`: {e}"))? {
+                    LogOutput::StdOut { message } => {
+                        stdout.push_str(&String::from_utf8_lossy(&message));
+                    }
+                    LogOutput::StdErr { message } => {
+                        stderr.push_str(&String::from_utf8_lossy(&message));
+                    }
+                    LogOutput::Console { message } => {
+                        stdout.push_str(&String::from_utf8_lossy(&message));
+                    }
+                    LogOutput::StdIn { .. } => {}
+                }
+            }
+        }
+        StartExecResults::Detached => {}
+    }
+
+    let exit_code = wait_for_exit_code(docker, &exec.id, container).await?;
+    Ok(ExecOutput {
+        stdout,
+        stderr,
+        exit_code,
+    })
+}
+
 pub(crate) async fn exec_in_container_async(
     docker: &Docker,
     container: &str,

@@ -13,10 +13,11 @@ use crate::backend::site::{
     SiteUpdateRequest, WordPressInstallConfig,
 };
 use crate::backend::utils::{NotificationType, OperationResult};
-use crate::backend::{docker, lifecycle, settings, site, system, utils, wp_cli, xdebug};
+use crate::backend::{docker, lifecycle, settings, site, system, transfer, utils, wp_cli, xdebug};
 use crate::state;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::io::{self, Write};
+use std::path::PathBuf;
 
 /// Marker width for the doctor report label column.
 const DOCTOR_LABEL_WIDTH: usize = 24;
@@ -150,6 +151,20 @@ pub enum SiteCommand {
     Create(SiteCreateArgs),
     /// Change a site's aliases or web root (regenerates cert + nginx config)
     Update(SiteUpdateArgs),
+    /// Export a site to a .tar.xz archive (webroot files + database dump)
+    #[command(
+        after_help = "The archive is compressed with xz preset 9e (slowest, best compression).\n\
+        Requires the MariaDB container to be running for the database dump.\n\n\
+        Examples:\n  \
+        devwp site export shop\n  \
+        devwp site export shop.test /backups/shop.tar.xz"
+    )]
+    Export(SiteExportArgs),
+    /// Import a site from a .tar.xz archive created by `site export`
+    #[command(
+        after_help = "Restores the site's files, database and configuration. Refuses when a\nsite with the same name already exists. Same command the GUI runs when you\ndrop an archive on the window."
+    )]
+    Import(SiteImportArgs),
     /// Delete a site: files, nginx config, sites.json entry and hosts entries
     #[command(
         after_help = "The site directory under the webroot is removed. The site's MariaDB\ndatabase is kept (same behaviour as the GUI)."
@@ -212,6 +227,23 @@ pub struct SiteDeleteArgs {
     /// Do not ask for confirmation
     #[arg(short, long)]
     pub yes: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct SiteExportArgs {
+    /// Site domain, as shown by `devwp site list`
+    #[arg(value_name = "DOMAIN")]
+    pub domain: String,
+    /// Output archive path (default: ./<domain>.tar.xz)
+    #[arg(value_name = "PATH")]
+    pub output: Option<PathBuf>,
+}
+
+#[derive(Args, Debug)]
+pub struct SiteImportArgs {
+    /// Archive created by `devwp site export`
+    #[arg(value_name = "PATH")]
+    pub path: PathBuf,
 }
 
 #[derive(Subcommand, Debug)]
@@ -513,6 +545,8 @@ fn cmd_site(cmd: SiteCommand) -> Result<(), String> {
         SiteCommand::Show { domain, json } => cmd_site_show(domain, json),
         SiteCommand::Create(args) => cmd_site_create(args),
         SiteCommand::Update(args) => cmd_site_update(args),
+        SiteCommand::Export(args) => cmd_site_export(args),
+        SiteCommand::Import(args) => cmd_site_import(args),
         SiteCommand::Delete(args) => cmd_site_delete(args),
     }
 }
@@ -684,6 +718,28 @@ fn cmd_site_update(args: SiteUpdateArgs) -> Result<(), String> {
         },
     )?;
     outln("Site updated.");
+    Ok(())
+}
+
+fn cmd_site_export(args: SiteExportArgs) -> Result<(), String> {
+    let site = resolve_site(&args.domain)?;
+    let dest = args
+        .output
+        .unwrap_or_else(|| PathBuf::from(format!("{}.tar.xz", site.name)));
+    outln(format!(
+        "Exporting '{}' to {} (xz preset 9e — slowest compression, best ratio)…",
+        site.name,
+        dest.display()
+    ));
+    transfer::export_site(site, dest, &|msg: &str| outln(msg))?;
+    outln("Site exported.");
+    Ok(())
+}
+
+fn cmd_site_import(args: SiteImportArgs) -> Result<(), String> {
+    outln(format!("Importing site from {}…", args.path.display()));
+    let imported = transfer::import_site(&args.path, &|msg: &str| outln(msg))?;
+    outln(format!("Site imported: https://{}", imported.name));
     Ok(())
 }
 
