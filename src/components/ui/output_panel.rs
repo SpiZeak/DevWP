@@ -6,18 +6,19 @@ use dioxus::prelude::*;
 /// stderr, amber caret while running. Takes signal handles (not strings) so
 /// the auto-scroll effect stays reactive to streamed writes — plain `Signal`
 /// for UI-owned state, `SyncSignal` for state streamed from background
-/// threads.
+/// threads, `Memo` for values derived from either.
 #[component]
-pub fn OutputPanel<O, E>(
+pub fn OutputPanel<O, E, L>(
     id: String,
     output: O,
     error: E,
-    loading: Signal<bool>,
+    loading: L,
     max_h_class: Option<String>,
 ) -> Element
 where
     O: Readable<Target = String> + PartialEq + Copy + 'static,
     E: Readable<Target = String> + PartialEq + Copy + 'static,
+    L: Readable<Target = bool> + PartialEq + Copy + 'static,
 {
     let scroll_id = id.clone();
     use_effect(move || {

@@ -3,11 +3,12 @@ use crate::backend::docker::{
 };
 use crate::backend::site::{validate_site_name, Site};
 use crate::backend::utils::{
-    ensure_state_root, load_json_or_default, save_json, DOCKER_SITE_ROOT_PATH,
+    ensure_state_root, load_json_or_default, save_json, NotificationType, DOCKER_SITE_ROOT_PATH,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 pub const WP_CLI_ERROR_REPORTING: &str = "error_reporting=E_ALL & ~E_DEPRECATED & ~E_WARNING";
@@ -372,6 +373,261 @@ pub async fn run_wp_cli_interactive(
     .map_err(|e| format!("Task join error: {e}"))?
 }
 
+// ── Tracked (backgroundable) runs ─────────────────────────────
+
+/// Finished runs retained in the in-memory registry (oldest dropped first).
+pub const MAX_WP_CLI_JOBS: usize = 20;
+
+/// One WP-CLI run tracked process-wide so it can keep streaming after its
+/// modal closes ("send to background"). In-memory only: quitting the app
+/// abandons the container-side exec, exactly like the old modal-bound runs.
+#[derive(Debug, Clone, PartialEq)]
+pub struct WpCliJob {
+    pub id: u64,
+    pub site: String,
+    pub command: String,
+    /// stdout streamed so far (warning/deprecation-filtered); overwritten
+    /// with the definitive text when the run finishes.
+    pub output: String,
+    /// stderr streamed so far; overwritten with the definitive text on
+    /// finish (cancellation notice, extracted error, …).
+    pub error: String,
+    pub running: bool,
+    /// Cancellation requested but the exec not confirmed dead yet.
+    pub cancelling: bool,
+    /// The user left the run's modal (explicit "send to background" or any
+    /// close while running); completion is then reported as a notification
+    /// instead of only in the output panel.
+    pub backgrounded: bool,
+    /// Meaningful once `running` is false.
+    pub success: bool,
+    /// The run was stopped via cancellation, never a success.
+    pub cancelled: bool,
+}
+
+static WP_CLI_JOB_SEQ: AtomicU64 = AtomicU64::new(1);
+
+/// Cancel flags per tracked job, reachable after the owning modal is gone.
+static JOB_CANCELS: std::sync::LazyLock<Mutex<HashMap<u64, Arc<AtomicBool>>>> =
+    std::sync::LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// A registered job's identity plus its cancel flag for [`run_wp_cli_job`].
+#[derive(Debug)]
+pub struct WpCliJobHandle {
+    pub id: u64,
+    pub cancel: Arc<AtomicBool>,
+}
+
+/// Register a tracked WP-CLI run without starting it: validates the request
+/// synchronously (so bad input never enters the registry or the command
+/// history) and creates the job entry. Split from [`run_wp_cli_job`] so the
+/// UI can spawn the future on its own runtime.
+pub fn start_wp_cli_job(request: &WpCliRequest) -> Result<WpCliJobHandle, String> {
+    container_work_dir(&request.site)?;
+    parse_wp_command(&request.command)?;
+
+    // Bound concurrent runs: a registry full of running jobs has nothing
+    // safe to drop, so refuse instead of orphaning a run's display.
+    let running = crate::state::wp_cli_jobs()
+        .iter()
+        .filter(|job| job.running)
+        .count();
+    if running >= MAX_WP_CLI_JOBS {
+        return Err(format!(
+            "Too many WP-CLI runs are in progress ({MAX_WP_CLI_JOBS}); wait for one to finish or clear finished runs."
+        ));
+    }
+
+    let id = WP_CLI_JOB_SEQ.fetch_add(1, Ordering::Relaxed);
+    let cancel = Arc::new(AtomicBool::new(false));
+    JOB_CANCELS
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .insert(id, Arc::clone(&cancel));
+    crate::state::insert_wp_cli_job(WpCliJob {
+        id,
+        site: request.site.name.clone(),
+        command: request.command.clone(),
+        output: String::new(),
+        error: String::new(),
+        running: true,
+        cancelling: false,
+        backgrounded: false,
+        success: false,
+        cancelled: false,
+    });
+    Ok(WpCliJobHandle { id, cancel })
+}
+
+/// Run a registered job to completion: stream demuxed output into the
+/// registry entry, then finalize it (definitive output, status, and a
+/// completion notification when the job was backgrounded). Spawn this after
+/// [`start_wp_cli_job`].
+pub async fn run_wp_cli_job(id: u64, request: WpCliRequest, cancel: Arc<AtomicBool>) {
+    let on_output = move |text: &str, is_stderr: bool| {
+        crate::state::update_wp_cli_job(id, |job| {
+            if is_stderr {
+                append_job_text(&mut job.error, text);
+            } else {
+                append_job_text(&mut job.output, text);
+            }
+        });
+    };
+    let result = run_wp_cli_interactive(request, cancel, on_output).await;
+    finish_wp_cli_job(id, result);
+}
+
+/// Finalize a tracked job from a finished exec. Public for tests.
+pub fn finish_wp_cli_job(id: u64, result: Result<serde_json::Value, String>) {
+    let (success, cancelled, output, error) = job_outcome(&result);
+    let mut backgrounded = false;
+    crate::state::update_wp_cli_job(id, |job| {
+        backgrounded = job.backgrounded;
+        job.running = false;
+        job.cancelling = false;
+        job.success = success;
+        job.cancelled = cancelled;
+        job.output = clamp_job_text(output);
+        job.error = clamp_job_text(error);
+    });
+    JOB_CANCELS
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .remove(&id);
+
+    if backgrounded {
+        // The entry may be gone (cleared, dropped by the cap) — nothing to
+        // report in that case.
+        if let Some(job) = crate::state::wp_cli_jobs()
+            .iter()
+            .find(|job| job.id == id)
+            .cloned()
+        {
+            push_job_notification(&job);
+        }
+    }
+}
+
+/// Pure core of [`finish_wp_cli_job`]'s result handling: `(success,
+/// cancelled, stdout, stderr)`. A cancelled exec is never a success.
+fn job_outcome(result: &Result<serde_json::Value, String>) -> (bool, bool, String, String) {
+    match result {
+        Ok(value) => {
+            let field = |key: &str| {
+                value
+                    .get(key)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string()
+            };
+            let cancelled = value.get("cancelled").and_then(|v| v.as_bool()) == Some(true);
+            let success =
+                !cancelled && value.get("success").and_then(|v| v.as_bool()) == Some(true);
+            (success, cancelled, field("output"), field("error"))
+        }
+        Err(e) => (false, false, String::new(), e.clone()),
+    }
+}
+
+/// Keep notification lines scannable: long commands (search-replace with
+/// long arguments, eval snippets) are cut at 60 chars.
+fn short_command(command: &str) -> std::borrow::Cow<'_, str> {
+    if command.chars().count() <= 60 {
+        std::borrow::Cow::Borrowed(command)
+    } else {
+        let cut: String = command.chars().take(60).collect();
+        std::borrow::Cow::Owned(format!("{cut}…"))
+    }
+}
+
+/// Completion line for a finished job, styled like the transfer
+/// notifications. Only called for backgrounded jobs.
+fn push_job_notification(job: &WpCliJob) {
+    let command = short_command(&job.command);
+    if job.cancelled {
+        crate::state::push_notification(
+            NotificationType::Warning,
+            format!("WP-CLI `{command}` on {} was cancelled", job.site),
+        );
+    } else if job.success {
+        crate::state::push_notification(
+            NotificationType::Success,
+            format!("WP-CLI `{command}` on {} finished", job.site),
+        );
+    } else {
+        crate::state::push_notification(
+            NotificationType::Error,
+            format!("WP-CLI `{command}` on {} failed", job.site),
+        );
+    }
+}
+
+/// Request cancellation of a tracked job (TERM → KILL in the container). A
+/// no-op for unknown or already finished jobs.
+pub fn cancel_wp_cli_job(id: u64) {
+    let flag = JOB_CANCELS
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .get(&id)
+        .cloned();
+    if let Some(flag) = flag {
+        flag.store(true, Ordering::Relaxed);
+        crate::state::update_wp_cli_job(id, |job| {
+            if job.running {
+                job.cancelling = true;
+            }
+        });
+    }
+}
+
+/// Mark every running job of `site` as backgrounded: the modal is going
+/// away while they run, so completion must be reported as a notification
+/// instead of only in the output panel.
+pub fn background_running_wp_cli_jobs(site: &str) {
+    crate::state::update_wp_cli_jobs(
+        |job| job.site == site && job.running,
+        |job| job.backgrounded = true,
+    );
+}
+
+/// Streamed/final text kept per job field. Larger outputs are truncated
+/// (head kept, marker appended) — the registry is a viewer, not a log
+/// store, and uncapped multi-megabyte outputs would sit in memory for the
+/// app's lifetime.
+pub const MAX_JOB_TEXT_CHARS: usize = 256 * 1024;
+
+/// Clamp `text` to [`MAX_JOB_TEXT_CHARS`], keeping the head and appending a
+/// marker. Cuts on a char boundary.
+fn clamp_job_text(text: String) -> String {
+    if text.len() <= MAX_JOB_TEXT_CHARS {
+        return text;
+    }
+    let mut cut = MAX_JOB_TEXT_CHARS;
+    while !text.is_char_boundary(cut) {
+        cut -= 1;
+    }
+    let mut clamped = String::with_capacity(cut + 48);
+    clamped.push_str(&text[..cut]);
+    clamped.push_str("\n… truncated (output exceeded 256 KiB) …\n");
+    clamped
+}
+
+/// Append streamed `text` to a job field, enforcing the cap incrementally
+/// so per-chunk cost stays bounded. No-op once capped.
+fn append_job_text(target: &mut String, text: &str) {
+    if target.len() >= MAX_JOB_TEXT_CHARS {
+        return;
+    }
+    let mut owned = std::mem::take(target);
+    owned.push_str(text);
+    *target = clamp_job_text(owned);
+}
+
+/// Forget a site's finished jobs; running ones stay until they complete.
+pub fn clear_finished_wp_cli_jobs(site: &str) {
+    crate::state::retain_wp_cli_jobs(|job| job.site != site || job.running);
+}
+
 // ── Command history ───────────────────────────────────────────
 
 /// Number of commands retained in the history file (oldest dropped first).
@@ -449,8 +705,9 @@ fn persist_history(history: &[WpCliHistoryEntry]) {
 #[cfg(test)]
 mod tests {
     use super::{
-        filter_php_noise, is_read_only_wp_command, parse_wp_command, push_history_entry,
-        PhpNoiseStreamFilter, WpCliHistoryEntry, MAX_HISTORY_ENTRIES,
+        append_job_text, clamp_job_text, filter_php_noise, is_read_only_wp_command, job_outcome,
+        parse_wp_command, push_history_entry, short_command, PhpNoiseStreamFilter,
+        WpCliHistoryEntry, MAX_HISTORY_ENTRIES, MAX_JOB_TEXT_CHARS,
     };
 
     fn args(list: &[&str]) -> Vec<String> {
@@ -594,5 +851,99 @@ mod tests {
         assert_eq!(filter.push("tail"), "");
         assert_eq!(filter.flush(), "tail");
         assert_eq!(filter.flush(), "");
+    }
+
+    #[test]
+    fn job_outcome_reads_result_fields() {
+        let ok = serde_json::json!({
+            "success": true,
+            "cancelled": false,
+            "output": "out",
+            "error": ""
+        });
+        assert_eq!(
+            job_outcome(&Ok(ok)),
+            (true, false, "out".to_string(), String::new())
+        );
+
+        let failed = serde_json::json!({
+            "success": false,
+            "cancelled": false,
+            "output": "",
+            "error": "boom"
+        });
+        assert_eq!(
+            job_outcome(&Ok(failed)),
+            (false, false, String::new(), "boom".to_string())
+        );
+
+        let cancelled = serde_json::json!({
+            "success": false,
+            "cancelled": true,
+            "output": "",
+            "error": "Command cancelled."
+        });
+        assert_eq!(
+            job_outcome(&Ok(cancelled)),
+            (false, true, String::new(), "Command cancelled.".to_string())
+        );
+
+        // A cancelled exec is never reported as a success, whatever the
+        // result claims.
+        let cancelled_success = serde_json::json!({
+            "success": true,
+            "cancelled": true,
+            "output": "",
+            "error": ""
+        });
+        assert_eq!(
+            job_outcome(&Ok(cancelled_success)),
+            (false, true, String::new(), String::new())
+        );
+
+        assert_eq!(
+            job_outcome(&Err("join error".to_string())),
+            (false, false, String::new(), "join error".to_string())
+        );
+    }
+
+    #[test]
+    fn short_command_keeps_short_and_truncates_long() {
+        assert_eq!(short_command("plugin list"), "plugin list");
+        let long = "a".repeat(80);
+        let cut = short_command(&long);
+        assert_eq!(cut.chars().count(), 61);
+        assert!(cut.ends_with('…'));
+    }
+
+    #[test]
+    fn job_text_clamp_keeps_small_output_and_marks_large() {
+        assert_eq!(clamp_job_text(String::new()), "");
+        assert_eq!(clamp_job_text("ok".to_string()), "ok");
+
+        let big = "x".repeat(MAX_JOB_TEXT_CHARS + 100);
+        let clamped = clamp_job_text(big);
+        assert!(clamped.len() < MAX_JOB_TEXT_CHARS + 64);
+        assert!(clamped.starts_with("xxx"));
+        assert!(clamped.contains("truncated"));
+        // The cut must land on a char boundary.
+        let multibyte = "ä".repeat(MAX_JOB_TEXT_CHARS / 2 + 10);
+        assert!(clamp_job_text(multibyte).ends_with('\n'));
+    }
+
+    #[test]
+    fn append_job_text_stops_at_the_cap() {
+        let mut field = String::new();
+        append_job_text(&mut field, "chunk one\n");
+        append_job_text(&mut field, "chunk two\n");
+        assert_eq!(field, "chunk one\nchunk two\n");
+
+        append_job_text(&mut field, &"x".repeat(MAX_JOB_TEXT_CHARS));
+        assert!(field.len() >= MAX_JOB_TEXT_CHARS);
+        assert!(field.contains("truncated"));
+        let frozen = field.clone();
+        // Further chunks are dropped entirely once capped.
+        append_job_text(&mut field, "more");
+        assert_eq!(field, frozen);
     }
 }

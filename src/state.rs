@@ -9,7 +9,7 @@ use crate::backend::docker::{Container, DockerStatus, DockerStatusPayload, Servi
 use crate::backend::site::Site;
 use crate::backend::transfer::SiteTransferJob;
 use crate::backend::utils::{NotificationPayload, NotificationType};
-use crate::backend::wp_cli::WpCliHistoryEntry;
+use crate::backend::wp_cli::{WpCliHistoryEntry, WpCliJob, MAX_WP_CLI_JOBS};
 use dioxus::prelude::*;
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -93,6 +93,9 @@ sync_state!(site_transfer_signal, Option<SiteTransferJob>, || None);
 // WP-CLI command history (oldest → newest); persistence is owned by the
 // wp_cli backend, which refreshes this signal after every disk write.
 sync_state!(wp_cli_history_signal, Vec<WpCliHistoryEntry>, Vec::new);
+// Tracked WP-CLI runs ("send to background"); written by the exec threads,
+// rendered by the WP-CLI modal. In-memory only.
+sync_state!(wp_cli_jobs_signal, Vec<WpCliJob>, Vec::new);
 global_value!(
     sites_loading_signal,
     sites_loading,
@@ -124,6 +127,7 @@ pub fn init_globals() {
     let _ = site_transfer_signal();
     let _ = sites_loading_signal();
     let _ = wp_cli_history_signal();
+    let _ = wp_cli_jobs_signal();
     let _ = shutdown_done_signal();
 }
 
@@ -338,6 +342,16 @@ pub fn update_site_transfer_message(message: impl Into<String>) {
     }
 }
 
+/// Update the progress fraction when a transfer is running; a no-op when
+/// idle.
+pub fn update_site_transfer_progress(progress: Option<f32>) {
+    let mut sig = *site_transfer_signal();
+    let mut job = sig.write();
+    if let Some(job) = job.as_mut() {
+        job.progress = progress;
+    }
+}
+
 // ── WP-CLI history ────────────────────────────────────────────
 
 pub fn wp_cli_history(
@@ -348,4 +362,55 @@ pub fn wp_cli_history(
 pub fn set_wp_cli_history(history: Vec<WpCliHistoryEntry>) {
     let mut sig = *wp_cli_history_signal();
     *sig.write() = history;
+}
+
+// ── WP-CLI jobs ───────────────────────────────────────────────
+
+pub fn wp_cli_jobs() -> ReadableRef<'static, SyncSignal<Vec<WpCliJob>>, Vec<WpCliJob>> {
+    wp_cli_jobs_signal().read()
+}
+
+/// Append a tracked job, capping the list at [`MAX_WP_CLI_JOBS`]. Only
+/// finished runs are dropped (oldest first) — dropping a running job would
+/// orphan its backgrounded exec's display. Concurrent runs are bounded by
+/// the start guard in `wp_cli::start_wp_cli_job`, so the loop below always
+/// finds finished runs to trim in practice.
+pub fn insert_wp_cli_job(job: WpCliJob) {
+    let mut sig = *wp_cli_jobs_signal();
+    let mut jobs = sig.write();
+    jobs.push(job);
+    while jobs.len() > MAX_WP_CLI_JOBS {
+        match jobs.iter().position(|job| !job.running) {
+            Some(oldest_finished) => {
+                jobs.remove(oldest_finished);
+            }
+            None => break,
+        }
+    }
+}
+
+/// Apply `f` to the job with `id`; a no-op when the entry is gone (cleared
+/// or dropped by the cap) — the exec keeps running, nothing is displayed.
+pub fn update_wp_cli_job(id: u64, f: impl FnOnce(&mut WpCliJob)) {
+    let mut sig = *wp_cli_jobs_signal();
+    let mut jobs = sig.write();
+    if let Some(job) = jobs.iter_mut().find(|job| job.id == id) {
+        f(job);
+    }
+}
+
+/// Apply `f` to every job matching `pred` (e.g. background all running
+/// jobs of a site when its modal closes).
+pub fn update_wp_cli_jobs(pred: impl Fn(&WpCliJob) -> bool, f: impl Fn(&mut WpCliJob)) {
+    let mut sig = *wp_cli_jobs_signal();
+    let mut jobs = sig.write();
+    for job in jobs.iter_mut().filter(|job| pred(job)) {
+        f(job);
+    }
+}
+
+/// Keep only the jobs satisfying `keep`; used to clear finished runs.
+pub fn retain_wp_cli_jobs(keep: impl Fn(&WpCliJob) -> bool) {
+    let mut sig = *wp_cli_jobs_signal();
+    sig.write().retain(|job| keep(job));
 }

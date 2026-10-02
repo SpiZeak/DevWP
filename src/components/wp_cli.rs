@@ -1,28 +1,33 @@
 use crate::backend::site::Site;
 use crate::backend::wp_cli::{self, WpCliRequest};
-use crate::components::ui::{use_sync_signal, ModalBase, OutputPanel, Spinner};
+use crate::components::ui::{ModalBase, OutputPanel, Spinner};
 use crate::state;
 use dioxus::prelude::*;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+
+/// History entries shown in the modal (and reachable with ↑/↓). The
+/// persisted history keeps more; this cap keeps the modal compact.
+const MAX_SHOWN_HISTORY: usize = 5;
+
+/// Read a field of the focused job from the registry; `None` when the job
+/// is gone (cleared or dropped by the cap).
+fn focused_job_field<T>(id: Option<u64>, f: impl FnOnce(&wp_cli::WpCliJob) -> T) -> Option<T> {
+    let id = id?;
+    state::wp_cli_jobs().iter().find(|job| job.id == id).map(f)
+}
 
 #[component]
 pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
     let mut command = use_signal(String::new);
-    // SyncSignals: the streaming callback writes these from the blocking
-    // exec thread, which plain `Signal` (not `Send`) cannot handle.
-    let mut output = use_sync_signal(String::new());
-    let mut error = use_sync_signal(String::new());
-    let mut loading = use_signal(|| false);
-    // Set while the kill signal is in flight (between the user clicking
-    // Cancel and the exec task finishing); the button shows "Cancelling…".
-    let mut cancelling = use_signal(|| false);
-    // Shared with the blocking exec thread: `true` makes the container-side
-    // process receive TERM (then KILL).
-    let cancel_flag = use_hook(|| Arc::new(AtomicBool::new(false)));
-    // Index into the site's newest-first history list while recalling with
-    // the arrow keys; `None` = not navigating (editing a fresh command).
+    // The tracked run whose output the panel shows; `None` = fresh form.
+    // Runs live in the global registry, so closing the modal never kills
+    // one — it only detaches ("sends to background") the view.
+    let mut focused_job = use_signal(|| None::<u64>);
+    // Synchronous start failures (bad site name, unparsable command) show
+    // under the input; run failures surface in the job's output panel.
+    let mut start_error = use_signal(String::new);
+    // Index into the shown history list while recalling with the arrow
+    // keys; `None` = not navigating (editing a fresh command).
     let mut history_pos = use_signal(|| None::<usize>);
     // The half-typed command stashed when ArrowUp starts navigation, so
     // ArrowDown past the newest entry restores it (shell behaviour).
@@ -37,76 +42,89 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
         });
     });
 
-    // Newest first, matching how the list is rendered.
+    // Newest first, matching how the list is rendered, capped so a long
+    // history cannot squeeze the rest of the modal.
     let site_history: Vec<String> = state::wp_cli_history()
         .iter()
         .rev()
         .filter(|entry| entry.site == site.name)
         .map(|entry| entry.command.clone())
+        .take(MAX_SHOWN_HISTORY)
         .collect();
 
+    // All tracked runs for this site, newest first — metadata only, so a
+    // streamed chunk re-render never clones accumulated output text. The
+    // registry is written from the exec threads, so reading it here keeps
+    // the run rows and the focused output panel streaming.
+    let jobs = state::wp_cli_jobs();
+    let run_rows: Vec<(u64, String, bool, bool, bool)> = jobs
+        .iter()
+        .rev()
+        .filter(|job| job.site == site.name)
+        .map(|job| {
+            (
+                job.id,
+                job.command.clone(),
+                job.running,
+                job.success,
+                job.cancelling,
+            )
+        })
+        .collect();
+    let has_finished_runs = run_rows.iter().any(|(_, _, running, _, _)| !running);
+    // Focused-run metadata for the footer; the output text itself is read
+    // reactively in the memos below.
+    let focused_meta: Option<(u64, bool, bool)> = (*focused_job.read())
+        .and_then(|id| jobs.iter().find(|job| job.id == id))
+        .map(|job| (job.id, job.running, job.cancelling));
+    drop(jobs);
+
+    // The output panel takes reactive handles; derive them from the
+    // registry so streamed writes flow straight through. A vanished focus
+    // job (cleared, capped) reads as empty/idle.
+    let focused_output = use_memo(move || {
+        focused_job_field(*focused_job.read(), |job| job.output.clone()).unwrap_or_default()
+    });
+    let focused_error = use_memo(move || {
+        focused_job_field(*focused_job.read(), |job| job.error.clone()).unwrap_or_default()
+    });
+    let focused_running = use_memo(move || {
+        focused_job_field(*focused_job.read(), |job| job.running).unwrap_or(false)
+    });
+
     let site_for_run = Rc::clone(&site);
-    let cancel_for_button = Arc::clone(&cancel_flag);
     let handle_run = EventHandler::new(move |_: ()| {
-        *loading.write() = true;
-        *cancelling.write() = false;
-        *output.write() = String::new();
-        *error.write() = String::new();
         *history_pos.write() = None;
         *history_draft.write() = String::new();
-        cancel_flag.store(false, Ordering::Relaxed);
         let request = WpCliRequest {
             site: (*site_for_run).clone(),
             command: command.read().clone(),
         };
-        let cancel_for_task = Arc::clone(&cancel_flag);
-        let mut out_signal = output;
-        let mut err_signal = error;
-        spawn(async move {
-            let result =
-                wp_cli::run_wp_cli_interactive(request, cancel_for_task, move |text, is_err| {
-                    if is_err {
-                        *err_signal.write() += text;
-                    } else {
-                        *out_signal.write() += text;
-                    }
-                })
-                .await;
-            match result {
-                Ok(value) => {
-                    if value.get("cancelled").and_then(|v| v.as_bool()) == Some(true) {
-                        *error.write() = "Command cancelled.".to_string();
-                    } else {
-                        *output.write() = value
-                            .get("output")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
-                        *error.write() = value
-                            .get("error")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
-                    }
-                }
-                Err(e) => {
-                    *error.write() = e;
-                }
+        match wp_cli::start_wp_cli_job(&request) {
+            Ok(handle) => {
+                *start_error.write() = String::new();
+                *focused_job.write() = Some(handle.id);
+                // Detached from this scope on purpose: the modal is
+                // conditionally mounted and every close path unmounts it,
+                // but the run must finalize (status + notification) even
+                // after the modal is gone.
+                dioxus::dioxus_core::spawn_forever(async move {
+                    wp_cli::run_wp_cli_job(handle.id, request, handle.cancel).await;
+                });
             }
-            *loading.write() = false;
-            *cancelling.write() = false;
-        });
+            Err(e) => *start_error.write() = e,
+        }
     });
 
+    let site_for_close = Rc::clone(&site);
     let handle_close = EventHandler::new(move |_: ()| {
-        // Guard every close path (X, overlay, Escape) while a command is
-        // running — the spawned task writes this scope's signals.
-        if *loading.read() {
-            return;
-        }
+        // Every running job of this site keeps going after the modal
+        // closes; mark them so completion is reported as a notification
+        // instead of only in the output panel.
+        wp_cli::background_running_wp_cli_jobs(&site_for_close.name);
+        *focused_job.write() = None;
         *command.write() = String::new();
-        *output.write() = String::new();
-        *error.write() = String::new();
+        *start_error.write() = String::new();
         *history_pos.write() = None;
         *history_draft.write() = String::new();
         on_close.call(());
@@ -119,9 +137,10 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
     });
 
     let cmd = command.read().clone();
-    let is_loading = *loading.read();
-    let is_cancelling = *cancelling.read();
-    let has_output = !output.read().is_empty() || !error.read().is_empty();
+    let start_err = start_error.read().clone();
+    let is_running = *focused_running.read();
+    let focused_job_id = focused_meta.map(|(id, _, _)| id);
+    let is_cancelling = focused_meta.is_some_and(|(_, _, cancelling)| cancelling);
     let has_history = !site_history.is_empty();
     // The input's key handler needs the list too, and the RSX loop below
     // consumes the vec (closures must own 'static data).
@@ -132,25 +151,39 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
             button {
                 "type": "button",
                 class: "bg-transparent hover:bg-raised px-4 py-2 rounded-md text-muted hover:text-seasalt transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40",
-                // While a command runs this cancels it (TERM → KILL in the
-                // container); once idle it closes the modal.
+                // While a run is focused this cancels it (TERM → KILL in the
+                // container); once idle it closes the modal. Closing via the
+                // X, overlay, or Escape while running backgrounds the run.
                 disabled: is_cancelling,
                 onclick: move |_ev: MouseEvent| {
-                    if *loading.read() {
-                        *cancelling.write() = true;
-                        cancel_for_button.store(true, Ordering::Relaxed);
+                    if is_running {
+                        if let Some(id) = focused_job_id {
+                            wp_cli::cancel_wp_cli_job(id);
+                        }
                     } else {
                         handle_close.clone().call(());
                     }
                 },
-                if is_cancelling { "Cancelling…" } else { "Cancel" }
+                if is_running {
+                    if is_cancelling { "Cancelling…" } else { "Cancel" }
+                } else {
+                    "Close"
+                }
+            }
+            if is_running {
+                button {
+                    "type": "button",
+                    class: "bg-transparent hover:bg-raised px-4 py-2 border border-border rounded-md text-muted hover:text-seasalt transition-colors cursor-pointer",
+                    onclick: move |_ev: MouseEvent| handle_close.clone().call(()),
+                    "Send to background"
+                }
             }
             button {
                 "type": "submit",
                 form: "wp-cli-form",
                 class: "bg-accent hover:bg-accent-hover disabled:opacity-40 px-4 py-2 rounded-md text-on-accent transition-colors cursor-pointer disabled:cursor-not-allowed",
-                disabled: cmd.trim().is_empty() || is_loading,
-                if is_loading {
+                disabled: cmd.trim().is_empty() || is_running,
+                if is_running {
                     Spinner { svg_class: "size-6", title: "Loading WP-CLI response..." }
                 } else {
                     "Run"
@@ -168,7 +201,7 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
             form { id: "wp-cli-form",
                 onsubmit: move |ev| {
                     ev.prevent_default();
-                    if !*loading.read() && !command.read().trim().is_empty() {
+                    if !*focused_running.read() && !command.read().trim().is_empty() {
                         handle_run.call(());
                     }
                 },
@@ -180,14 +213,16 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
                         class: "bg-sunken p-2 border border-border focus:border-accent rounded-md focus:outline-none w-full text-seasalt",
                         value: {cmd},
                         placeholder: "e.g. plugin list",
-                        disabled: is_loading,
+                        disabled: is_running,
                         oninput: move |ev| {
                             *command.write() = ev.value();
                         },
                         onkeydown: move |ev: KeyboardEvent| {
                             match ev.key() {
                                 Key::Enter => {
-                                    if !*loading.read() && !command.read().trim().is_empty() {
+                                    if !*focused_running.read()
+                                        && !command.read().trim().is_empty()
+                                    {
                                         ev.prevent_default();
                                         handle_run.call(());
                                     }
@@ -221,6 +256,9 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
                                 _ => {}
                             }
                         },
+                    }
+                    if !start_err.is_empty() {
+                        p { class: "mt-1 text-crimson text-xs", "{start_err}" }
                     }
                     div { class: "mt-1 text-muted text-xs",
                         "Only enter the command after "
@@ -265,12 +303,62 @@ pub fn WpCliModal(site: Rc<Site>, on_close: EventHandler<()>) -> Element {
                     }
                 }
             }
-            if has_output {
+            if !run_rows.is_empty() {
+                div { class: "mb-5",
+                    div { class: "flex justify-between items-center mb-1",
+                        span { class: "block text-seasalt text-sm", "Recent runs" }
+                        if has_finished_runs {
+                            button {
+                                "type": "button",
+                                class: "bg-transparent hover:bg-raised px-2 py-1 rounded text-muted hover:text-seasalt text-xs transition-colors cursor-pointer",
+                                onclick: {
+                                    let site_name = site.name.clone();
+                                    move |_| {
+                                        wp_cli::clear_finished_wp_cli_jobs(&site_name);
+                                    }
+                                },
+                                "Clear finished"
+                            }
+                        }
+                    }
+                    div { class: "flex flex-col gap-1 max-h-40 overflow-y-auto bg-sunken p-2 border border-border rounded-md",
+                        for (job_id, job_command, job_running, job_success, job_cancelling) in run_rows {
+                            div {
+                                key: "{job_id}",
+                                class: "flex items-center gap-2 py-1.5 px-2 rounded hover:bg-raised text-left cursor-pointer min-w-0",
+                                title: "Show this run's output",
+                                onclick: move |_| *focused_job.write() = Some(job_id),
+                                if job_running {
+                                    Spinner { svg_class: "size-3 shrink-0 text-accent", title: "Run in progress" }
+                                } else if job_success {
+                                    span { class: "shrink-0 text-emerald text-xs", "✓" }
+                                } else {
+                                    span { class: "shrink-0 text-crimson text-xs", "✕" }
+                                }
+                                span { class: "flex-1 font-mono text-muted text-xs truncate", title: "{job_command}", {job_command.clone()} }
+                                if job_running {
+                                    button {
+                                        "type": "button",
+                                        class: "bg-transparent hover:bg-raised px-2 py-1 rounded text-muted hover:text-seasalt text-xs transition-colors cursor-pointer shrink-0 disabled:cursor-not-allowed disabled:opacity-40",
+                                        disabled: job_cancelling,
+                                        onclick: move |ev: MouseEvent| {
+                                            ev.stop_propagation();
+                                            wp_cli::cancel_wp_cli_job(job_id);
+                                        },
+                                        if job_cancelling { "Cancelling…" } else { "Cancel" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if let Some(job_id) = focused_meta.map(|(id, _, _)| id) {
                 OutputPanel {
-                    id: "wp-cli-output".to_string(),
-                    output: output,
-                    error: error,
-                    loading: loading,
+                    id: format!("wp-cli-output-{job_id}"),
+                    output: focused_output,
+                    error: focused_error,
+                    loading: focused_running,
                     max_h_class: Some("max-h-75".to_string()),
                 }
             }

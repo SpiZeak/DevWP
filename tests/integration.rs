@@ -183,6 +183,154 @@ fn wp_cli_history_persists_and_dedupes_in_test_state() {
 }
 
 #[test]
+fn wp_cli_tracked_jobs_register_finalize_and_clear() {
+    with_runtime(|| {
+        let site = devwp::backend::site::Site {
+            name: "jobs.test".to_string(),
+            path: "/tmp/jobs.test".to_string(),
+            url: "https://jobs.test".to_string(),
+            status: devwp::backend::site::SiteStatus::Active,
+            aliases: None,
+            web_root: None,
+            multisite: None,
+        };
+        let request_for = |command: &str| WpCliRequest {
+            site: site.clone(),
+            command: command.to_string(),
+        };
+
+        // Registration is synchronous; running jobs are tracked immediately.
+        let h1 = wp_cli::start_wp_cli_job(&request_for("plugin list")).expect("register");
+        assert!(state::wp_cli_jobs()
+            .iter()
+            .any(|j| j.id == h1.id && j.running && j.site == "jobs.test"));
+
+        // Invalid commands are refused before entering the registry.
+        assert!(wp_cli::start_wp_cli_job(&request_for("")).is_err());
+
+        // A foreground finish records the outcome but reports no
+        // notification — the output panel is showing the run.
+        let notifications_before = state::notifications().len();
+        wp_cli::finish_wp_cli_job(
+            h1.id,
+            Ok(serde_json::json!({
+                "success": true,
+                "cancelled": false,
+                "output": "ok",
+                "error": ""
+            })),
+        );
+        let jobs = state::wp_cli_jobs();
+        let finished = jobs.iter().find(|j| j.id == h1.id).expect("job kept");
+        assert!(!finished.running && finished.success && !finished.cancelled);
+        assert_eq!(finished.output, "ok");
+        drop(jobs);
+        assert_eq!(state::notifications().len(), notifications_before);
+
+        // A backgrounded finish reports completion as a notification.
+        let h2 = wp_cli::start_wp_cli_job(&request_for("core version")).expect("register");
+        state::update_wp_cli_job(h2.id, |j| j.backgrounded = true);
+        wp_cli::finish_wp_cli_job(
+            h2.id,
+            Ok(serde_json::json!({
+                "success": true,
+                "cancelled": false,
+                "output": "",
+                "error": ""
+            })),
+        );
+        assert_eq!(state::notifications().len(), notifications_before + 1);
+        let notifications = state::notifications();
+        let last = notifications.last().expect("notification");
+        assert_eq!(last.notification_type, NotificationType::Success);
+
+        // The registry caps stored runs, dropping finished ones first — a
+        // running job must never silently disappear. h1 and h2 are the only
+        // finished runs, so the fill loop must trim exactly those two while
+        // h3 survives. Once the cap is full of running jobs, further starts
+        // are refused with an explanation.
+        let h3 = wp_cli::start_wp_cli_job(&request_for("post list")).expect("register");
+        let mut fill_ids: Vec<u64> = Vec::new();
+        let mut refused: Option<String> = None;
+        for i in 0..=wp_cli::MAX_WP_CLI_JOBS {
+            match wp_cli::start_wp_cli_job(&request_for(&format!("cap fill {i}"))) {
+                Ok(handle) => fill_ids.push(handle.id),
+                Err(e) => {
+                    refused = Some(e);
+                    break;
+                }
+            }
+        }
+        let refused = refused.expect("cap refuses further concurrent starts");
+        assert!(refused.contains("Too many WP-CLI runs"));
+        let jobs = state::wp_cli_jobs();
+        let site_jobs: Vec<&devwp::backend::wp_cli::WpCliJob> =
+            jobs.iter().filter(|j| j.site == "jobs.test").collect();
+        assert_eq!(site_jobs.len(), wp_cli::MAX_WP_CLI_JOBS);
+        assert!(
+            site_jobs.iter().all(|j| j.id != h1.id && j.id != h2.id),
+            "oldest finished runs trimmed by the cap"
+        );
+        let h3_entry = site_jobs.iter().find(|j| j.id == h3.id).expect("kept");
+        assert!(
+            h3_entry.running && !h3_entry.cancelling,
+            "running job survives the cap"
+        );
+        drop(jobs);
+
+        // Cancelling flags the job so its row shows "Cancelling…" until the
+        // exec confirms; unknown ids are a no-op.
+        wp_cli::cancel_wp_cli_job(h3.id);
+        let cancelling = state::wp_cli_jobs()
+            .iter()
+            .find(|j| j.id == h3.id)
+            .expect("job kept")
+            .cancelling;
+        assert!(cancelling);
+        wp_cli::cancel_wp_cli_job(u64::MAX);
+
+        // Clearing finished runs keeps running ones.
+        wp_cli::finish_wp_cli_job(
+            fill_ids[0],
+            Ok(serde_json::json!({
+                "success": true,
+                "cancelled": false,
+                "output": "",
+                "error": ""
+            })),
+        );
+        wp_cli::clear_finished_wp_cli_jobs("jobs.test");
+        let running_after_clear: Vec<u64> = state::wp_cli_jobs()
+            .iter()
+            .filter(|j| j.site == "jobs.test" && j.running)
+            .map(|j| j.id)
+            .collect();
+        assert_eq!(running_after_clear.len(), wp_cli::MAX_WP_CLI_JOBS - 1);
+        assert!(running_after_clear.contains(&h3.id));
+        assert!(!running_after_clear.contains(&fill_ids[0]));
+
+        // Leave no phantom state in the shared registry for other tests:
+        // finalize everything, then clear the finished leftovers.
+        for id in running_after_clear {
+            wp_cli::finish_wp_cli_job(
+                id,
+                Ok(serde_json::json!({
+                    "success": true,
+                    "cancelled": false,
+                    "output": "",
+                    "error": ""
+                })),
+            );
+        }
+        wp_cli::clear_finished_wp_cli_jobs("jobs.test");
+        assert!(
+            !state::wp_cli_jobs().iter().any(|j| j.site == "jobs.test"),
+            "test leaves no tracked jobs behind"
+        );
+    });
+}
+
+#[test]
 fn xdebug_toggle_roundtrip_on_running_stack() {
     if !docker_available() {
         eprintln!("SKIP: docker unavailable");
