@@ -1,6 +1,6 @@
 [package]
 name = "devwp"
-version = "0.10.0"
+version = "0.11.0"
 description = "DevWP – simplified local WordPress development with Docker, Nginx, and PHP-FPM"
 authors = ["Trewhitt"]
 repository = "https://github.com/SpiZeak/DevWP"
@@ -41,7 +41,7 @@ xz2 = { version = "0.1", features = ["static"] }
 #   DMG:      DevWP_<version>_aarch64.dmg
 [package.metadata.packager]
 name = "devwp"
-version = "0.10.0"
+version = "0.11.0"
 description = "DevWP – simplified local WordPress development with Docker, Nginx, and PHP-FPM"
 homepage = "https://github.com/SpiZeak/DevWP"
 authors = ["Trewhitt"]
