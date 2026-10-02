@@ -257,6 +257,84 @@ fn wp_cli_info_runs_against_php_container() {
     );
 }
 
+/// The standalone database dump (the Dump DB button's backend) writes a
+/// restorable `.sql` file: seed a throwaway database, dump it, verify the
+/// SQL text, then drop the database again.
+#[test]
+fn database_dump_writes_sql_file() {
+    if !docker_available() {
+        eprintln!("SKIP: docker unavailable");
+        return;
+    }
+    let _guard = stack_lock();
+    with_runtime(|| {
+        use devwp::backend::docker::{exec_in_container, ExecOptions};
+        use devwp::backend::utils::{DB_HOST, DB_ROOT_PASSWORD, DB_ROOT_USER};
+
+        // The daemon can be up while the stack is down (exec would 404);
+        // get_container_status writes the containers signal, so this probe
+        // must run inside the runtime.
+        let stack_up = devwp::backend::docker::get_container_status()
+            .map(|containers| {
+                containers
+                    .iter()
+                    .any(|c| c.name == "devwp_mariadb" && c.state == ContainerState::Running)
+            })
+            .unwrap_or(false);
+        if !stack_up {
+            eprintln!("SKIP: devwp stack not running");
+            return;
+        }
+
+        let db = devwp::backend::site::db_name_for("devwpdumptest.test");
+        let user_arg = format!("-u{DB_ROOT_USER}");
+        let pass_arg = format!("-p{DB_ROOT_PASSWORD}");
+        let run_sql = |sql: String| {
+            exec_in_container(
+                DB_HOST,
+                &["mariadb", &user_arg, &pass_arg, "-e", &sql],
+                &ExecOptions::default(),
+            )
+        };
+
+        let seed = format!(
+            "DROP DATABASE IF EXISTS `{db}`; CREATE DATABASE `{db}`; USE `{db}`; \
+             CREATE TABLE dump_marker (id INT); INSERT INTO dump_marker VALUES (42);"
+        );
+        let seeded = run_sql(seed).expect("seed throwaway database");
+        assert!(seeded.success(), "seeding failed: {}", seeded.stderr);
+
+        let dest = std::env::temp_dir()
+            .join("devwp-dump-test")
+            .join("devwpdumptest.test.sql");
+        std::fs::create_dir_all(dest.parent().expect("dump parent dir")).expect("create dump dir");
+        let dumped = devwp::backend::transfer::dump_site_database(
+            devwp::backend::site::Site {
+                name: "devwpdumptest.test".to_string(),
+                path: String::new(),
+                url: "https://devwpdumptest.test".to_string(),
+                status: devwp::backend::site::SiteStatus::Active,
+                aliases: None,
+                web_root: None,
+                multisite: None,
+            },
+            dest,
+        )
+        .expect("dump database");
+
+        // Drop before asserting so a failed assertion cannot leak the DB.
+        let dropped =
+            run_sql(format!("DROP DATABASE IF EXISTS `{db}`;")).expect("drop throwaway database");
+        assert!(dropped.success(), "drop failed: {}", dropped.stderr);
+
+        let sql = std::fs::read_to_string(&dumped).expect("read dump file");
+        assert!(sql.contains("CREATE TABLE"), "dump misses CREATE TABLE");
+        assert!(sql.contains("dump_marker"), "dump misses the seeded table");
+        assert!(sql.contains("42"), "dump misses the inserted row");
+        let _ = std::fs::remove_dir_all(std::env::temp_dir().join("devwp-dump-test"));
+    });
+}
+
 #[test]
 fn global_signal_state_handlers_roundtrip() {
     with_runtime(|| {

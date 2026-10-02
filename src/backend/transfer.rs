@@ -25,6 +25,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
+use std::time::{Duration, Instant};
 
 /// Archive layout version; imports refuse other versions.
 pub const ARCHIVE_FORMAT_VERSION: u32 = 1;
@@ -35,6 +36,10 @@ const FILES_DIR: &str = "files";
 
 /// `xz -9e`: preset 9 | LZMA_PRESET_EXTREME (`1 << 31`, see lzma-sys).
 const XZ_PRESET_9E: u32 = 9 | (1 << 31);
+
+/// Minimum interval between throttled progress emissions; a WP webroot can
+/// hold tens of thousands of files and the UI must not re-render per file.
+const PROGRESS_EMIT_INTERVAL: Duration = Duration::from_millis(100);
 
 /// Everything the import needs to reconstruct a site, read from
 /// [`META_FILE`] inside the archive. `path`/`url`/`status` are recomputed on
@@ -55,7 +60,14 @@ pub struct SiteTransferJob {
     pub exporting: bool,
     pub site: String,
     pub message: String,
+    /// Fraction of total input bytes (0.0–1.0) when the phase knows its
+    /// total; `None` for indeterminate phases (dump, import).
+    pub progress: Option<f32>,
 }
+
+/// Progress callback threaded through export/import: an optional completion
+/// fraction (share of total input bytes) plus a human-readable message.
+pub type ProgressFn<'a> = &'a dyn Fn(Option<f32>, &str);
 
 /// Result of a successful [`unpack_site_archive`].
 #[derive(Debug)]
@@ -142,6 +154,72 @@ fn append_bytes<W: Write>(
         .map_err(|e| format!("Archive write of `{path}` failed: {e}"))
 }
 
+/// One collected filesystem entry for the archive walk: where it lands in
+/// the archive (`files/`-prefixed, kept as a `PathBuf` so non-UTF-8 names
+/// round-trip), where it lives on disk, and its size in bytes (0 for dirs).
+struct FileEntry {
+    archive_path: PathBuf,
+    src: PathBuf,
+    is_dir: bool,
+    len: u64,
+}
+
+/// Recursively collect `src`'s children under `archive_root`, mirroring what
+/// `tar::Builder::append_dir_all` archives: directories recurse, everything
+/// else is stored as whatever `append_path` resolves it to. Entries are
+/// sorted per directory so the archive layout is deterministic.
+fn collect_tree(archive_root: &Path, src: &Path, out: &mut Vec<FileEntry>) -> Result<(), String> {
+    let mut children: Vec<_> = fs::read_dir(src)
+        .map_err(|e| format!("Failed to read {}: {e}", src.display()))?
+        .map(|e| e.map_err(|e| format!("Failed to read {} entry: {e}", src.display())))
+        .collect::<Result<_, String>>()?;
+    children.sort_by_key(|e| e.file_name());
+    for child in children {
+        let archive_path = archive_root.join(child.file_name());
+        let child_path = child.path();
+        let file_type = child
+            .file_type()
+            .map_err(|e| format!("Failed to stat {}: {e}", child_path.display()))?;
+        let len = child
+            .metadata()
+            .map_err(|e| format!("Failed to stat {}: {e}", child_path.display()))?
+            .len();
+        let is_dir = file_type.is_dir();
+        out.push(FileEntry {
+            archive_path: archive_path.clone(),
+            src: child_path.clone(),
+            is_dir,
+            len,
+        });
+        if is_dir {
+            collect_tree(&archive_path, &child_path, out)?;
+        }
+    }
+    Ok(())
+}
+
+/// Emit a throttled progress fraction (share of total input bytes) unless
+/// this is the final report, which always goes through.
+fn emit_fraction(
+    on_progress: ProgressFn,
+    message: &str,
+    done: u64,
+    total: u64,
+    last_emit: &mut Option<Instant>,
+    force: bool,
+) {
+    if !force && last_emit.is_some_and(|t| t.elapsed() < PROGRESS_EMIT_INTERVAL) {
+        return;
+    }
+    *last_emit = Some(Instant::now());
+    let fraction = if total == 0 {
+        1.0
+    } else {
+        (done as f32 / total as f32).min(1.0)
+    };
+    on_progress(Some(fraction), message);
+}
+
 /// Build the `.tar.xz` archive at `dest`. The metadata file is written first
 /// so an import can refuse a foreign archive before extracting anything. A
 /// failed pack removes the partial archive file.
@@ -150,10 +228,24 @@ fn pack_site_archive(
     site: &Site,
     dump: Option<&str>,
     site_dir: &Path,
-    on_progress: &dyn Fn(&str),
+    on_progress: ProgressFn,
 ) -> Result<(), String> {
     let result = (|| {
-        on_progress("Compressing archive (xz preset 9e — best compression, slow by design)…");
+        on_progress(Some(0.0), "Scanning site files…");
+        let mut entries = vec![FileEntry {
+            archive_path: Path::new(FILES_DIR).to_path_buf(),
+            src: site_dir.to_path_buf(),
+            is_dir: true,
+            len: 0,
+        }];
+        collect_tree(Path::new(FILES_DIR), site_dir, &mut entries)?;
+        let dump_len = dump.map(str::len).unwrap_or(0) as u64;
+        let total: u64 = dump_len + entries.iter().map(|e| e.len).sum::<u64>();
+        let mut done: u64 = 0;
+        let mut last_emit: Option<Instant> = None;
+
+        let message = "Compressing archive (xz preset 9e — best compression, slow by design)…";
+        on_progress(Some(0.0), message);
         let file = fs::File::create(dest)
             .map_err(|e| format!("Failed to create {}: {e}", dest.display()))?;
         // Easy encoder with preset 9e: the .xz container format driven at
@@ -173,10 +265,23 @@ fn pack_site_archive(
         append_bytes(&mut builder, META_FILE, &meta_bytes)?;
         if let Some(dump) = dump {
             append_bytes(&mut builder, DB_FILE, dump.as_bytes())?;
+            done += dump_len;
+            emit_fraction(on_progress, message, done, total, &mut last_emit, false);
         }
-        builder
-            .append_dir_all(FILES_DIR, site_dir)
-            .map_err(|e| format!("Failed to archive {}: {e}", site_dir.display()))?;
+
+        for entry in &entries {
+            if entry.is_dir {
+                builder
+                    .append_dir(&entry.archive_path, &entry.src)
+                    .map_err(|e| format!("Failed to archive {}: {e}", entry.src.display()))?;
+            } else {
+                builder
+                    .append_path_with_name(&entry.src, &entry.archive_path)
+                    .map_err(|e| format!("Failed to archive {}: {e}", entry.src.display()))?;
+                done += entry.len;
+                emit_fraction(on_progress, message, done, total, &mut last_emit, false);
+            }
+        }
 
         let encoder = builder
             .into_inner()
@@ -184,6 +289,7 @@ fn pack_site_archive(
         encoder
             .finish()
             .map_err(|e| format!("Failed to finish archive: {e}"))?;
+        emit_fraction(on_progress, message, total, total, &mut last_emit, true);
         Ok(())
     })();
     if result.is_err() {
@@ -223,9 +329,9 @@ fn safe_join(dest: &Path, rel: &Path) -> Result<PathBuf, String> {
 fn unpack_site_archive(
     archive: &Path,
     dest: &Path,
-    on_progress: &dyn Fn(&str),
+    on_progress: ProgressFn,
 ) -> Result<UnpackedSite, String> {
-    on_progress("Reading archive…");
+    on_progress(None, "Reading archive…");
     let file = fs::File::open(archive)
         .map_err(|e| format!("Failed to open {}: {e}", archive.display()))?;
     let mut tar = tar::Archive::new(xz2::read::XzDecoder::new(file));
@@ -357,11 +463,7 @@ fn unpack_site_archive(
 /// Export `site` to a `.tar.xz` archive at `dest` (webroot files + database
 /// dump + metadata, xz -9e compressed). Requires the mariadb container for
 /// the dump. Returns the archive path.
-pub fn export_site(
-    site: Site,
-    dest: PathBuf,
-    on_progress: &dyn Fn(&str),
-) -> Result<PathBuf, String> {
+pub fn export_site(site: Site, dest: PathBuf, on_progress: ProgressFn) -> Result<PathBuf, String> {
     validate_site_name(&site.name)?;
     let webroot = get_webroot_from_settings();
     let site_dir = webroot.join(&site.name);
@@ -369,7 +471,7 @@ pub fn export_site(
         return Err(format!("Site directory not found: {}", site_dir.display()));
     }
 
-    on_progress("Dumping database…");
+    on_progress(None, "Dumping database…");
     require_containers_running_sync(&[DB_HOST])?;
     let dump = dump_database(&db_name_for(&site.name))?;
 
@@ -377,11 +479,25 @@ pub fn export_site(
     Ok(dest)
 }
 
+/// Dump `site`'s database to a plain `.sql` file at `dest` (the standalone
+/// counterpart of the dump embedded in [`export_site`]). Requires the
+/// mariadb container. Returns the written path; errors when the site has
+/// no database yet (never WP-installed).
+pub fn dump_site_database(site: Site, dest: PathBuf) -> Result<PathBuf, String> {
+    validate_site_name(&site.name)?;
+    require_containers_running_sync(&[DB_HOST])?;
+    let Some(dump) = dump_database(&db_name_for(&site.name))? else {
+        return Err(format!("Site `{}` has no database to dump", site.name));
+    };
+    fs::write(&dest, dump).map_err(|e| format!("Failed to write {}: {e}", dest.display()))?;
+    Ok(dest)
+}
+
 /// Import a site from a `.tar.xz` archive created by [`export_site`].
 /// Restores files into the (current) webroot, the database via the mariadb
 /// container's stdin, and rewrites nginx config / hosts entry / TLS cert for
 /// the site. Returns the reconstructed site entry.
-pub fn import_site(archive: &Path, on_progress: &dyn Fn(&str)) -> Result<Site, String> {
+pub fn import_site(archive: &Path, on_progress: ProgressFn) -> Result<Site, String> {
     // Import touches the stack (DB restore, nginx reload) and the webroot;
     // refuse before any mutation while required containers are down.
     require_containers_running_sync(&[DB_HOST, "devwp_nginx"])?;
@@ -409,7 +525,7 @@ fn import_site_staged(
     archive: &Path,
     webroot: &Path,
     staging: &Path,
-    on_progress: &dyn Fn(&str),
+    on_progress: ProgressFn,
 ) -> Result<Site, String> {
     let unpacked = unpack_site_archive(archive, staging, on_progress)?;
     let name = validate_site_name(&unpacked.meta.site.name)?;
@@ -421,15 +537,15 @@ fn import_site_staged(
     }
 
     if let Some(dump) = &unpacked.dump {
-        on_progress("Restoring database…");
+        on_progress(None, "Restoring database…");
         restore_database(&db_name_for(&name), dump)?;
     }
 
-    on_progress("Moving site files into the webroot…");
+    on_progress(None, "Moving site files into the webroot…");
     fs::rename(staging, &site_dir)
         .map_err(|e| format!("Failed to move site files into place: {e}"))?;
 
-    on_progress("Writing site configuration…");
+    on_progress(None, "Writing site configuration…");
     let imported = Site {
         name: name.clone(),
         path: site_dir.to_string_lossy().to_string(),
@@ -494,7 +610,7 @@ mod tests {
         }
     }
 
-    fn no_progress(_: &str) {}
+    fn no_progress(_: Option<f32>, _: &str) {}
 
     /// Append a valid metadata entry to a hand-built test archive.
     fn append_meta_entry<W: Write>(builder: &mut tar::Builder<W>) {
@@ -528,14 +644,33 @@ mod tests {
         let archive = base.join("example.test.tar.xz");
         let dest = base.join("restored");
 
+        // The pack must report monotonically non-decreasing fractions that
+        // end at exactly 1.0. (RefCell keeps the closure `Fn`, as required.)
+        let fractions = std::cell::RefCell::new(Vec::new());
+        let recorder = |fraction: Option<f32>, _: &str| {
+            if let Some(fraction) = fraction {
+                fractions.borrow_mut().push(fraction);
+            }
+        };
         pack_site_archive(
             &archive,
             &sample_site(),
             Some("-- fake dump\n"),
             &site_dir,
-            &no_progress,
+            &recorder,
         )
         .expect("pack");
+        let fractions = fractions.into_inner();
+        assert!(!fractions.is_empty(), "pack must report progress");
+        let last = *fractions.last().expect("final report");
+        assert!(
+            (last - 1.0).abs() < f32::EPSILON,
+            "final fraction must be 1.0, got {last}"
+        );
+        assert!(
+            fractions.windows(2).all(|w| w[0] <= w[1]),
+            "fractions must not decrease: {fractions:?}"
+        );
         let unpacked = unpack_site_archive(&archive, &dest, &no_progress).expect("unpack");
 
         assert_eq!(unpacked.meta.format, ARCHIVE_FORMAT_VERSION);
@@ -569,6 +704,32 @@ mod tests {
         assert!(!unpacked.meta.database);
         assert!(unpacked.dump.is_none());
         assert!(base.join("out/index.php").is_file());
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    /// A tree with no files (total = 0 bytes) must still complete at 1.0
+    /// instead of dividing by zero or stalling at 0.
+    #[test]
+    fn pack_reports_complete_progress_for_empty_tree() {
+        let base = std::env::temp_dir().join("devwp-transfer-empty");
+        let _ = fs::remove_dir_all(&base);
+        let site_dir = base.join("site");
+        fs::create_dir_all(&site_dir).expect("create site dir");
+        let archive = base.join("empty.tar.xz");
+
+        let fractions = std::cell::RefCell::new(Vec::new());
+        let recorder = |fraction: Option<f32>, _: &str| {
+            if let Some(fraction) = fraction {
+                fractions.borrow_mut().push(fraction);
+            }
+        };
+        pack_site_archive(&archive, &sample_site(), None, &site_dir, &recorder).expect("pack");
+        let last = *fractions.borrow().last().expect("final report");
+        assert!(
+            (last - 1.0).abs() < f32::EPSILON,
+            "final fraction must be 1.0, got {last}"
+        );
 
         let _ = fs::remove_dir_all(&base);
     }

@@ -731,14 +731,22 @@ fn cmd_site_export(args: SiteExportArgs) -> Result<(), String> {
         site.name,
         dest.display()
     ));
-    transfer::export_site(site, dest, &|msg: &str| outln(msg))?;
+    transfer::export_site(
+        site,
+        dest,
+        &|fraction: Option<f32>, msg: &str| match fraction {
+            Some(f) => outln(format!("{msg} ({:.0}%)", f * 100.0)),
+            None => outln(msg),
+        },
+    )?;
     outln("Site exported.");
     Ok(())
 }
 
 fn cmd_site_import(args: SiteImportArgs) -> Result<(), String> {
     outln(format!("Importing site from {}…", args.path.display()));
-    let imported = transfer::import_site(&args.path, &|msg: &str| outln(msg))?;
+    let imported =
+        transfer::import_site(&args.path, &|_fraction: Option<f32>, msg: &str| outln(msg))?;
     outln(format!("Site imported: https://{}", imported.name));
     Ok(())
 }

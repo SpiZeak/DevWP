@@ -1,7 +1,9 @@
 use crate::backend::site::{self, Site, SiteCreateRequest, SiteStatus, SiteUpdateRequest};
 use crate::backend::system;
 use crate::backend::utils::NotificationType;
-use crate::components::transfer::{is_site_archive, start_site_export, start_site_import};
+use crate::components::transfer::{
+    is_site_archive, start_database_dump, start_site_export, start_site_import,
+};
 use crate::components::ui::{Icon, Spinner};
 use crate::components::{
     ComposerModal, CreateSiteModal, EditSiteData, EditSiteModal, SiteInfo, SiteItem, WpCliModal,
@@ -138,6 +140,20 @@ pub fn SiteList() -> Element {
         }
     });
 
+    let handle_dump_database = EventHandler::new(move |s: Rc<Site>| {
+        // rfd must run on the UI thread; the dump itself goes to a
+        // blocking task with the chosen destination.
+        let site = (*s).clone();
+        let dest = rfd::FileDialog::new()
+            .set_title("Dump Database")
+            .set_file_name(format!("{}.sql", site.name))
+            .add_filter("SQL dump", &["sql"])
+            .save_file();
+        if let Some(dest) = dest {
+            start_database_dump(site, dest);
+        }
+    });
+
     let handle_import_site = move || {
         let archive = rfd::FileDialog::new()
             .set_title("Import Site")
@@ -206,6 +222,7 @@ pub fn SiteList() -> Element {
                         *edit_site_site.write() = Some(s);
                     },
                     on_export_site: handle_export_site.clone(),
+                    on_dump_database: handle_dump_database.clone(),
                 }
             } else {
                 { rsx! {

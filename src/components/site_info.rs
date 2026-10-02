@@ -12,6 +12,7 @@ pub fn SiteInfo(
     on_open_wp_cli: EventHandler<Rc<Site>>,
     on_edit_site: EventHandler<Rc<Site>>,
     on_export_site: EventHandler<Rc<Site>>,
+    on_dump_database: EventHandler<Rc<Site>>,
 ) -> Element {
     let is_provisioning = site.status == SiteStatus::Provisioning;
 
@@ -30,6 +31,7 @@ pub fn SiteInfo(
     let site_for_wpcli = Rc::clone(&site);
     let site_for_edit = Rc::clone(&site);
     let site_for_export = Rc::clone(&site);
+    let site_for_dump = Rc::clone(&site);
 
     let aliases: Vec<String> = site
         .aliases
@@ -168,6 +170,15 @@ pub fn SiteInfo(
                                 onclick: move |_ev: MouseEvent| on_open_wp_cli.call(Rc::clone(&site_for_wpcli)),
                                 Icon { content: "\u{f018d}", class: "text-muted text-lg" }
                                 span { class: "text-seasalt text-sm font-medium", "WP-CLI" }
+                            }
+                            button {
+                                "type": "button",
+                                class: "flex items-center gap-2 bg-transparent hover:bg-sunken disabled:opacity-40 border border-border px-4 py-2 rounded-md transition-colors cursor-pointer disabled:cursor-not-allowed",
+                                title: "Dump Database to a .sql File",
+                                disabled: is_provisioning,
+                                onclick: move |_ev: MouseEvent| on_dump_database.call(Rc::clone(&site_for_dump)),
+                                Icon { content: "\u{f01ec}", class: "text-muted text-lg" }
+                                span { class: "text-seasalt text-sm font-medium", "Dump DB" }
                             }
                             button {
                                 "type": "button",

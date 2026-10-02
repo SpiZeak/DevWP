@@ -2,7 +2,7 @@
 //! task starters shared by the site list buttons and window drag & drop.
 
 use crate::backend::site::Site;
-use crate::backend::transfer::{export_site, import_site, SiteTransferJob};
+use crate::backend::transfer::{dump_site_database, export_site, import_site, SiteTransferJob};
 use crate::backend::utils::NotificationType;
 use crate::components::ui::{ModalBase, Spinner};
 use crate::state;
@@ -41,10 +41,14 @@ pub fn start_site_export(site: Site, dest: PathBuf) {
         exporting: true,
         site: site.name.clone(),
         message: "Starting export…".to_string(),
+        progress: None,
     }));
     spawn(async move {
         let site_name = site.name.clone();
-        let progress = |message: &str| state::update_site_transfer_message(message);
+        let progress = |fraction: Option<f32>, message: &str| {
+            state::update_site_transfer_message(message);
+            state::update_site_transfer_progress(fraction);
+        };
         let result = tokio::task::spawn_blocking(move || export_site(site, dest, &progress)).await;
         state::set_site_transfer(None);
         match result {
@@ -64,6 +68,31 @@ pub fn start_site_export(site: Site, dest: PathBuf) {
     });
 }
 
+/// Dump `site`'s database to `dest` on a blocking task, reporting the
+/// outcome via notifications (a plain dump is fast; no transfer modal).
+/// Must be called after the destination was chosen (rfd dialogs must run
+/// on the UI thread).
+pub fn start_database_dump(site: Site, dest: PathBuf) {
+    spawn(async move {
+        let site_name = site.name.clone();
+        let result = tokio::task::spawn_blocking(move || dump_site_database(site, dest)).await;
+        match result {
+            Ok(Ok(path)) => state::push_notification(
+                NotificationType::Success,
+                format!("Database of {site_name} dumped to {}", path.display()),
+            ),
+            Ok(Err(e)) => state::push_notification(
+                NotificationType::Error,
+                format!("Database dump of {site_name} failed: {e}"),
+            ),
+            Err(e) => state::push_notification(
+                NotificationType::Error,
+                format!("Database dump of {site_name} failed: task error: {e}"),
+            ),
+        }
+    });
+}
+
 /// Import a site from `archive` on a blocking task, showing the transfer
 /// modal while it runs, then refresh the site list.
 pub fn start_site_import(archive: PathBuf) {
@@ -77,9 +106,13 @@ pub fn start_site_import(archive: PathBuf) {
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| archive.display().to_string()),
         message: "Starting import…".to_string(),
+        progress: None,
     }));
     spawn(async move {
-        let progress = |message: &str| state::update_site_transfer_message(message);
+        let progress = |fraction: Option<f32>, message: &str| {
+            state::update_site_transfer_message(message);
+            state::update_site_transfer_progress(fraction);
+        };
         let result = tokio::task::spawn_blocking(move || import_site(&archive, &progress)).await;
         state::set_site_transfer(None);
         match result {
@@ -118,6 +151,9 @@ pub fn TransferModal() -> Element {
     } else {
         format!("Importing {}", job.site)
     };
+    let pct = job
+        .progress
+        .map(|fraction| (fraction * 100.0).round() as i64);
 
     rsx! {
         ModalBase {
@@ -127,6 +163,20 @@ pub fn TransferModal() -> Element {
             hide_close: true,
             div { class: "flex flex-col justify-center items-center gap-3 py-6 text-center",
                 Spinner { svg_class: "size-8 text-accent", title: "Transfer in progress" }
+                if let Some(pct) = pct {
+                    div { class: "bg-sunken rounded-full overflow-hidden w-full max-w-xs h-2",
+                        div {
+                            class: "bg-accent rounded-full h-full",
+                            style: "width: {pct}%",
+                            role: "progressbar",
+                            "aria-valuenow": "{pct}",
+                            "aria-valuemin": "0",
+                            "aria-valuemax": "100",
+                            "aria-label": "Transfer progress",
+                        }
+                    }
+                    span { class: "text-faint text-xs", "{pct}%" }
+                }
                 p { class: "text-muted text-sm", "{job.message}" }
                 if job.exporting {
                     p { class: "text-faint text-xs",
