@@ -186,7 +186,7 @@ pub fn SiteInfo(
                                 title: "Export Site",
                                 disabled: is_provisioning,
                                 onclick: move |_ev: MouseEvent| on_export_site.call(Rc::clone(&site_for_export)),
-                                Icon { content: "\u{f0203}", class: "text-muted text-lg" }
+                                Icon { content: "\u{f011d}", class: "text-muted text-lg" }
                                 span { class: "text-seasalt text-sm font-medium", "Export" }
                             }
                             button {

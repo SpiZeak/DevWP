@@ -97,7 +97,7 @@ pub fn SiteItem(
                             ev.stop_propagation();
                             on_export_site.call(Rc::clone(&site_for_export));
                         },
-                        Icon { content: "\u{f0203}", class: "text-2xl" }
+                        Icon { content: "\u{f011d}", class: "text-2xl" }
                     }
                     button {
                         "type": "button",

@@ -190,7 +190,7 @@ pub fn SiteList() -> Element {
                         title: "Import a site from a .tar.xz archive (or drop one on the window)",
                         "type": "button",
                         onclick: move |_| handle_import_site(),
-                        Icon { content: "\u{f0202}", class: "text-lg" }
+                        Icon { content: "\u{f0120}", class: "text-lg" }
                     }
                     button {
                         class: "flex justify-center items-center bg-accent hover:bg-accent-hover disabled:opacity-40 rounded-md size-9 text-on-accent transition-colors cursor-pointer disabled:cursor-not-allowed",
