@@ -495,12 +495,12 @@ pub fn dump_site_database(site: Site, dest: PathBuf) -> Result<PathBuf, String> 
 
 /// Import a site from a `.tar.xz` archive created by [`export_site`].
 /// Restores files into the (current) webroot, the database via the mariadb
-/// container's stdin, and rewrites nginx config / hosts entry / TLS cert for
+/// container's stdin, and rewrites Caddy config / hosts entry / TLS cert for
 /// the site. Returns the reconstructed site entry.
 pub fn import_site(archive: &Path, on_progress: ProgressFn) -> Result<Site, String> {
-    // Import touches the stack (DB restore, nginx reload) and the webroot;
+    // Import touches the stack (DB restore, Caddy reload) and the webroot;
     // refuse before any mutation while required containers are down.
-    require_containers_running_sync(&[DB_HOST, "devwp_nginx"])?;
+    require_containers_running_sync(&[DB_HOST, "devwp_web"])?;
     let webroot = ensure_webroot_exists()?;
 
     // Stage the extraction in the webroot (same filesystem, so the final
@@ -554,18 +554,25 @@ fn import_site_staged(
         aliases: unpacked.meta.site.aliases.clone(),
         web_root: unpacked.meta.site.web_root.clone(),
         multisite: unpacked.meta.site.multisite.clone(),
+        php_worker: unpacked.meta.site.php_worker,
     };
-    site::generate_nginx_config(
+    let worker_enabled = imported.worker_mode();
+    if worker_enabled {
+        // Worker file must exist before the config referencing it is written.
+        site::write_worker_script(&name, imported.web_root.as_deref())?;
+    }
+    site::generate_caddy_config(
         &name,
         imported.aliases.as_deref(),
         imported.web_root.as_deref(),
         imported.multisite.as_ref(),
+        worker_enabled,
     )?;
     site::upsert_site(imported.clone())?;
 
     // Regenerate TLS certificate (covers the imported domain + aliases), then
-    // reload nginx from the same callback — same ordering guarantee as
-    // create_site (nginx reads certs at config load only).
+    // reload Caddy from the same callback — same ordering guarantee as
+    // create_site (Caddy reads certs at config load only).
     let domains_for_cert = site::collect_domains(&site::get_sites());
     site::run_cert_regen(move || {
         if let Err(e) = site::regenerate_certificate(&domains_for_cert) {
@@ -574,7 +581,7 @@ fn import_site_staged(
                 format!("Certificate regeneration failed: {e}"),
             );
         }
-        site::nginx_reload();
+        site::caddy_reload();
     });
 
     if let Err(e) = site::add_hosts_entry(&name, imported.aliases.as_deref()) {
@@ -607,6 +614,7 @@ mod tests {
                 enabled: true,
                 site_type: MultisiteType::Subdirectory,
             }),
+            php_worker: None,
         }
     }
 

@@ -26,8 +26,8 @@ const DOCTOR_LABEL_WIDTH: usize = 24;
 #[command(
     name = "devwp",
     version,
-    about = "DevWP – simplified local WordPress development with Docker, Nginx, and PHP-FPM",
-    long_about = "DevWP – simplified local WordPress development with Docker, Nginx, and PHP-FPM.\n\
+    about = "DevWP – simplified local WordPress development with Docker and FrankenPHP",
+    long_about = "DevWP – simplified local WordPress development with Docker and FrankenPHP.\n\
         \n\
         Run without a subcommand to launch the desktop GUI. With a subcommand,\n\
         the same binary works as a CLI and drives the identical backend:\n\
@@ -61,13 +61,13 @@ pub enum Commands {
         #[command(subcommand)]
         command: SiteCommand,
     },
-    /// Manage the Docker service stack (nginx, php, mariadb, redis, mailpit)
+    /// Manage the Docker service stack (web, mariadb, redis, mailpit)
     #[command(alias = "service")]
     Services {
         #[command(subcommand)]
         command: ServicesCommand,
     },
-    /// Run a WP-CLI command inside a site's php container
+    /// Run a WP-CLI command inside a site's web container
     #[command(
         after_help = "Examples:\n  devwp wp example.test plugin list\n  devwp wp example.test core update\n  devwp wp example.test search-replace \"olddomain\" \"newdomain\""
     )]
@@ -84,13 +84,13 @@ pub enum Commands {
         )]
         args: Vec<String>,
     },
-    /// Run `composer update` inside a site's php container
+    /// Run `composer update` inside a site's web container
     Composer {
         /// Site domain, as shown by `devwp site list`
         #[arg(value_name = "DOMAIN")]
         domain: String,
     },
-    /// Show or change the Xdebug state (restarts the php service)
+    /// Show or change the Xdebug state (restarts the web service)
     Xdebug {
         /// What to do: show the status (default), enable, disable, or flip it
         #[arg(default_value = "status")]
@@ -137,7 +137,7 @@ pub enum SiteCommand {
         #[arg(long)]
         json: bool,
     },
-    /// Create a site: directories, nginx config, hosts entry, TLS certificate
+    /// Create a site: directories, Caddy config, hosts entry, TLS certificate
     #[command(
         after_help = "The domain gets a `.test` suffix when it has no dot: `devwp site create shop` creates `shop.test`.\n\
         WordPress is installed when any --wp-* flag is given; omitted values default to\n\
@@ -149,7 +149,7 @@ pub enum SiteCommand {
         devwp site create symlinks.test --webroot public --aliases \"a.test b.test\""
     )]
     Create(SiteCreateArgs),
-    /// Change a site's aliases or web root (regenerates cert + nginx config)
+    /// Change a site's aliases, web root or worker mode (regenerates cert + config)
     Update(SiteUpdateArgs),
     /// Export a site to a .tar.xz archive (webroot files + database dump)
     #[command(
@@ -165,7 +165,7 @@ pub enum SiteCommand {
         after_help = "Restores the site's files, database and configuration. Refuses when a\nsite with the same name already exists. Same command the GUI runs when you\ndrop an archive on the window."
     )]
     Import(SiteImportArgs),
-    /// Delete a site: files, nginx config, sites.json entry and hosts entries
+    /// Delete a site: files, Caddy config, sites.json entry and hosts entries
     #[command(
         after_help = "The site directory under the webroot is removed. The site's MariaDB\ndatabase is kept (same behaviour as the GUI)."
     )]
@@ -183,9 +183,12 @@ pub struct SiteCreateArgs {
     /// Comma- or space-separated alias domains
     #[arg(long, value_name = "ALIASES")]
     pub aliases: Option<String>,
-    /// Set up the nginx config for WordPress multisite
+    /// Set up the site for WordPress multisite
     #[arg(long, value_enum, value_name = "TYPE")]
     pub multisite: Option<MultisiteKind>,
+    /// Enable the experimental FrankenPHP worker mode
+    #[arg(long)]
+    pub worker: bool,
     /// WordPress site title (giving any --wp-* flag triggers a WP install)
     #[arg(long, value_name = "TITLE")]
     pub wp_title: Option<String>,
@@ -217,6 +220,12 @@ pub struct SiteUpdateArgs {
     /// Replace the relative web-root segment (e.g. `public`)
     #[arg(long = "webroot", value_name = "DIR")]
     pub web_root: Option<String>,
+    /// Enable the experimental FrankenPHP worker mode
+    #[arg(long, conflicts_with_all = &["no_worker"])]
+    pub worker: bool,
+    /// Disable the experimental FrankenPHP worker mode
+    #[arg(long = "no-worker", conflicts_with_all = &["worker"])]
+    pub no_worker: bool,
 }
 
 #[derive(Args, Debug)]
@@ -254,15 +263,15 @@ pub enum ServicesCommand {
         #[arg(long)]
         json: bool,
     },
-    /// Start the stack (`docker compose up -d nginx`), mirroring the GUI launch
+    /// Start the stack (`docker compose up -d web`), mirroring the GUI launch
     Start,
     /// Stop the whole stack (`docker compose down`), mirroring the GUI close
     Stop,
     /// Restart one container (service name, devwp_* name or container id)
     #[command(after_help = "Example:\n  devwp services restart php")]
     Restart {
-        /// Service to restart: nginx, php, mariadb, redis, mailpit (or a
-        /// devwp_* container name / container id)
+        /// Service to restart: web, mariadb, redis, mailpit (or a devwp_*
+        /// container name / container id)
         #[arg(value_name = "SERVICE")]
         service: String,
     },
@@ -666,6 +675,7 @@ fn cmd_site_create(args: SiteCreateArgs) -> Result<(), String> {
                 MultisiteKind::Subdomain => MultisiteType::Subdomain,
             },
         }),
+        php_worker: Some(args.worker),
         wordpress: wants_wordpress.then(|| WordPressInstallConfig {
             title: args.wp_title.unwrap_or_default(),
             admin_user: args.wp_user.unwrap_or_default(),
@@ -706,8 +716,10 @@ fn read_wp_password() -> Result<String, String> {
 }
 
 fn cmd_site_update(args: SiteUpdateArgs) -> Result<(), String> {
-    if args.aliases.is_none() && args.web_root.is_none() {
-        return Err("nothing to update: pass --aliases and/or --webroot".to_string());
+    if args.aliases.is_none() && args.web_root.is_none() && !args.worker && !args.no_worker {
+        return Err(
+            "nothing to update: pass --aliases, --webroot, --worker and/or --no-worker".to_string(),
+        );
     }
     let site = resolve_site(&args.domain)?;
     site::update_site(
@@ -715,6 +727,7 @@ fn cmd_site_update(args: SiteUpdateArgs) -> Result<(), String> {
         SiteUpdateRequest {
             aliases: args.aliases,
             web_root: args.web_root,
+            php_worker: (args.worker || args.no_worker).then_some(args.worker),
         },
     )?;
     outln("Site updated.");
@@ -956,7 +969,7 @@ fn cmd_xdebug(action: XdebugAction) -> Result<(), String> {
     }
     block_on(xdebug::set_xdebug(target))?;
     outln(format!(
-        "xdebug {} (php service restarted)",
+        "xdebug {} (web service restarted)",
         enabled_word(target)
     ));
     Ok(())
@@ -1054,7 +1067,10 @@ fn block_on<F: std::future::Future>(future: F) -> F::Output {
 }
 
 /// Run `f` inside a Dioxus runtime (root scope) so global signal writes have
-/// a home — the same pattern as `tests/integration.rs`.
+/// a home — the same pattern as `tests/integration.rs`. Global signals are
+/// also created here (like `app.rs` does for the GUI): lazy creation from a
+/// `spawn_blocking` thread panics ("Must be called from inside a Dioxus
+/// runtime"), which used to break `devwp wp` against a running stack.
 fn with_runtime<T>(f: impl FnOnce() -> T) -> T {
     use dioxus::dioxus_core::{NoOpMutations, RuntimeGuard, VirtualDom};
     use dioxus::prelude::*;
@@ -1064,7 +1080,10 @@ fn with_runtime<T>(f: impl FnOnce() -> T) -> T {
     dom.rebuild(&mut noop);
     let runtime = dom.runtime();
     let guard = RuntimeGuard::new(runtime.clone());
-    let result = runtime.in_scope(dioxus::core::ScopeId::ROOT, f);
+    let result = runtime.in_scope(dioxus::core::ScopeId::ROOT, || {
+        state::init_globals();
+        f()
+    });
     drop(guard);
     result
 }
@@ -1220,9 +1239,9 @@ mod tests {
 
     #[test]
     fn resolves_service_short_names_to_containers() {
-        assert_eq!(resolve_container("php"), "devwp_php");
+        assert_eq!(resolve_container("web"), "devwp_web");
         assert_eq!(resolve_container("mailpit"), "devwp_mailpit");
-        assert_eq!(resolve_container("devwp_nginx"), "devwp_nginx");
+        assert_eq!(resolve_container("devwp_web"), "devwp_web");
         assert_eq!(resolve_container("abc123"), "abc123");
     }
 

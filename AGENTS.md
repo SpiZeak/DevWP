@@ -1,7 +1,7 @@
 # DevWP
 
 A pure-Rust desktop application (Dioxus 0.7, desktop) for simplified local
-WordPress development using Docker, Nginx, and PHP-FPM. The React/TypeScript
+WordPress development using Docker and FrankenPHP. The React/TypeScript
 Tauri frontend was migrated to a single Rust binary: RSX components call backend
 functions directly (no IPC, no Node toolchain), state lives in process-wide
 `SyncSignal`s, and Tailwind v4 CSS is prebuilt and committed.
@@ -12,7 +12,7 @@ functions directly (no IPC, no Node toolchain), state lives in process-wide
 - Framework: Dioxus 0.7 `desktop` feature — WebKitGTK (Linux) / WebView2 (Windows) / WKWebView (macOS) webview
 - Package manager: `cargo` (no Node toolchain for the app; Tailwind CLI is a standalone binary)
 - Key deps: `dioxus`, `rfd` (file dialogs), `serde`/`serde_json`, `shell-words`, `tokio` (rt only), `tracing`
-- Infra: Docker Compose stack — `nginx`, `php-fpm`, `mariadb`, `redis`, `mailpit` (see `compose.yml`)
+- Infra: Docker Compose stack — `web` (FrankenPHP: Caddy + embedded PHP 8.5), `mariadb`, `redis`, `mailpit` (see `compose.yml`)
 - Packaging: `cargo-packager` (config in `[package.metadata.packager]`); AUR publish via `.github/workflows/aur-deploy.yml`
 - DB: MariaDB, host `devwp_mariadb`, creds hardcoded as constants (see Env / Config)
 
@@ -51,10 +51,10 @@ src/
 │   ├── compose.rs     typed parser for the repo compose.yml (orchestration input)
 │   ├── docker.rs      Bollard (Docker Engine API) client: exec, status, restart, orchestration primitives
 │   ├── lifecycle.rs   start/stop the stack via Bollard (network/volumes/images/containers, health gates)
-│   ├── site.rs        create/edit/delete sites, nginx configs, /etc/hosts, certs
+│   ├── site.rs        create/edit/delete sites, Caddy configs + worker scripts, /etc/hosts, certs
 │   ├── transfer.rs    site export/import as .tar.xz (xz preset 9e), incl. DB dump/restore
 │   ├── settings.rs    settings.json CRUD
-│   ├── wp_cli.rs      WP-CLI execution inside the php container
+│   ├── wp_cli.rs      WP-CLI execution inside the web container (+ worker restarts after plugin/theme mutations)
 │   ├── xdebug.rs      toggle xdebug on/off
 │   ├── system.rs      host system info
 │   └── utils.rs       project_root, run_command(_streaming), notifications, DB consts
@@ -93,15 +93,15 @@ Env vars the Rust code actually reads (from grepping `std::env`/`env::var`):
 | `PATH` | `site.rs` (locate host binaries) | Host PATH |
 | `WEBKIT_DISABLE_DMABUF_RENDERER` | `main.rs` **sets** it to `"1"` on Linux | Nvidia DMA-BUF workaround; not read from outside |
 | `XDG_CACHE_HOME` | `scripts/build-css.sh` | Tailwind CLI cache; defaults to `$HOME/.cache` |
-| `UID` / `GID` | `compose.yml` Docker build args (php/nginx user mapping) | default `1000` |
+| `UID` / `GID` | `compose.yml` Docker build args (web container user mapping) | default `1000` |
 
 No app env vars are required and none are secrets. Database credentials are
 **hardcoded constants**, not env: `DB_ROOT_USER`/`DB_ROOT_PASSWORD` = `"root"`/
 `"root"` in `src/backend/utils.rs:11-12`, and must match
-`MARIADB_ROOT_PASSWORD: root` in `compose.yml:39`.
+`MARIADB_ROOT_PASSWORD: root` in `compose.yml`.
 
 `.env.example` documents the only vars compose reads: `UID`/`GID` (Docker
-build args for the php/nginx images). The Rust code reads no app env vars.
+build args for the web image). The Rust code reads no app env vars.
 
 ## Gotchas
 
@@ -115,6 +115,12 @@ build args for the php/nginx images). The Rust code reads no app env vars.
 - **Fonts are pruned to the 4 weights the UI uses** (regular/medium/semibold/bold, ~5 MB total). No patched variable font exists upstream (Nerd Fonts ships static OTFs only), and the plain Monaspace variable font lacks the nerd glyphs the UI's icons depend on.
 - **Git submodules**: CI checks out with `submodules: recursive`; `.gitmodules` is present.
 - **`compose.yml` mounts host paths**: `~/www` (webroot), `~/.ssh`, `~/.config/composer` are bind-mounted — they must exist on the host for the stack to behave.
+- **FrankenPHP base tag is pinned** (`dunglas/frankenphp:1.13.1-php8.5-bookworm`, recorded in `config/frankenphp/Dockerfile`); bump deliberately.
+- **`/usr/local/bin/php` inside `devwp_web` is a shim** (`config/frankenphp/php-shim.sh`): `frankenphp php-cli` rejects `-d`, so the shim strips `-d` pairs and applies the WP-CLI `error_reporting` via the `cli-extra` ini scan dir. WP-CLI/composer/`php -r` probes depend on it.
+- **`MAGICK_THREAD_LIMIT=1`** is baked into the image: imagick's OpenMP threads crash FrankenPHP (documented upstream known issue).
+- **Worker mode is experimental and opt-in per site** (multisite refused). Workers boot WordPress once and reset per-request state themselves (`config/frankenphp/template-worker.php`); `exit()` redirects recycle workers; step debugging requires worker mode off. Mutating wp-cli commands restart workers via `POST localhost:2019/frankenphp/workers/restart`.
+- **Caddy config ordering**: write `workers/<domain>.php` before writing/reloading any Caddyfile referencing it; `caddy_reload()` always validates before applying (`docker::reload_web_config`).
+- **`config/frankenphp/sites-enabled/00-placeholder.caddy` is tracked** so the Caddyfile's `import` glob never matches zero files; generated `<domain>.caddy` files and `workers/*.php` are gitignored runtime state.
 - **No automated UI/E2E runner**: the app is a desktop webview (WebKitGTK/WebView2/WKWebView). Chrome DevTools MCP cannot attach to it. UI changes are verified manually via `cargo run`.
 
 ## Verification Checklist
@@ -132,7 +138,7 @@ cargo test --test integration
 ```
 
 Confirmed passing on this checkout: fmt PASS, check PASS, clippy PASS,
-`cargo test --lib --bins` → 55 passed / 0 failed. Integration skipped (requires
+`cargo test --lib --bins` → 86 passed / 0 failed. Integration skipped (requires
 compose stack; side-effectful on local Docker).
 
 ## E2E / UI Verification

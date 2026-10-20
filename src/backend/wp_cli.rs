@@ -12,7 +12,10 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 pub const WP_CLI_ERROR_REPORTING: &str = "error_reporting=E_ALL & ~E_DEPRECATED & ~E_WARNING";
-pub const PHP_CONTAINER_NAME: &str = "devwp_php";
+/// The FrankenPHP web container that runs WP-CLI/composer execs (the old
+/// dedicated php-fpm container is gone — the interpreter is embedded in
+/// `devwp_web`).
+pub const WEB_CONTAINER_NAME: &str = "devwp_web";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -65,6 +68,38 @@ fn is_read_only_wp_command(wp_args: &[String]) -> bool {
     }
 }
 
+/// Whether a wp-cli command mutates plugin/theme state. Worker-mode sites
+/// keep booted WordPress state between requests, so such changes only take
+/// effect after a worker restart.
+fn is_plugin_theme_mutation(wp_args: &[String]) -> bool {
+    let mut args = wp_args.iter().skip_while(|a| a.starts_with('-'));
+    matches!(
+        (
+            args.next().map(String::as_str),
+            args.next().map(String::as_str)
+        ),
+        (
+            Some("plugin" | "theme"),
+            Some("install" | "activate" | "deactivate" | "delete" | "update")
+        )
+    )
+}
+
+/// Restart PHP workers inside the web container after a command that changed
+/// plugin/theme state. Best effort: a failed restart surfaces as a warning
+/// notification, never as a failure of the command itself.
+fn restart_workers_after_mutation(wp_args: &[String]) {
+    if !is_plugin_theme_mutation(wp_args) {
+        return;
+    }
+    if let Err(error) = crate::backend::docker::restart_web_workers() {
+        crate::state::push_notification(
+            NotificationType::Warning,
+            format!("Worker restart after wp-cli command failed: {error}"),
+        );
+    }
+}
+
 /// WP-CLI's exception handler buffers its output and may never flush it when the
 /// process has produced no prior output (a known WP-CLI + piped-stream issue).
 /// If both stdout and stderr are empty on a non-zero exit we re-run read-only
@@ -91,7 +126,7 @@ fn extract_error(stdout: &str, stderr: &str, wp_args: &[String], opts: &ExecOpti
     let argv = wp_cli_argv(&debug_args);
     let cmd_refs: Vec<&str> = argv.iter().map(|s| s.as_str()).collect();
 
-    if let Ok(output) = exec_in_container(PHP_CONTAINER_NAME, &cmd_refs, opts) {
+    if let Ok(output) = exec_in_container(WEB_CONTAINER_NAME, &cmd_refs, opts) {
         let meaningful: Vec<&str> = output
             .stderr
             .lines()
@@ -200,12 +235,12 @@ pub async fn run_composer_update(site: Site) -> Result<serde_json::Value, String
     };
 
     let result = tokio::task::spawn_blocking(move || {
-        require_containers_running_sync(&[PHP_CONTAINER_NAME])?;
+        require_containers_running_sync(&[WEB_CONTAINER_NAME])?;
         let env = composer_auth
             .map(|auth| vec![format!("COMPOSER_AUTH={auth}")])
             .unwrap_or_default();
         exec_in_container(
-            PHP_CONTAINER_NAME,
+            WEB_CONTAINER_NAME,
             &["composer", "update"],
             &ExecOptions {
                 working_dir: Some(work_dir),
@@ -251,19 +286,20 @@ pub async fn run_wp_cli(request: WpCliRequest) -> Result<serde_json::Value, Stri
     tokio::task::spawn_blocking(move || {
         // Refuse before recording history: a refused command never ran and
         // must not pollute the shell-style history.
-        require_containers_running_sync(&[PHP_CONTAINER_NAME])?;
+        require_containers_running_sync(&[WEB_CONTAINER_NAME])?;
         // Record the attempt before exec: shell-style history keeps failed
         // commands too, and this one path covers both the GUI modal and
         // `devwp wp`.
         record_history(&history_site, &history_command);
         let argv = wp_cli_argv(&cmd_parts);
         let cmd_refs: Vec<&str> = argv.iter().map(|s| s.as_str()).collect();
-        let output = exec_in_container(PHP_CONTAINER_NAME, &cmd_refs, &opts)?;
+        let output = exec_in_container(WEB_CONTAINER_NAME, &cmd_refs, &opts)?;
         let success = output.success();
         let stdout = filter_php_noise(&output.stdout);
         let stderr = filter_php_noise(&output.stderr);
 
         if success {
+            restart_workers_after_mutation(&cmd_parts);
             Ok(serde_json::json!({
                 "success": true,
                 "output": stdout,
@@ -302,7 +338,7 @@ pub async fn run_wp_cli_interactive(
     let history_command = request.command.clone();
 
     tokio::task::spawn_blocking(move || {
-        require_containers_running_sync(&[PHP_CONTAINER_NAME])?;
+        require_containers_running_sync(&[WEB_CONTAINER_NAME])?;
         record_history(&history_site, &history_command);
         let argv = wp_cli_argv(&cmd_parts);
         let cmd_refs: Vec<&str> = argv.iter().map(|s| s.as_str()).collect();
@@ -310,7 +346,7 @@ pub async fn run_wp_cli_interactive(
         let mut stdout_filter = PhpNoiseStreamFilter::new();
         let mut stderr_filter = PhpNoiseStreamFilter::new();
         let result = exec_in_container_streaming(
-            PHP_CONTAINER_NAME,
+            WEB_CONTAINER_NAME,
             &cmd_refs,
             &opts,
             &cancelled,
@@ -353,6 +389,7 @@ pub async fn run_wp_cli_interactive(
         let stderr = filter_php_noise(&result.output.stderr);
 
         if result.output.success() {
+            restart_workers_after_mutation(&cmd_parts);
             Ok(serde_json::json!({
                 "success": true,
                 "cancelled": false,
@@ -705,9 +742,9 @@ fn persist_history(history: &[WpCliHistoryEntry]) {
 #[cfg(test)]
 mod tests {
     use super::{
-        append_job_text, clamp_job_text, filter_php_noise, is_read_only_wp_command, job_outcome,
-        parse_wp_command, push_history_entry, short_command, PhpNoiseStreamFilter,
-        WpCliHistoryEntry, MAX_HISTORY_ENTRIES, MAX_JOB_TEXT_CHARS,
+        append_job_text, clamp_job_text, filter_php_noise, is_plugin_theme_mutation,
+        is_read_only_wp_command, job_outcome, parse_wp_command, push_history_entry, short_command,
+        PhpNoiseStreamFilter, WpCliHistoryEntry, MAX_HISTORY_ENTRIES, MAX_JOB_TEXT_CHARS,
     };
 
     fn args(list: &[&str]) -> Vec<String> {
@@ -785,6 +822,29 @@ mod tests {
             "b"
         ])));
         assert!(!is_read_only_wp_command(&args(&[])));
+    }
+
+    #[test]
+    fn plugin_theme_mutations_are_recognized() {
+        for cmd in ["plugin", "theme"] {
+            for sub in ["install", "activate", "deactivate", "delete", "update"] {
+                assert!(
+                    is_plugin_theme_mutation(&args(&[cmd, sub, "x"])),
+                    "{cmd} {sub} must be a mutation"
+                );
+            }
+        }
+        // Read-only and unrelated commands never trigger a worker restart.
+        assert!(!is_plugin_theme_mutation(&args(&["plugin", "list"])));
+        assert!(!is_plugin_theme_mutation(&args(&["plugin", "status"])));
+        assert!(!is_plugin_theme_mutation(&args(&["post", "update", "1"])));
+        assert!(!is_plugin_theme_mutation(&args(&["core", "version"])));
+        assert!(!is_plugin_theme_mutation(&args(&[
+            "--skip-plugins",
+            "plugin",
+            "list"
+        ])));
+        assert!(!is_plugin_theme_mutation(&args(&[])));
     }
 
     #[test]

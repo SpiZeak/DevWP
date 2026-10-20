@@ -1,5 +1,12 @@
 .env
+# Leftover untracked configs from the pre-FrankenPHP nginx stack (the nginx
+# tree itself is removed from this branch; keep hiding local leftovers).
 config/nginx/sites-enabled/*
+# Runtime-generated per-site configs and worker scripts (00-placeholder.caddy
+# stays tracked so the Caddyfile import glob is never empty).
+config/frankenphp/sites-enabled/*
+!config/frankenphp/sites-enabled/00-placeholder.caddy
+config/frankenphp/workers/*
 www/*
 config/certs/*
 config/mariadb/files/*

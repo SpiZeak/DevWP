@@ -18,6 +18,7 @@ pub fn CreateSiteModal(
     let mut aliases = use_signal(String::new);
     let mut multisite_enabled = use_signal(|| false);
     let mut multisite_type = use_signal(|| MultisiteType::Subdirectory);
+    let mut worker_enabled = use_signal(|| false);
     let mut wp_enabled = use_signal(|| true);
     let mut wp_title = use_signal(String::new);
     let mut wp_user = use_signal(String::new);
@@ -45,6 +46,7 @@ pub fn CreateSiteModal(
             .map(format_domain)
             .collect();
         let web_root_clean = web_root_sanitize(&web_root.read());
+        let worker_requested = *worker_enabled.read() && !*multisite_enabled.read();
 
         let request = SiteCreateRequest {
             domain: formatted_domain,
@@ -54,6 +56,7 @@ pub fn CreateSiteModal(
                 enabled: *multisite_enabled.read(),
                 site_type: *multisite_type.read(),
             }),
+            php_worker: Some(worker_requested),
             wordpress: (*wp_enabled.read()).then(|| WordPressInstallConfig {
                 title: wp_title.read().clone(),
                 admin_user: wp_user.read().clone(),
@@ -72,6 +75,7 @@ pub fn CreateSiteModal(
         .to_string();
     let is_submit_disabled = submitting.read().clone() || domain_wo_test.is_empty();
     let multisite_on = *multisite_enabled.read();
+    let worker_on = *worker_enabled.read();
     let wp_on = *wp_enabled.read();
     let web_root_cur = web_root_sanitize(&web_root.read());
 
@@ -181,6 +185,32 @@ pub fn CreateSiteModal(
                             },
                         }
                     }
+                }
+            }
+            div { class: "mb-8 rounded-md",
+                div { class: "flex items-center gap-2 mb-2",
+                    Toggle {
+                        checked: worker_on && !multisite_on,
+                        onchange: move |checked| {
+                            *worker_enabled.write() = checked;
+                        },
+                    }
+                    label {
+                        class: "ml-3 font-medium text-seasalt hover:text-accent transition-colors cursor-pointer",
+                        onclick: move |_| {
+                            let mut e = worker_enabled.write();
+                            *e = !*e;
+                        },
+                        "PHP Worker Mode (experimental)"
+                    }
+                }
+                if worker_on {
+                    p { class: "mb-2 text-muted text-xs",
+                        "WordPress boots once per worker and serves requests from memory. Some plugins may misbehave, redirects recycle workers, and step debugging requires worker mode off."
+                    }
+                }
+                if multisite_on {
+                    p { class: "text-faint text-xs", "Worker mode is not available for multisite sites." }
                 }
             }
             div { class: "mb-6",

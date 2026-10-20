@@ -1,0 +1,3 @@
+# Keeps the import glob in the global Caddyfile non-empty before the first
+# site exists (Caddy errors on an import pattern that matches no files).
+# DevWP writes generated per-site files as <domain>.caddy next to this one.

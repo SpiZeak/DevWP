@@ -110,6 +110,7 @@ pub fn SiteList() -> Element {
                     aliases: None,
                     web_root: None,
                     multisite: None,
+                    php_worker: None,
                 },
             );
         }
@@ -363,6 +364,7 @@ pub fn SiteList() -> Element {
                                     SiteUpdateRequest {
                                         aliases: Some(aliases),
                                         web_root: Some(data.web_root),
+                                        php_worker: Some(data.php_worker),
                                     },
                                 )
                             })

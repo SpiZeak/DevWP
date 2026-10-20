@@ -130,20 +130,14 @@ fn container_status_reflects_compose_stack() {
             "expected devwp_* containers to exist"
         );
         let names: Vec<&str> = containers.iter().map(|c| c.name.as_str()).collect();
-        for expected in [
-            "devwp_nginx",
-            "devwp_php",
-            "devwp_mariadb",
-            "devwp_redis",
-            "devwp_mailpit",
-        ] {
+        for expected in ["devwp_web", "devwp_mariadb", "devwp_redis", "devwp_mailpit"] {
             assert!(names.contains(&expected), "missing container {expected}");
         }
-        let nginx = containers
+        let web = containers
             .iter()
-            .find(|c| c.name == "devwp_nginx")
-            .expect("nginx container");
-        assert_eq!(nginx.state, ContainerState::Running);
+            .find(|c| c.name == "devwp_web")
+            .expect("web container");
+        assert_eq!(web.state, ContainerState::Running);
     });
 }
 
@@ -193,6 +187,7 @@ fn wp_cli_tracked_jobs_register_finalize_and_clear() {
             aliases: None,
             web_root: None,
             multisite: None,
+            php_worker: None,
         };
         let request_for = |command: &str| WpCliRequest {
             site: site.clone(),
@@ -376,6 +371,7 @@ fn wp_cli_info_runs_against_php_container() {
             aliases: None,
             web_root: None,
             multisite: None,
+            php_worker: None,
         },
         command: "--info".to_string(),
     }))
@@ -465,6 +461,7 @@ fn database_dump_writes_sql_file() {
                 aliases: None,
                 web_root: None,
                 multisite: None,
+                php_worker: None,
             },
             dest,
         )
@@ -560,6 +557,7 @@ fn bollard_orchestration_down_and_up_roundtrip() {
                 aliases: None,
                 web_root: None,
                 multisite: None,
+                php_worker: None,
             },
             command: "--info".to_string(),
         }))
@@ -581,6 +579,7 @@ fn bollard_orchestration_down_and_up_roundtrip() {
             web_root: None,
             aliases: None,
             multisite: None,
+            php_worker: None,
             wordpress: Some(devwp::backend::site::WordPressInstallConfig {
                 title: String::new(),
                 admin_user: String::new(),
@@ -602,13 +601,7 @@ fn bollard_orchestration_down_and_up_roundtrip() {
             state::docker_status().message
         );
         let containers = docker::get_container_status().expect("status after startup");
-        for expected in [
-            "devwp_nginx",
-            "devwp_php",
-            "devwp_mariadb",
-            "devwp_redis",
-            "devwp_mailpit",
-        ] {
+        for expected in ["devwp_web", "devwp_mariadb", "devwp_redis", "devwp_mailpit"] {
             let container = containers
                 .iter()
                 .find(|c| c.name == expected)

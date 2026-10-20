@@ -54,6 +54,8 @@ pub struct ServiceConfig {
     pub restart: Option<String>,
     pub tmpfs: Option<Vec<String>>,
     pub command: Option<CommandConfig>,
+    /// `mem_limit` (compose byte-size string like `4g`) — host guardrail.
+    pub mem_limit: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -277,6 +279,26 @@ impl ServiceConfig {
         }
     }
 
+    /// `mem_limit` in bytes, matching compose's suffixes (b/k/m/g, case-
+    /// insensitive; plain numbers are bytes). `None` when unset or invalid.
+    pub fn mem_limit_bytes(&self) -> Option<i64> {
+        let raw = self.mem_limit.as_deref()?.trim();
+        if raw.is_empty() {
+            return None;
+        }
+        let (number, unit) =
+            raw.split_at(raw.rfind(|c: char| c.is_ascii_digit()).map_or(0, |i| i + 1));
+        let value: i64 = number.trim().parse().ok()?;
+        let multiplier = match unit.trim().to_ascii_lowercase().as_str() {
+            "" | "b" => 1i64,
+            "k" | "kb" => 1024,
+            "m" | "mb" => 1024 * 1024,
+            "g" | "gb" => 1024 * 1024 * 1024,
+            _ => return None,
+        };
+        value.checked_mul(multiplier)
+    }
+
     /// Dependency service names (regardless of condition).
     pub fn dependency_names(&self) -> Vec<&str> {
         match &self.depends_on {
@@ -436,8 +458,8 @@ mod tests {
     #[test]
     fn parses_the_real_compose_file() {
         let compose = load_compose().expect("embedded compose.yml must parse");
-        assert_eq!(compose.services.len(), 5, "expected 5 services");
-        for name in ["php", "mariadb", "redis", "nginx", "mailpit"] {
+        assert_eq!(compose.services.len(), 4, "expected 4 services");
+        for name in ["web", "mariadb", "redis", "mailpit"] {
             assert!(
                 compose.services.contains_key(name),
                 "missing service {name}"
@@ -448,7 +470,7 @@ mod tests {
     #[test]
     fn container_names_are_fixed() {
         let compose = load_compose().unwrap();
-        assert_eq!(compose.services["php"].container_id("php"), "devwp_php");
+        assert_eq!(compose.services["web"].container_id("web"), "devwp_web");
         assert_eq!(
             compose.services["mailpit"].container_id("mailpit"),
             "devwp_mailpit"
@@ -458,8 +480,7 @@ mod tests {
     #[test]
     fn image_refs_cover_build_and_pull_services() {
         let compose = load_compose().unwrap();
-        assert_eq!(compose.services["php"].image_ref("php"), "devwp-php");
-        assert_eq!(compose.services["nginx"].image_ref("nginx"), "devwp-nginx");
+        assert_eq!(compose.services["web"].image_ref("web"), "devwp-web");
         assert_eq!(
             compose.services["mariadb"].image_ref("mariadb"),
             "mariadb:latest"
@@ -483,11 +504,11 @@ mod tests {
             "USER_ID: 1001"
         );
         let compose = load_compose().unwrap();
-        let args = compose.services["php"]
+        let args = compose.services["web"]
             .build
             .as_ref()
             .and_then(|b| b.args.clone())
-            .expect("php build args");
+            .expect("web build args");
         assert!(!args.is_empty());
     }
 
@@ -504,20 +525,20 @@ mod tests {
     #[test]
     fn ports_include_udp_mapping() {
         let compose = load_compose().unwrap();
-        let nginx_ports: Vec<PortMapping> = compose.services["nginx"]
+        let web_ports: Vec<PortMapping> = compose.services["web"]
             .ports
             .clone()
             .unwrap()
             .iter()
             .map(|p| parse_port_mapping(p).unwrap())
             .collect();
-        assert!(nginx_ports.contains(&PortMapping {
+        assert!(web_ports.contains(&PortMapping {
             host_ip: None,
             host_port: "443".into(),
             container_port: "443".into(),
             proto: "tcp".into(),
         }));
-        assert!(nginx_ports.contains(&PortMapping {
+        assert!(web_ports.contains(&PortMapping {
             host_ip: None,
             host_port: "443".into(),
             container_port: "443".into(),
@@ -528,27 +549,24 @@ mod tests {
     #[test]
     fn depends_on_conditions() {
         let compose = load_compose().unwrap();
-        let nginx = &compose.services["nginx"];
-        assert_eq!(
-            nginx.dependency_names().len(),
-            4,
-            "nginx depends on 4 services"
-        );
-        assert!(nginx.requires_healthy("php"));
-        assert!(nginx.requires_healthy("mailpit"));
-        assert!(!nginx.requires_healthy("nginx"));
+        let web = &compose.services["web"];
+        assert_eq!(web.dependency_names().len(), 3, "web depends on 3 services");
+        assert!(web.requires_healthy("mariadb"));
+        assert!(web.requires_healthy("mailpit"));
+        assert!(!web.requires_healthy("web"));
     }
 
     #[test]
     fn healthcheck_test_forms() {
         let compose = load_compose().unwrap();
-        let php_test = compose.services["php"]
+        let web_test = compose.services["web"]
             .healthcheck
             .as_ref()
             .unwrap()
             .test
             .clone();
-        assert_eq!(php_test[0], "CMD-SHELL");
+        assert_eq!(web_test[0], "CMD-SHELL");
+        assert!(web_test.iter().any(|t| t.contains("curl")));
         let mariadb_test = compose.services["mariadb"]
             .healthcheck
             .as_ref()
@@ -564,28 +582,60 @@ mod tests {
         let compose = load_compose().unwrap();
         let mariadb_cmd = compose.services["mariadb"].command_vec().unwrap();
         assert_eq!(mariadb_cmd[0], "--bind-address=0.0.0.0");
+        assert!(mariadb_cmd.contains(&"--innodb-buffer-pool-size=2G".to_string()));
+        // List form (used for redis so the empty `--save ""` arg survives).
+        let redis_cmd = compose.services["redis"].command_vec().unwrap();
+        assert_eq!(redis_cmd[0], "redis-server");
+        assert!(redis_cmd.contains(&"--maxmemory".to_string()));
+        // The empty string argument must be preserved (disables RDB saves).
+        let save_idx = redis_cmd
+            .iter()
+            .position(|a| a == "--save")
+            .expect("--save flag");
+        assert_eq!(redis_cmd.get(save_idx + 1), Some(&"".to_string()));
+    }
+
+    #[test]
+    fn mem_limit_parses_compose_suffixes() {
+        let compose = load_compose().unwrap();
         assert_eq!(
-            compose.services["redis"].command_vec().unwrap(),
-            vec!["redis-server".to_string()]
+            compose.services["mariadb"].mem_limit_bytes(),
+            Some(4 * 1024 * 1024 * 1024)
         );
+        assert_eq!(
+            compose.services["web"].mem_limit_bytes(),
+            Some(4 * 1024 * 1024 * 1024)
+        );
+        assert_eq!(compose.services["redis"].mem_limit_bytes(), None);
     }
 
     #[test]
     fn binds_expand_home_and_project_paths() {
         let compose = load_compose().unwrap();
-        let php_binds = compose.services["php"].binds().unwrap();
-        let www_bind = php_binds
+        let web_binds = compose.services["web"].binds().unwrap();
+        let www_bind = web_binds
             .iter()
             .find(|b| b.ends_with(":/src/www:rw"))
-            .expect("php mounts the webroot");
+            .expect("web mounts the webroot");
         assert!(www_bind.starts_with(utils::home_dir().to_string_lossy().as_ref()));
 
-        let nginx_binds = compose.services["nginx"].binds().unwrap();
-        let conf_bind = nginx_binds
+        let conf_bind = web_binds
             .iter()
-            .find(|b| b.ends_with(":/etc/nginx/nginx.conf:ro"))
-            .expect("nginx mounts its config");
-        assert!(conf_bind.contains("config/nginx/nginx.conf"));
+            .find(|b| b.ends_with(":/etc/frankenphp/Caddyfile:ro"))
+            .expect("web mounts the global Caddyfile");
+        assert!(conf_bind.contains("config/frankenphp/Caddyfile"));
+
+        let sites_bind = web_binds
+            .iter()
+            .find(|b| b.ends_with(":/etc/frankenphp/Caddyfile.d/:rw"))
+            .expect("web mounts the per-site config dir");
+        assert!(sites_bind.contains("config/frankenphp/sites-enabled"));
+
+        let workers_bind = web_binds
+            .iter()
+            .find(|b| b.ends_with(":/etc/frankenphp/workers:rw"))
+            .expect("web mounts the worker script dir");
+        assert!(workers_bind.contains("config/frankenphp/workers"));
     }
 
     #[test]
@@ -603,11 +653,11 @@ mod tests {
     fn service_order_is_topological() {
         let compose = load_compose().unwrap();
         let order = compose.service_order().unwrap();
-        assert_eq!(order.len(), 5);
-        let nginx_pos = order.iter().position(|s| s == "nginx").unwrap();
-        for dep in ["php", "mariadb", "redis", "mailpit"] {
+        assert_eq!(order.len(), 4);
+        let web_pos = order.iter().position(|s| s == "web").unwrap();
+        for dep in ["mariadb", "redis", "mailpit"] {
             let pos = order.iter().position(|s| s == dep).unwrap();
-            assert!(pos < nginx_pos, "{dep} must start before nginx");
+            assert!(pos < web_pos, "{dep} must start before web");
         }
     }
 

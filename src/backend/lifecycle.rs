@@ -1,7 +1,7 @@
 //! Application lifecycle: stack startup on launch and teardown on close.
 //!
 //! Startup orchestrates the compose stack directly through the Docker Engine
-//! API (Bollard) — network/volumes, an image refresh pass (rebuild php/nginx
+//! API (Bollard) — network/volumes, an image refresh pass (rebuild web
 //! with `--pull`, pull the latest tags for the rest), then containers in
 //! `depends_on` order with health gates. Teardown stops and removes the
 //! project's containers; volumes and the network are kept so data survives
@@ -19,7 +19,7 @@ use crate::backend::docker::{
     self, DockerStatus, ServicePhase, ServiceProgress, DEPENDENCY_HEALTH_TIMEOUT,
     DEPENDENCY_RUNNING_TIMEOUT,
 };
-use crate::backend::utils;
+use crate::backend::{site, utils};
 use crate::state;
 use std::path::Path;
 use tracing::{error, info};
@@ -80,7 +80,25 @@ pub fn start_services_sync() -> Result<(), String> {
         let client = docker::stack_client()?;
         docker::require_daemon(&client).await?;
         start_stack(&client, &compose, &order).await
-    })?
+    })??;
+
+    // First launch of a FrankenPHP build: existing sites still only have
+    // their pre-migration nginx configs — write the Caddy equivalents and
+    // reload so they keep serving. Failures are logged, not fatal: the next
+    // site create/update regenerates the affected config.
+    match site::reconcile_site_configs() {
+        Ok(0) => {}
+        Ok(written) => {
+            state::push_build_log(
+                "startup",
+                &format!("Migrated {written} site config(s) to Caddy"),
+            );
+            site::caddy_reload();
+        }
+        Err(e) => error!("Site config reconciliation failed: {e}"),
+    }
+
+    Ok(())
 }
 
 /// Bring the stack up: shared resources first, then an image refresh pass
@@ -139,7 +157,8 @@ fn ensure_runtime_bind_dirs(compose: &ComposeFile) -> Result<(), String> {
     let project = utils::project_root();
     for dir in [
         "config/certs",
-        "config/nginx/sites-enabled",
+        "config/frankenphp/sites-enabled",
+        "config/frankenphp/workers",
         "config/mariadb/files",
     ] {
         std::fs::create_dir_all(project.join(dir))
@@ -151,7 +170,7 @@ fn ensure_runtime_bind_dirs(compose: &ComposeFile) -> Result<(), String> {
                 continue;
             };
             // Only directory mounts we know compose would auto-create; file
-            // mounts (nginx.conf, php.ini, …) are tracked and must exist.
+            // mounts (Caddyfile, php.ini, …) are tracked and must exist.
             if bind.contains(":/src/www") && !Path::new(host).exists() {
                 std::fs::create_dir_all(host)
                     .map_err(|e| format!("Failed to create webroot `{host}`: {e}"))?;

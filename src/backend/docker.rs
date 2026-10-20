@@ -731,7 +731,7 @@ async fn exec_in_container_streaming_async(
 /// The stack's services in UI display order — must match `compose.yml`.
 /// Single source for the Services panel, the CLI's container resolution, and
 /// display naming (adding a service is a one-file change plus compose).
-pub const STACK_SERVICES: [&str; 5] = ["nginx", "php", "mariadb", "redis", "mailpit"];
+pub const STACK_SERVICES: [&str; 4] = ["web", "mariadb", "redis", "mailpit"];
 
 /// Container name for a stack service (`devwp_<service>`).
 pub fn container_name_for(service: &str) -> String {
@@ -832,8 +832,7 @@ pub fn display_name(container_or_service: &str) -> String {
         .strip_prefix("devwp_")
         .unwrap_or(container_or_service);
     match service {
-        "nginx" => "Nginx".to_string(),
-        "php" => "PHP".to_string(),
+        "web" => "FrankenPHP".to_string(),
         "mariadb" => "MariaDB".to_string(),
         "redis" => "Redis".to_string(),
         "mailpit" => "Mailpit".to_string(),
@@ -975,27 +974,17 @@ struct VersionProbe {
     parse: fn(&str) -> Option<String>,
 }
 
-fn parse_php_version(output: &str) -> Option<String> {
-    output
-        .lines()
-        .find(|line| {
-            line.starts_with("PHP ") && line.chars().nth(4).is_some_and(|c| c.is_ascii_digit())
-        })
-        .unwrap_or("")
-        .split_whitespace()
-        .nth(1)
-        .map(|v| format!("v{}", v))
-}
-
-fn parse_nginx_version(output: &str) -> Option<String> {
-    output
-        .lines()
-        .next()
-        .unwrap_or("")
-        .trim()
-        .split('/')
-        .nth(1)
-        .map(|v| format!("v{}", v.trim()))
+/// `frankenphp version` prints e.g. `FrankenPHP v1.13.1 PHP 8.5.11 Caddy
+/// v2.10.2 …` — keep the first version-like token.
+fn parse_frankenphp_version(output: &str) -> Option<String> {
+    output.lines().next()?.split_whitespace().find_map(|token| {
+        let version = token.strip_prefix('v')?;
+        version
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_digit())
+            .then(|| format!("v{version}"))
+    })
 }
 
 fn parse_mariadb_version(output: &str) -> Option<String> {
@@ -1035,19 +1024,12 @@ fn parse_mailpit_version(output: &str) -> Option<String> {
 
 fn version_probe(name: &str) -> Option<VersionProbe> {
     let probe = match name {
-        "devwp_php" => VersionProbe {
-            cmd: "php",
-            args: &["--version"],
+        "devwp_web" => VersionProbe {
+            cmd: "frankenphp",
+            args: &["version"],
             use_stderr: false,
             ignore_failure: true,
-            parse: parse_php_version,
-        },
-        "devwp_nginx" => VersionProbe {
-            cmd: "nginx",
-            args: &["-v"],
-            use_stderr: true,
-            ignore_failure: false,
-            parse: parse_nginx_version,
+            parse: parse_frankenphp_version,
         },
         "devwp_mariadb" => VersionProbe {
             cmd: "mariadb",
@@ -1120,6 +1102,75 @@ pub async fn restart_container(container_id: String) -> Result<bool, String> {
     })
     .await
     .map_err(|e| format!("Task join error: {e}"))?
+}
+
+/// Reload the Caddy configuration inside `devwp_web` (validate first, then
+/// reload — an invalid config must never be applied). The FrankenPHP binary
+/// embeds Caddy's CLI: `caddy validate`/`caddy reload` are
+/// `frankenphp validate`/`frankenphp reload`.
+pub fn reload_web_config() -> Result<(), String> {
+    let validate = exec_in_container(
+        "devwp_web",
+        &[
+            "frankenphp",
+            "validate",
+            "--config",
+            "/etc/frankenphp/Caddyfile",
+            "--adapter",
+            "caddyfile",
+        ],
+        &ExecOptions::default(),
+    )?;
+    if !validate.success() {
+        return Err(format!(
+            "Caddy config check failed, reload skipped:\n{}",
+            validate.stderr
+        ));
+    }
+    let reload = exec_in_container(
+        "devwp_web",
+        &[
+            "frankenphp",
+            "reload",
+            "--config",
+            "/etc/frankenphp/Caddyfile",
+            "--adapter",
+            "caddyfile",
+        ],
+        &ExecOptions::default(),
+    )?;
+    if !reload.success() {
+        return Err(format!("Caddy reload failed: {}", reload.stderr));
+    }
+    Ok(())
+}
+
+/// Gracefully restart all PHP workers inside `devwp_web` via the Caddy admin
+/// API, so freshly installed/activated plugins and themes take effect in
+/// worker mode (workers keep booted WordPress state between requests).
+pub fn restart_web_workers() -> Result<(), String> {
+    let output = exec_in_container(
+        "devwp_web",
+        &[
+            "curl",
+            "-fsS",
+            "-X",
+            "POST",
+            "http://localhost:2019/frankenphp/workers/restart",
+        ],
+        &ExecOptions::default(),
+    )?;
+    if !output.success() {
+        return Err(format!(
+            "Worker restart failed: {}",
+            if output.stderr.is_empty() {
+                &output.stdout
+            } else {
+                &output.stderr
+            }
+        ));
+    }
+    Ok(())
 }
 
 // ── Orchestration primitives (used by lifecycle) ──────────────
@@ -1424,6 +1475,7 @@ fn container_create_body(
         binds: Some(cfg.binds()?),
         network_mode: Some(NETWORK_NAME.to_string()),
         port_bindings: Some(port_bindings),
+        memory: cfg.mem_limit_bytes(),
         tmpfs: cfg.tmpfs.as_ref().map(|entries| {
             entries
                 .iter()
@@ -1635,24 +1687,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_php_version_extracts_semver() {
+    fn parse_frankenphp_version_takes_first_version_token() {
         assert_eq!(
-            parse_php_version("PHP 8.3.7 (cli)\nCopyright"),
-            Some("v8.3.7".to_string())
+            parse_frankenphp_version("FrankenPHP v1.13.1 PHP 8.5.11 Caddy v2.10.2"),
+            Some("v1.13.1".to_string())
         );
-        assert_eq!(
-            parse_php_version("PHP 8.3.7-dev (cli)"),
-            Some("v8.3.7-dev".to_string())
-        );
-        assert_eq!(parse_php_version("nope"), None);
-    }
-
-    #[test]
-    fn parse_nginx_version_splits_on_slash() {
-        assert_eq!(
-            parse_nginx_version("nginx version: nginx/1.27.0"),
-            Some("v1.27.0".to_string())
-        );
+        assert_eq!(parse_frankenphp_version("nope"), None);
     }
 
     #[test]
@@ -1710,25 +1750,25 @@ mod tests {
 
     #[test]
     fn stack_down_error_names_containers_and_recovery() {
-        let message = stack_down_error(&["devwp_php"]);
-        assert!(message.contains("devwp_php"), "got: {message}");
+        let message = stack_down_error(&["devwp_web"]);
+        assert!(message.contains("devwp_web"), "got: {message}");
         assert!(message.contains("devwp services start"), "got: {message}");
 
-        let message = stack_down_error(&["devwp_nginx", "devwp_php"]);
+        let message = stack_down_error(&["devwp_web", "devwp_mariadb"]);
         assert!(
-            message.contains("devwp_nginx, devwp_php not running"),
+            message.contains("devwp_web, devwp_mariadb not running"),
             "got: {message}"
         );
     }
 
     #[test]
     fn project_labels_include_service_and_discovery_set() {
-        let labels = project_labels(Some("php"), &["mariadb:service_healthy:false"]);
+        let labels = project_labels(Some("web"), &["mariadb:service_healthy:false"]);
         assert_eq!(
             labels.get(COMPOSE_PROJECT_LABEL).map(String::as_str),
             Some(COMPOSE_PROJECT_NAME)
         );
-        assert_eq!(labels.get(SERVICE_LABEL).map(String::as_str), Some("php"));
+        assert_eq!(labels.get(SERVICE_LABEL).map(String::as_str), Some("web"));
         assert_eq!(
             labels
                 .get("com.docker.compose.container-number")

@@ -181,7 +181,7 @@ pub fn clear_building() {
 // ── Service progress ──────────────────────────────────────────
 
 /// Progress for a container, accepting either the full container name
-/// (`devwp_php`) or the bare compose service name (`php`).
+/// (`devwp_web`) or the bare compose service name (`web`).
 pub fn service_progress(container_or_service: &str) -> Option<ServiceProgress> {
     let map = service_progress_signal().read();
     let service = container_or_service

@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/SpiZeak)
 
-A pure-Rust desktop application (Dioxus) for simplified local WordPress development using Docker, Nginx, and PHP-FPM.
+A pure-Rust desktop application (Dioxus) for simplified local WordPress development using Docker and FrankenPHP.
 
 ## What changed in the Dioxus migration
 
@@ -22,7 +22,8 @@ DevWP was previously a Tauri app (Rust backend + React/TypeScript renderer). It 
 ## Features
 
 - **Easy Site Management**: Create and manage local WordPress sites with a simple GUI
-- **Docker Integration**: Isolated environments with Nginx, PHP-FPM, MariaDB, and Redis
+- **Docker Integration**: Isolated environments with FrankenPHP (Caddy + embedded PHP), MariaDB, and Redis
+- **PHP Worker Mode (experimental)**: Opt-in per-site FrankenPHP workers that boot WordPress once and serve requests from memory
 - **WP-CLI Support**: Run WP-CLI commands directly from the interface
 - **Development Tools**: Mailpit for email testing
 - **Xdebug Support**: Toggle PHP debugging on/off
@@ -107,7 +108,7 @@ cargo run
 └─────────────┬──────────────┘
               │ docker / filesystem
 ┌─────────────┴──────────────┐
-│  compose stack (nginx/php/ │
+│  compose stack (web/       │
 │  mariadb/redis/mailpit)    │
 └────────────────────────────┘
 ```
@@ -133,7 +134,7 @@ devwp init                                  # set up state, webroot, start the s
 devwp site create shop --wp-title Shop      # create a site + install WordPress
 devwp wp shop.test plugin list              # WP-CLI inside the site's container
 devwp services status                       # container/health/version table
-devwp xdebug on                             # enable Xdebug, restart php
+devwp xdebug on                             # enable Xdebug, restart web
 devwp doctor                                # environment health report
 ```
 
@@ -154,10 +155,10 @@ See [docs/cli-reference.md](docs/cli-reference.md) for the full command referenc
 
 ### Available Services
 
-| Service | Port | URL                   | Purpose       |
-| ------- | ---- | --------------------- | ------------- |
-| Nginx   | 80   | https://site.test     | Web server    |
-| Mailpit | 8025 | http://localhost:8025 | Email testing |
+| Service      | Port | URL                   | Purpose                          |
+| ------------ | ---- | --------------------- | -------------------------------- |
+| web (Caddy)  | 80   | https://site.test     | Web server + embedded PHP        |
+| Mailpit      | 8025 | http://localhost:8025 | Email testing                    |
 
 ## Troubleshooting
 

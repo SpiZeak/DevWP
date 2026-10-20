@@ -62,9 +62,9 @@ health gates). Build/pull progress streams into `BUILD_LOGS`. See
 
 ## Lifecycle
 
-- **Startup** — `app.rs` mounts, `lifecycle::start_services()` marks the five
+- **Startup** — `app.rs` mounts, `lifecycle::start_services()` marks the four
   services as building and orchestrates the stack through the Docker Engine
-  API (ensure network/volumes, rebuild php/nginx with `--pull` and refresh
+  API (ensure network/volumes, rebuild web with `--pull` and refresh
   pulled images, create/start containers in dependency order, wait for
   dependency health), then refreshes container status.
 - **Shutdown** — the window starts in `WindowCloseBehaviour::WindowHides`.
@@ -100,3 +100,53 @@ identically under `cargo run`, release binaries, and every packaged bundle.
   + `cargo test`; the integration job runs against the compose stack.
 - Releases (`release.yml`): cargo-packager matrix per platform, artifacts
   published to GitHub Releases; `aur-deploy.yml` pushes the AppImage to AUR.
+
+## The web stack (FrankenPHP)
+
+The `web` service (`devwp_web`, image `devwp-web`) is a single
+[FrankenPHP](https://frankenphp.dev) container: Caddy with an embedded
+PHP 8.5 (ZTS) interpreter. It replaced the previous `devwp_php` (php-fpm) +
+`devwp_nginx` (custom nginx/LibreSSL build) pair, so PHP execution and web
+serving share one process (base image pinned in `config/frankenphp/Dockerfile`).
+
+- **Config layout** — the global Caddyfile is mounted read-only at
+  `/etc/frankenphp/Caddyfile`; DevWP generates one `<domain>.caddy` file per
+  site into `config/frankenphp/sites-enabled/` (mounted at
+  `/etc/frankenphp/Caddyfile.d/`) from `template-site.caddy`. Caddy state
+  lives in `/tmp/caddy` (the Caddyfile relocates `storage` there because
+  `/data`/`/config` are root-owned tmpfs). The admin endpoint on
+  `localhost:2019` backs the healthcheck, config reloads
+  (`caddy validate` + `caddy reload` via Bollard exec) and worker restarts
+  (`POST /frankenphp/workers/restart`).
+- **`/usr/local/bin/php` shim** — `frankenphp php-cli` rejects the `-d` flag,
+  so the shim strips `-d` pairs and points `PHP_INI_SCAN_DIR` at
+  `/usr/local/etc/php/cli-extra` (which carries the WP-CLI `error_reporting`
+  value DevWP used to pass via `-d`). WP-CLI, composer and `php -r` probes
+  therefore run unchanged inside `devwp_web`.
+
+### Worker mode (experimental, opt-in per site)
+
+Sites default to classic mode (one full PHP execution per request, exactly
+like php-fpm). The edit/create dialogs expose an opt-in "PHP Worker Mode":
+`template-worker.php` is rendered per site into
+`config/frankenphp/workers/<domain>.php` and referenced from the site's
+Caddyfile via a `worker <file> 2` line inside `php_server`.
+
+The worker boots WordPress once per worker thread (`require wp-load.php`,
+never `wp-blog-header.php` — its `require_once` guards would fatal on the
+second request) and then loops over `frankenphp_handle_request()`. Each
+request resets: superglobals arrive fresh from FrankenPHP;
+`wp_magic_quotes()` (boot-time only in core, never inside `wp()`);
+`$GLOBALS['current_user'/'wp_styles'/'wp_scripts'/'wp_filesystem']`;
+`$wpdb->flush()`; the `$wp_filter` registry (restored from a boot snapshot of
+cloned `WP_Hook` objects — a shallow copy would share the mutable objects);
+and the object cache (`wp_cache_init()`). Workers recycle after 200 requests,
+when memory passes 80% of the limit, or when WordPress calls `exit()`
+(accepted v1 trade-off: redirects recycle workers). Mutating wp-cli commands
+(`plugin|theme` `install|activate|deactivate|delete|update`) trigger a worker
+restart so the change takes effect. Multisite sites refuse worker mode.
+
+Known caveats: `MAGICK_THREAD_LIMIT=1` is baked into the image (imagick's
+OpenMP threads crash FrankenPHP); Xdebug develop/profile modes work under
+workers, step debugging requires worker mode off; plugin static-state leaks
+are possible (the per-site toggle is the escape hatch).

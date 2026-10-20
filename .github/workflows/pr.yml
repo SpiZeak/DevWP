@@ -74,8 +74,7 @@ jobs:
 
       - name: Check Docker image builds
         run: |
-          docker compose build --no-cache nginx
-          docker compose build --no-cache php
+          docker compose build --no-cache web
         timeout-minutes: 30
 
   security-check:

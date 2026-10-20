@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use tracing::warn;
 
 pub fn xdebug_config_path() -> PathBuf {
-    project_root().join("config/php/conf.d/xdebug.ini")
+    project_root().join("config/frankenphp/conf.d/xdebug.ini")
 }
 
 /// Parse `xdebug.mode` from an ini file body: `Some(true)` when an active
@@ -59,13 +59,17 @@ pub async fn toggle_xdebug() -> Result<bool, String> {
 }
 
 /// Enable or disable Xdebug by writing `xdebug.mode` in the mounted ini and
-/// restarting the php service. The CLI calls this directly so `on`/`off` are
+/// restarting the web service. The CLI calls this directly so `on`/`off` are
 /// idempotent rather than blind toggles.
+///
+/// Develop/profile modes work under PHP workers; step debugging requires
+/// worker mode off (the worker is a long-running request loop, so there is
+/// no per-request startup for `xdebug.start_with_request` to hook).
 pub async fn set_xdebug(target_enabled: bool) -> Result<bool, String> {
-    // The toggle restarts php, so refuse cleanly while the stack is down
+    // The toggle restarts web, so refuse cleanly while the stack is down
     // instead of flipping the ini and failing to apply it.
     let guard = tokio::task::spawn_blocking(|| {
-        docker::require_containers_running_sync(&[crate::backend::wp_cli::PHP_CONTAINER_NAME])
+        docker::require_containers_running_sync(&[crate::backend::wp_cli::WEB_CONTAINER_NAME])
     })
     .await
     .map_err(|e| format!("Task join error: {e}"))
@@ -97,10 +101,10 @@ pub async fn set_xdebug(target_enabled: bool) -> Result<bool, String> {
         format!("Failed to update xdebug.ini: {e}")
     })?;
 
-    // Restart php through the Docker API so the ini change takes effect
-    // (`docker compose restart php` equivalent — the fixed container name).
+    // Restart web through the Docker API so the ini change takes effect
+    // (`docker compose restart web` equivalent — the fixed container name).
     let restart =
-        docker::restart_container(crate::backend::wp_cli::PHP_CONTAINER_NAME.to_string()).await;
+        docker::restart_container(crate::backend::wp_cli::WEB_CONTAINER_NAME.to_string()).await;
 
     let restart_failed = restart.err();
     if let Some(error) = restart_failed {

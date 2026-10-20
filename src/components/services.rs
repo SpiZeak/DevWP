@@ -2,7 +2,7 @@ use crate::backend::docker;
 use crate::backend::docker::{Container, ContainerState, DockerStatus, ServiceProgress};
 use crate::backend::lifecycle;
 use crate::backend::utils::NotificationType;
-use crate::components::brand_logo::{BrandLogo, SI_DOCKER, SI_MARIADB, SI_NGINX, SI_PHP, SI_REDIS};
+use crate::components::brand_logo::{BrandLogo, SI_CADDY, SI_DOCKER, SI_MARIADB, SI_REDIS};
 use crate::components::ui::{use_sync_signal, Icon, ProgressBar, Spinner};
 use crate::components::{ServiceLogs, XdebugSwitch};
 use crate::state;
@@ -24,8 +24,7 @@ fn container_icon(container_or_service: &str) -> Element {
         .strip_prefix("devwp_")
         .unwrap_or(container_or_service);
     match service {
-        "nginx" => rsx! { BrandLogo { icon: SI_NGINX } },
-        "php" => rsx! { BrandLogo { icon: SI_PHP } },
+        "web" => rsx! { BrandLogo { icon: SI_CADDY } },
         "mariadb" => rsx! { BrandLogo { icon: SI_MARIADB } },
         "redis" => rsx! { BrandLogo { icon: SI_REDIS } },
         _ => rsx! { BrandLogo { icon: SI_DOCKER } },

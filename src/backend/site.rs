@@ -4,7 +4,7 @@ use crate::backend::utils::{
     emit_notification, ensure_state_root, home_dir, run_command, save_json, NotificationType,
     DOCKER_SITE_ROOT_PATH,
 };
-use crate::backend::wp_cli::{PHP_CONTAINER_NAME, WP_CLI_ERROR_REPORTING};
+use crate::backend::wp_cli::{WEB_CONTAINER_NAME, WP_CLI_ERROR_REPORTING};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
@@ -15,12 +15,45 @@ use tracing::info;
 
 static SITES_LOCK: Mutex<()> = Mutex::new(());
 
-pub fn nginx_template_path() -> std::path::PathBuf {
-    crate::backend::utils::project_root().join("config/nginx/template-site.conf")
+pub fn caddy_template_path() -> std::path::PathBuf {
+    crate::backend::utils::project_root().join("config/frankenphp/template-site.caddy")
 }
-pub fn nginx_sites_enabled_path() -> std::path::PathBuf {
-    crate::backend::utils::project_root().join("config/nginx/sites-enabled")
+pub fn caddy_sites_enabled_path() -> std::path::PathBuf {
+    crate::backend::utils::project_root().join("config/frankenphp/sites-enabled")
 }
+pub fn worker_template_path() -> std::path::PathBuf {
+    crate::backend::utils::project_root().join("config/frankenphp/template-worker.php")
+}
+pub fn worker_scripts_path() -> std::path::PathBuf {
+    crate::backend::utils::project_root().join("config/frankenphp/workers")
+}
+
+/// Requests a worker serves before it recycles (plugin/static-state leaks are
+/// bounded by this; WordPress `exit()` redirects recycle earlier).
+pub const WORKER_MAX_REQUESTS: u32 = 200;
+
+/// Multisite (subdirectory) rewrite block rendered in place of
+/// `{{MULTISITE_BLOCK}}` — port of the nginx wordpress-ms-subdir.conf rules.
+/// Subdomain multisites and single sites need no extra rewrites.
+const MULTISITE_SUBDIR_CADDY_BLOCK: &str = r#"	# WordPress multisite (subdirectory) rewrites — wordpress-ms-subdir.conf parity.
+	@wpadmin {
+		not file
+		path_regexp wpadmin ^(/[^/]+)?/wp-admin$
+	}
+	redir @wpadmin https://{host}{uri}/ permanent
+
+	@ms_wp {
+		not file
+		path_regexp mswp ^(/[^/]+)?(/wp-.*)
+	}
+	rewrite @ms_wp {re.mswp.2}
+
+	@ms_php {
+		not file
+		path_regexp msphp ^(/[^/]+)?(/.*\.php)
+	}
+	rewrite @ms_php {re.msphp.2}
+"#;
 
 #[cfg(target_os = "windows")]
 pub const HOSTS_FILE_PATH: &str = r"C:\Windows\System32\drivers\etc\hosts";
@@ -80,6 +113,19 @@ pub struct Site {
     pub aliases: Option<String>,
     pub web_root: Option<String>,
     pub multisite: Option<MultisiteConfig>,
+    /// Experimental FrankenPHP worker mode. `None` = off, so sites.json
+    /// written by older builds parses unchanged and main-branch builds
+    /// ignore the field on rollback.
+    pub php_worker: Option<bool>,
+}
+
+impl Site {
+    /// Worker mode is only active when requested AND not a multisite site
+    /// (multisite is refused at create/update time; this keeps rendering
+    /// defensive for hand-edited state).
+    pub fn worker_mode(&self) -> bool {
+        self.php_worker.unwrap_or(false) && !self.multisite.as_ref().is_some_and(|m| m.enabled)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -106,6 +152,7 @@ pub struct SiteCreateRequest {
     pub web_root: Option<String>,
     pub aliases: Option<String>,
     pub multisite: Option<MultisiteConfig>,
+    pub php_worker: Option<bool>,
     pub wordpress: Option<WordPressInstallConfig>,
 }
 
@@ -114,6 +161,8 @@ pub struct SiteCreateRequest {
 pub struct SiteUpdateRequest {
     pub aliases: Option<String>,
     pub web_root: Option<String>,
+    /// `None` keeps the current worker-mode state, `Some(bool)` sets it.
+    pub php_worker: Option<bool>,
 }
 
 pub fn sites_file() -> Result<PathBuf, String> {
@@ -152,7 +201,7 @@ pub fn update_or_insert_site(sites: &mut Vec<Site>, site: Site) {
 
 /// Validate a site/domain name: non-empty, alphanumeric plus `.`, `-`, `_`,
 /// no empty/`..` segments (so it can never escape a directory or inject
-/// nginx/SQL syntax).
+/// Caddy/SQL syntax).
 pub fn validate_site_name(input: &str) -> Result<String, String> {
     if input.is_empty() {
         return Err("Site name cannot be empty".to_string());
@@ -283,7 +332,8 @@ pub(crate) fn regenerate_certificate(domains: &[String]) -> Result<(), String> {
         return Err(format!("mkcert failed: {stderr}"));
     }
 
-    // Ensure mkcert's CA is available for nginx (ssl_trusted_certificate)
+    // Ensure mkcert's CA is available for TLS trust (not used by Caddy's
+    // config directly, but kept in sync for host-side tooling).
     let caroot_output = run_command(&mkcert, &["-CAROOT"])?;
     let caroot = String::from_utf8_lossy(&caroot_output.stdout)
         .trim()
@@ -323,127 +373,118 @@ pub fn find_mkcert() -> Result<String, String> {
     Err("mkcert not found. Please install mkcert first:\n  https://github.com/FiloSottile/mkcert#installation\nor run: scripts/setup-certs.sh".to_string())
 }
 
-/// Validate the generated config with `nginx -t` before reloading; an invalid
-/// config must never be applied (and would fail the running nginx otherwise).
-/// A transport failure of the check itself also skips the reload — we cannot
-/// know the config is safe to apply.
-pub(crate) fn nginx_reload() {
-    let test = exec_in_container("devwp_nginx", &["nginx", "-t"], &ExecOptions::default());
-    match test {
-        Ok(output) if output.success() => {}
-        Ok(output) => {
-            crate::state::push_notification(
-                NotificationType::Error,
-                format!(
-                    "Nginx config check failed, reload skipped:\n{}",
-                    output.stderr
-                ),
-            );
-            return;
-        }
+/// Validate the generated config inside `devwp_web` before reloading; an
+/// invalid config must never be applied (and a reload that fails mid-way
+/// would stop the running server). A transport failure of the check itself
+/// also skips the reload — we cannot know the config is safe to apply.
+pub(crate) fn caddy_reload() {
+    match crate::backend::docker::reload_web_config() {
+        Ok(()) => {}
         Err(error) => {
-            crate::state::push_notification(
-                NotificationType::Error,
-                format!("Nginx config check could not run, reload skipped: {error}"),
-            );
-            return;
+            crate::state::push_notification(NotificationType::Error, error);
         }
-    }
-    if let Err(error) = exec_in_container(
-        "devwp_nginx",
-        &["nginx", "-s", "reload"],
-        &ExecOptions::default(),
-    ) {
-        crate::state::push_notification(
-            NotificationType::Warning,
-            format!("Nginx reload failed: {error}"),
-        );
     }
 }
 
-pub(crate) fn generate_nginx_config(
+/// The absolute site root inside the web container, honoring a web root.
+fn container_site_root(domain: &str, web_root: Option<&str>) -> String {
+    match web_root.filter(|r| !r.is_empty()) {
+        Some(wr) => format!("{DOCKER_SITE_ROOT_PATH}/{domain}/{wr}"),
+        None => format!("{DOCKER_SITE_ROOT_PATH}/{domain}"),
+    }
+}
+
+/// Pure rendering of the per-site Caddy config (template substitution).
+fn render_caddy_config(
     domain: &str,
     aliases: Option<&str>,
     web_root: Option<&str>,
     multisite: Option<&MultisiteConfig>,
-) -> Result<(), String> {
-    let template_path = nginx_template_path();
+    worker_enabled: bool,
+) -> Result<String, String> {
+    let template_path = caddy_template_path();
     let template = fs::read_to_string(&template_path).map_err(|e| {
         format!(
-            "Failed to read nginx template {}: {e} — start DevWP once from the repository checkout so its location is recorded",
+            "Failed to read Caddy template {}: {e} — start DevWP once from the repository checkout so its location is recorded",
             template_path.display()
         )
     })?;
 
-    let active_type = match multisite {
-        Some(m) if m.enabled => Some(m.site_type),
-        _ => None,
-    };
-
-    let domain_list = {
-        let mut parts = vec![domain];
-        if let Some(a) = aliases {
-            for alias in split_aliases(a) {
-                parts.push(alias);
-            }
+    let mut domain_list = vec![domain.to_string()];
+    if let Some(a) = aliases {
+        for alias in split_aliases(a) {
+            domain_list.push(alias.to_string());
         }
-        parts.join(" ")
-    };
-
-    let mut output_lines: Vec<String> = Vec::new();
-
-    for line in template.lines() {
-        let trimmed = line.trim();
-        let indent = &line[..line.len() - trimmed.len()];
-
-        if trimmed.starts_with("server_name ") {
-            output_lines.push(format!("{indent}server_name {domain_list};"));
-            continue;
-        }
-
-        if trimmed.starts_with("root /") {
-            let root_path = match web_root.filter(|r| !r.is_empty()) {
-                Some(wr) => format!("{DOCKER_SITE_ROOT_PATH}/{domain}/{wr}"),
-                None => format!("{DOCKER_SITE_ROOT_PATH}/{domain}"),
-            };
-            output_lines.push(format!("{indent}root {root_path};"));
-            continue;
-        }
-
-        // Handle the three WordPress include variants — swap which is active.
-        let base = trimmed.trim_start_matches("# ");
-        let is_wp_single = base == "include global/wordpress.conf;";
-        let is_wp_subdir = base == "include global/wordpress-ms-subdir.conf;";
-        let is_wp_subdom = base == "include global/wordpress-ms-subdomain.conf;";
-
-        if is_wp_single || is_wp_subdir || is_wp_subdom {
-            let should_be_active = match active_type {
-                Some(MultisiteType::Subdirectory) => is_wp_subdir,
-                Some(MultisiteType::Subdomain) => is_wp_subdom,
-                _ => is_wp_single,
-            };
-            if should_be_active {
-                output_lines.push(format!("{indent}{base}"));
-            } else {
-                output_lines.push(format!("{indent}# {base}"));
-            }
-            continue;
-        }
-
-        output_lines.push(line.to_string());
     }
 
-    let config_content = output_lines.join("\n") + "\n";
+    let multisite_block = match multisite {
+        Some(m) if m.enabled && m.site_type == MultisiteType::Subdirectory => {
+            MULTISITE_SUBDIR_CADDY_BLOCK
+        }
+        _ => "",
+    };
 
-    let sites_enabled = nginx_sites_enabled_path();
+    let worker_line = if worker_enabled && !multisite.is_some_and(|m| m.enabled) {
+        format!("\t\tworker /etc/frankenphp/workers/{domain}.php 2")
+    } else {
+        String::new()
+    };
+
+    Ok(template
+        .replace("{{DOMAINS}}", &domain_list.join(", "))
+        .replace("{{ROOT}}", &container_site_root(domain, web_root))
+        .replace("{{MULTISITE_BLOCK}}", multisite_block)
+        .replace("{{WORKER_LINE}}", &worker_line))
+}
+
+pub(crate) fn generate_caddy_config(
+    domain: &str,
+    aliases: Option<&str>,
+    web_root: Option<&str>,
+    multisite: Option<&MultisiteConfig>,
+    worker_enabled: bool,
+) -> Result<(), String> {
+    let config = render_caddy_config(domain, aliases, web_root, multisite, worker_enabled)?;
+
+    let sites_enabled = caddy_sites_enabled_path();
     fs::create_dir_all(&sites_enabled)
         .map_err(|e| format!("Failed to create sites-enabled directory: {e}"))?;
 
-    let conf_path = sites_enabled.join(format!("{domain}.conf"));
-    fs::write(conf_path, config_content)
-        .map_err(|e| format!("Failed to write nginx config: {e}"))?;
+    let conf_path = sites_enabled.join(format!("{domain}.caddy"));
+    fs::write(conf_path, config).map_err(|e| format!("Failed to write Caddy config: {e}"))?;
 
     Ok(())
+}
+
+/// Pure rendering of the per-site worker script.
+fn render_worker_script(domain: &str, web_root: Option<&str>) -> Result<String, String> {
+    let template_path = worker_template_path();
+    let template = fs::read_to_string(&template_path).map_err(|e| {
+        format!(
+            "Failed to read worker template {}: {e}",
+            template_path.display()
+        )
+    })?;
+
+    Ok(template
+        .replace("{{ABS_SITE_ROOT}}", &container_site_root(domain, web_root))
+        .replace("{{MAX_REQUESTS}}", &WORKER_MAX_REQUESTS.to_string()))
+}
+
+/// Render and write the per-site worker script. Must run BEFORE a config
+/// referencing it is written/reloaded — Caddy fails to start a worker
+/// whose file does not exist.
+pub(crate) fn write_worker_script(domain: &str, web_root: Option<&str>) -> Result<(), String> {
+    let script = render_worker_script(domain, web_root)?;
+
+    let workers = worker_scripts_path();
+    fs::create_dir_all(&workers).map_err(|e| format!("Failed to create workers directory: {e}"))?;
+    fs::write(workers.join(format!("{domain}.php")), script)
+        .map_err(|e| format!("Failed to write worker script: {e}"))
+}
+
+pub(crate) fn remove_worker_script(domain: &str) {
+    let _ = fs::remove_file(worker_scripts_path().join(format!("{domain}.php")));
 }
 
 pub(crate) fn add_hosts_entry(domain: &str, aliases: Option<&str>) -> Result<(), String> {
@@ -694,6 +735,7 @@ pub fn get_sites() -> Vec<Site> {
                     aliases: None,
                     web_root: None,
                     multisite: None,
+                    php_worker: None,
                 });
                 discovered = true;
             }
@@ -792,7 +834,7 @@ fn wp_install_args(domain: &str, config: &WordPressInstallConfig) -> Vec<String>
 fn file_exists_in_php_container(work_dir: &str, relative_path: &str) -> Result<bool, String> {
     let code = format!("exit( is_file( '{relative_path}' ) ? 0 : 1 );");
     let output = exec_in_container(
-        PHP_CONTAINER_NAME,
+        WEB_CONTAINER_NAME,
         &["php", "-r", &code],
         &ExecOptions {
             working_dir: Some(work_dir.to_string()),
@@ -817,7 +859,7 @@ fn multisite_network_installed(work_dir: &str) -> Result<bool, String> {
     ];
     let argv_refs: Vec<&str> = argv.iter().map(String::as_str).collect();
     let output = exec_in_container(
-        PHP_CONTAINER_NAME,
+        WEB_CONTAINER_NAME,
         &argv_refs,
         &ExecOptions {
             working_dir: Some(work_dir.to_string()),
@@ -869,7 +911,7 @@ fn install_wordpress(
         argv.extend_from_slice(args);
         let argv_refs: Vec<&str> = argv.iter().map(String::as_str).collect();
         let output = exec_in_container(
-            PHP_CONTAINER_NAME,
+            WEB_CONTAINER_NAME,
             &argv_refs,
             &ExecOptions {
                 working_dir: Some(work_dir.clone()),
@@ -992,21 +1034,70 @@ pub fn site_entry_exists(name: &str) -> bool {
     get_sites().iter().any(|s| s.name == name)
 }
 
+/// Generate missing per-site Caddy configs (and worker scripts) for every
+/// registered site. Sites provisioned before the FrankenPHP migration only
+/// have nginx configs on disk; this writes their Caddy equivalents once, on
+/// the first launch of a FrankenPHP build. Existing files are left alone.
+///
+/// Caddy refuses the whole config when a site root is missing
+/// (`resolve_root_symlink` stats it at provision time), so stale sites.json
+/// entries without a directory are skipped, not generated.
+pub fn reconcile_site_configs() -> Result<usize, String> {
+    let sites = get_sites();
+    let webroot = get_webroot_from_settings();
+    let mut written = 0;
+    for site in &sites {
+        if caddy_sites_enabled_path()
+            .join(format!("{}.caddy", site.name))
+            .exists()
+        {
+            continue;
+        }
+        let root = match site.web_root.as_deref().filter(|r| !r.is_empty()) {
+            Some(web_root) => webroot.join(&site.name).join(web_root),
+            None => webroot.join(&site.name),
+        };
+        if !root.is_dir() {
+            info!(
+                "Skipping Caddy config for {}: {} does not exist",
+                site.name,
+                root.display()
+            );
+            continue;
+        }
+        let worker_enabled = site.worker_mode();
+        if worker_enabled {
+            write_worker_script(&site.name, site.web_root.as_deref())?;
+        }
+        generate_caddy_config(
+            &site.name,
+            site.aliases.as_deref(),
+            site.web_root.as_deref(),
+            site.multisite.as_ref(),
+            worker_enabled,
+        )?;
+        written += 1;
+    }
+    Ok(written)
+}
+
 pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
-    // The domain, web root and aliases flow into filesystem paths, nginx
+    // The domain, web root and aliases flow into filesystem paths, Caddy
     // config and SQL — validate everything up front, never trust the UI.
     validate_site_name(&site.domain)?;
     if let Some(web_root) = &site.web_root {
         validate_site_webroot(web_root)?;
     }
     validate_site_aliases(site.aliases.as_deref())?;
+    if site.php_worker == Some(true) && site.multisite.as_ref().is_some_and(|m| m.enabled) {
+        return Err("PHP worker mode is not available for multisite sites".to_string());
+    }
 
-    // Provisioning execs inside the stack (nginx reload, plus the WordPress
-    // installer in php/mariadb) — refuse before any host mutation while the
+    // Provisioning execes inside the stack (Caddy reload, plus the WordPress
+    // installer in web/mariadb) — refuse before any host mutation while the
     // required containers are down.
-    let mut required_containers: Vec<&str> = vec!["devwp_nginx"];
+    let mut required_containers: Vec<&str> = vec!["devwp_web"];
     if site.wordpress.is_some() {
-        required_containers.push(PHP_CONTAINER_NAME);
         required_containers.push(crate::backend::utils::DB_HOST);
     }
     require_containers_running_sync(&required_containers)?;
@@ -1023,13 +1114,19 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
     let _lock = acquire_sites_lock()?;
     let mut sites = read_sites_checked()?;
 
-    // Generate the vhost before committing to sites.json: a template failure
-    // must not leave a registered site without an nginx config.
-    generate_nginx_config(
+    // Generate the worker script and vhost before committing to sites.json:
+    // a template failure must not leave a registered site without its Caddy
+    // config (and the worker file must exist before a config referencing it).
+    let worker_enabled = site.php_worker.unwrap_or(false);
+    if worker_enabled {
+        write_worker_script(&site.domain, site.web_root.as_deref())?;
+    }
+    generate_caddy_config(
         &site.domain,
         site.aliases.as_deref(),
         site.web_root.as_deref(),
         site.multisite.as_ref(),
+        worker_enabled,
     )?;
 
     update_or_insert_site(
@@ -1042,20 +1139,22 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
             aliases: site.aliases.clone(),
             web_root: site.web_root.clone(),
             multisite: site.multisite.clone(),
+            php_worker: site.php_worker,
         },
     );
 
     if let Err(error) = write_sites_unchecked(&sites) {
         // Roll the vhost back so state and config stay consistent.
-        let _ = fs::remove_file(nginx_sites_enabled_path().join(format!("{}.conf", site.domain)));
+        let _ = fs::remove_file(caddy_sites_enabled_path().join(format!("{}.caddy", site.domain)));
+        remove_worker_script(&site.domain);
         return Err(error);
     }
     drop(_lock);
 
     // Regenerate TLS certificate in background — this can be slow with many sites.
     // The callback runs on a worker thread, so it only touches SyncSignal state;
-    // only the domain strings are moved, not the whole site list. The nginx
-    // reload must happen inside the callback: nginx reads cert files at config
+    // only the domain strings are moved, not the whole site list. The Caddy
+    // reload must happen inside the callback: Caddy reads cert files at config
     // load only, so reloading before mkcert finishes would keep serving the
     // previous certificate until the next restart.
     let domains_for_cert = collect_domains(&sites);
@@ -1071,7 +1170,7 @@ pub fn create_site(site: SiteCreateRequest) -> Result<(), String> {
                 "TLS certificates regenerated for all sites",
             );
         }
-        nginx_reload();
+        caddy_reload();
     });
 
     if let Err(e) = add_hosts_entry(&site.domain, site.aliases.as_deref()) {
@@ -1103,9 +1202,9 @@ pub fn delete_site(site: Site) -> Result<(), String> {
     // Validate before any mutation — matches create_site/update_site ordering.
     validate_site_name(&site.name)?;
 
-    // The deletion ends with an nginx reload inside the container — refuse
-    // while nginx is down rather than deleting files it can no longer unload.
-    require_containers_running_sync(&["devwp_nginx"])?;
+    // The deletion ends with a Caddy reload inside the container — refuse
+    // while web is down rather than deleting files it can no longer unload.
+    require_containers_running_sync(&["devwp_web"])?;
 
     let _lock = acquire_sites_lock()?;
     let mut sites = read_sites_checked()?;
@@ -1136,13 +1235,14 @@ pub fn delete_site(site: Site) -> Result<(), String> {
         fs::remove_dir_all(path).map_err(|e| format!("Failed to remove site directory: {e}"))?;
     }
 
-    let conf_path = nginx_sites_enabled_path().join(format!("{}.conf", site.name));
+    let conf_path = caddy_sites_enabled_path().join(format!("{}.caddy", site.name));
     if conf_path.exists() {
         let _ = fs::remove_file(conf_path);
     }
+    remove_worker_script(&site.name);
 
-    // Regenerate TLS certificate in the background, then reload nginx from the
-    // same callback — nginx reads cert files at config load only, so the reload
+    // Regenerate TLS certificate in the background, then reload Caddy from the
+    // same callback — Caddy reads cert files at config load only, so the reload
     // must not race (or precede) the regenerated certificate landing on disk.
     let domains_for_cert = collect_domains(&sites);
     run_cert_regen(move || {
@@ -1152,7 +1252,7 @@ pub fn delete_site(site: Site) -> Result<(), String> {
                 format!("Certificate regeneration failed: {e}"),
             );
         }
-        nginx_reload();
+        caddy_reload();
     });
 
     let _ = remove_hosts_entry(&site.name, site.aliases.as_deref());
@@ -1182,9 +1282,9 @@ pub fn update_site(site: Site, data: SiteUpdateRequest) -> Result<(), String> {
     }
     validate_site_aliases(data.aliases.as_deref())?;
 
-    // The update ends with an nginx reload inside the container — refuse
-    // while nginx is down rather than writing a config it cannot load.
-    require_containers_running_sync(&["devwp_nginx"])?;
+    // The update ends with a Caddy reload inside the container — refuse
+    // while web is down rather than writing a config it cannot load.
+    require_containers_running_sync(&["devwp_web"])?;
 
     let _lock = acquire_sites_lock()?;
     let mut sites = read_sites_checked()?;
@@ -1198,26 +1298,54 @@ pub fn update_site(site: Site, data: SiteUpdateRequest) -> Result<(), String> {
     let existing_name = existing.name.clone();
     let old_aliases = existing.aliases.clone();
 
+    // Worker toggle: `None` keeps the current state, `Some(bool)` sets it.
+    let worker_requested = data.php_worker.or(existing.php_worker);
+    if worker_requested == Some(true) && existing.multisite.as_ref().is_some_and(|m| m.enabled) {
+        return Err("PHP worker mode is not available for multisite sites".to_string());
+    }
+    let worker_was_enabled = existing.worker_mode();
+
     let updated = Site {
         aliases: updated_field(data.aliases, existing.aliases.clone()),
         web_root: updated_field(data.web_root, existing.web_root.clone()),
+        php_worker: worker_requested,
         ..existing
     };
+    let worker_now_enabled = updated.worker_mode();
 
     update_or_insert_site(&mut sites, updated.clone());
     write_sites_unchecked(&sites)?;
     drop(_lock);
 
-    // Remove old alias hosts entries, regenerate cert and nginx config, add new ones
+    // The worker script must exist before a config referencing it is
+    // reloaded; rewriting it also picks up web-root changes.
+    if worker_now_enabled {
+        write_worker_script(&updated.name, updated.web_root.as_deref())?;
+    } else {
+        remove_worker_script(&updated.name);
+    }
+
+    // Remove old alias hosts entries, regenerate cert and Caddy config, add new ones
     let _ = remove_hosts_entry(&existing_name, old_aliases.as_deref());
     let _ = regenerate_certificate(&collect_domains(&sites));
-    generate_nginx_config(
+    generate_caddy_config(
         &updated.name,
         updated.aliases.as_deref(),
         updated.web_root.as_deref(),
         updated.multisite.as_ref(),
+        worker_now_enabled,
     )?;
-    nginx_reload();
+    caddy_reload();
+    if worker_now_enabled && !worker_was_enabled {
+        // Newly referenced workers start with the reloaded config; the admin
+        // restart is a best-effort consistency kick.
+        if let Err(error) = crate::backend::docker::restart_web_workers() {
+            emit_notification(
+                NotificationType::Warning,
+                format!("Worker restart failed: {error}"),
+            );
+        }
+    }
     add_hosts_entry(&updated.name, updated.aliases.as_deref())?;
 
     emit_notification(NotificationType::Success, "Site updated");
@@ -1346,6 +1474,7 @@ mod tests {
             aliases: None,
             web_root: None,
             multisite: None,
+            php_worker: None,
         }];
         update_or_insert_site(
             &mut sites,
@@ -1357,10 +1486,12 @@ mod tests {
                 aliases: None,
                 web_root: None,
                 multisite: None,
+                php_worker: Some(true),
             },
         );
         assert_eq!(sites.len(), 1);
         assert_eq!(sites[0].path, "p2");
+        assert_eq!(sites[0].php_worker, Some(true));
     }
 
     #[test]
@@ -1376,8 +1507,126 @@ mod tests {
                 aliases: None,
                 web_root: None,
                 multisite: None,
+                php_worker: None,
             },
         );
         assert_eq!(sites.len(), 1);
+    }
+
+    #[test]
+    fn worker_mode_requires_opt_in_and_non_multisite() {
+        let base = || Site {
+            name: "a.test".into(),
+            path: "p".into(),
+            url: "u".into(),
+            status: SiteStatus::Active,
+            aliases: None,
+            web_root: None,
+            multisite: None,
+            php_worker: None,
+        };
+        assert!(!base().worker_mode(), "absent flag = off");
+        assert!(!Site {
+            php_worker: Some(false),
+            ..base()
+        }
+        .worker_mode());
+        assert!(Site {
+            php_worker: Some(true),
+            ..base()
+        }
+        .worker_mode());
+        // Defensive: worker never renders for multisite, even for
+        // hand-edited state where the two conflict.
+        assert!(!Site {
+            multisite: Some(MultisiteConfig {
+                enabled: true,
+                site_type: MultisiteType::Subdirectory,
+            }),
+            php_worker: Some(true),
+            ..base()
+        }
+        .worker_mode());
+    }
+
+    #[test]
+    fn sites_json_parses_legacy_entries_without_php_worker() {
+        let legacy = r#"[{
+            "name": "a.test",
+            "path": "/home/x/www/a.test",
+            "url": "https://a.test",
+            "status": "active",
+            "aliases": null,
+            "webRoot": null,
+            "multisite": null
+        }]"#;
+        let sites: Vec<Site> = serde_json::from_str(legacy).expect("legacy sites.json parses");
+        assert_eq!(sites.len(), 1);
+        assert_eq!(sites[0].php_worker, None);
+        assert!(!sites[0].worker_mode());
+    }
+
+    #[test]
+    fn generate_caddy_config_renders_classic_site() {
+        let config = render_caddy_config("example.test", None, None, None, false).expect("render");
+        assert_eq!(
+            config.lines().nth(1),
+            Some("example.test {"),
+            "site label follows the header comment: {config}"
+        );
+        assert!(config.contains("root * /src/www/example.test"));
+        assert!(config.contains("php_server {\n\t\troot /src/www/example.test"));
+        assert!(!config.contains("worker"), "classic site has no worker");
+    }
+
+    #[test]
+    fn generate_caddy_config_renders_worker_aliases_and_web_root() {
+        let config = render_caddy_config(
+            "shop.test",
+            Some("a.test b.test"),
+            Some("public"),
+            None,
+            true,
+        )
+        .expect("render");
+        assert!(
+            config.contains("shop.test, a.test, b.test {"),
+            "aliases join the site label: {config}"
+        );
+        assert!(config.contains("root * /src/www/shop.test/public"));
+        assert!(config.contains("worker /etc/frankenphp/workers/shop.test.php 2"));
+    }
+
+    #[test]
+    fn generate_caddy_config_renders_multisite_variants() {
+        let subdir = MultisiteConfig {
+            enabled: true,
+            site_type: MultisiteType::Subdirectory,
+        };
+        let config = render_caddy_config("sub.test", None, None, Some(&subdir), false).unwrap();
+        assert!(config.contains("path_regexp wpadmin"));
+        assert!(config.contains("redir @wpadmin https://{host}{uri}/ permanent"));
+        assert!(config.contains("rewrite @ms_wp {re.mswp.2}"));
+        assert!(!config.contains("worker"));
+
+        // Subdomain multisite needs no rewrites; worker stays refused even
+        // when requested.
+        let subdom = MultisiteConfig {
+            enabled: true,
+            site_type: MultisiteType::Subdomain,
+        };
+        let config = render_caddy_config("dom.test", None, None, Some(&subdom), true).unwrap();
+        assert!(!config.contains("path_regexp wpadmin"));
+        assert!(!config.contains("rewrite @ms_wp"));
+        assert!(!config.contains("worker"), "worker refused for multisite");
+    }
+
+    #[test]
+    fn worker_script_template_renders_site_root_and_max_requests() {
+        let script = render_worker_script("w.test", Some("public")).expect("render");
+        assert!(script.contains("$site_root = '/src/www/w.test/public';"));
+        assert!(script.contains(". '/wp-load.php';"));
+        assert!(script.contains("?? 200"));
+        assert!(script.contains("frankenphp_handle_request"));
     }
 }

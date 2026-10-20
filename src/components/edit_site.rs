@@ -1,5 +1,5 @@
 use crate::backend::site::{Site, SiteStatus};
-use crate::components::ui::{FormInput, Icon, ModalBase};
+use crate::components::ui::{FormInput, Icon, ModalBase, Toggle};
 use dioxus::prelude::*;
 use std::rc::Rc;
 
@@ -8,6 +8,7 @@ pub struct EditSiteData {
     pub site: Site,
     pub aliases: String,
     pub web_root: String,
+    pub php_worker: bool,
 }
 
 #[component]
@@ -19,6 +20,7 @@ pub fn EditSiteModal(
 ) -> Element {
     let mut aliases = use_signal(String::new);
     let mut web_root = use_signal(String::new);
+    let mut worker_enabled = use_signal(|| false);
     let mut submitting = use_signal(|| false);
 
     // Populate the form when the modal opens.
@@ -26,13 +28,19 @@ pub fn EditSiteModal(
     use_effect(move || {
         *aliases.write() = site_for_effect.aliases.clone().unwrap_or_default();
         *web_root.write() = site_for_effect.web_root.clone().unwrap_or_default();
+        *worker_enabled.write() = site_for_effect.worker_mode();
         *submitting.write() = false;
     });
 
     let original_aliases = site.aliases.clone().unwrap_or_default();
     let original_web_root = site.web_root.clone().unwrap_or_default();
-    let has_changes = *aliases.read() != original_aliases || *web_root.read() != original_web_root;
+    let original_worker = site.worker_mode();
+    let has_changes = *aliases.read() != original_aliases
+        || *web_root.read() != original_web_root
+        || *worker_enabled.read() != original_worker;
     let is_provisioning = site.status == SiteStatus::Provisioning;
+    let is_multisite = site.multisite.as_ref().is_some_and(|m| m.enabled);
+    let worker_on = *worker_enabled.read();
 
     let webroot_help = rsx! {
         div { class: "mt-2 text-muted text-xs",
@@ -54,6 +62,7 @@ pub fn EditSiteModal(
     let site_for_submit = Rc::clone(&site);
     let aliases_for_submit = aliases;
     let webroot_for_submit = web_root;
+    let worker_for_submit = worker_enabled;
     let mut submitting_for_submit = submitting;
     let site_for_delete_confirm = Rc::clone(&site);
 
@@ -75,6 +84,7 @@ pub fn EditSiteModal(
                         site: (*site_for_submit).clone(),
                         aliases: aliases_for_submit.read().clone(),
                         web_root: webroot_for_submit.read().clone(),
+                        php_worker: *worker_for_submit.read(),
                     });
                 },
                 if *submitting.read() { "Saving..." } else { "Save Changes" }
@@ -112,10 +122,36 @@ pub fn EditSiteModal(
                     *web_root.write() = v.trim().trim_start_matches('/').trim_end_matches('/').to_string();
                 },
             }
+            div { class: "mt-6 mb-6",
+                div { class: "flex items-center gap-2 mb-2",
+                    Toggle {
+                        checked: worker_on && !is_multisite,
+                        onchange: move |checked| {
+                            *worker_enabled.write() = checked;
+                        },
+                    }
+                    label {
+                        class: "ml-3 font-medium text-seasalt hover:text-accent transition-colors cursor-pointer",
+                        onclick: move |_| {
+                            let mut e = worker_enabled.write();
+                            *e = !*e;
+                        },
+                        "PHP Worker Mode (experimental)"
+                    }
+                }
+                if worker_on {
+                    p { class: "mb-2 text-muted text-xs",
+                        "WordPress boots once per worker and serves requests from memory. Some plugins may misbehave, redirects recycle workers, and step debugging requires worker mode off."
+                    }
+                }
+                if is_multisite {
+                    p { class: "text-faint text-xs", "Worker mode is not available for multisite sites." }
+                }
+            }
             div { class: "bg-crimson/5 mt-6 px-4 py-4 border border-crimson/30 rounded-md",
                 h4 { class: "mb-2 font-medium text-seasalt text-sm", "Danger Zone" }
                 p { class: "mb-3 text-muted text-xs",
-                    "Deleting this site removes the site directory, nginx config, and hosts entries. The MariaDB database is kept. This action cannot be undone."
+                    "Deleting this site removes the site directory, Caddy config, worker script, and hosts entries. The MariaDB database is kept. This action cannot be undone."
                 }
                 button {
                     "type": "button",

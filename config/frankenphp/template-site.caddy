@@ -1,0 +1,33 @@
+# DevWP per-site config — generated from template-site.caddy. Do not edit.
+{{DOMAINS}} {
+	tls /certs/cert.pem /certs/key.pem
+
+	root * {{ROOT}}
+	encode zstd br gzip
+
+	# nginx restrictions.conf parity: deny hidden files (.htaccess, .git, …)
+	# and PHP scripts inside uploads.
+	@hidden path /.* */.*
+	respond @hidden 403
+
+	@uploads_php path_regexp (?i)/(?:uploads|files)/.*\.php$
+	respond @uploads_php 403
+
+{{MULTISITE_BLOCK}}
+	# On-demand image sizes (avif-express): fall back to WordPress when an
+	# intermediate size file is missing so it can be generated on the fly.
+	@od_image {
+		not file
+		path_regexp od (?i)^/(?:app|wp-content)/uploads/(.+)-(\d+)x(\d+)\.(jpe?g|png)$
+	}
+	rewrite @od_image /index.php?od_image={re.od.1}&od_w={re.od.2}&od_h={re.od.3}&od_ext={re.od.4}
+
+	# Static assets: nginx "expires max" parity.
+	@static path *.js *.css *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2 *.ttf *.eot
+	header @static Cache-Control "public, max-age=31536000, immutable"
+
+	php_server {
+		root {{ROOT}}
+{{WORKER_LINE}}
+	}
+}
