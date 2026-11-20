@@ -1,11 +1,10 @@
 # FrankenPHP replaces the previous devwp_php (php-fpm) + devwp_nginx
 # containers with a single Caddy-based server that embeds the PHP interpreter.
 #
-# Pinned base tag: 1.13.1 was the latest stable FrankenPHP release at
-# 2026-10-20 (check https://hub.docker.com/r/dunglas/frankenphp/tags when
-# bumping). Debian bookworm, not Alpine: musl builds lack GLOB_BRACE and are
-# slower under ZTS — see https://frankenphp.dev/docs/performance/
-ARG FRANKENPHP_IMAGE=dunglas/frankenphp:1.13.1-php8.5-bookworm
+# Pinned base tag (check https://hub.docker.com/r/dunglas/frankenphp/tags when
+# bumping). Debian (glibc), not Alpine: musl builds are slower under ZTS —
+# see https://frankenphp.dev/docs/performance/
+ARG FRANKENPHP_IMAGE=dunglas/frankenphp:1.13.6-php8.5-trixie
 
 FROM ${FRANKENPHP_IMAGE}
 
