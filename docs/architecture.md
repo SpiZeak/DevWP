@@ -105,7 +105,7 @@ identically under `cargo run`, release binaries, and every packaged bundle.
 
 The `web` service (`devwp_web`, image `devwp-web`) is a single
 [FrankenPHP](https://frankenphp.dev) container: Caddy with an embedded
-PHP 8.5 (ZTS) interpreter. It replaced the previous `devwp_php` (php-fpm) +
+PHP 8.6 (ZTS) interpreter. It replaced the previous `devwp_php` (php-fpm) +
 `devwp_nginx` (custom nginx/LibreSSL build) pair, so PHP execution and web
 serving share one process (base image pinned in `config/frankenphp/Dockerfile`).
 

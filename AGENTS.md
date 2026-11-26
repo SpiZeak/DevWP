@@ -12,7 +12,7 @@ functions directly (no IPC, no Node toolchain), state lives in process-wide
 - Framework: Dioxus 0.7 `desktop` feature — WebKitGTK (Linux) / WebView2 (Windows) / WKWebView (macOS) webview
 - Package manager: `cargo` (no Node toolchain for the app; Tailwind CLI is a standalone binary)
 - Key deps: `dioxus`, `rfd` (file dialogs), `serde`/`serde_json`, `shell-words`, `tokio` (rt only), `tracing`
-- Infra: Docker Compose stack — `web` (FrankenPHP: Caddy + embedded PHP 8.5), `mariadb`, `redis`, `mailpit` (see `compose.yml`)
+- Infra: Docker Compose stack — `web` (FrankenPHP: Caddy + embedded PHP 8.6), `mariadb`, `redis`, `mailpit` (see `compose.yml`)
 - Packaging: `cargo-packager` (config in `[package.metadata.packager]`); AUR publish via `.github/workflows/aur-deploy.yml`
 - DB: MariaDB, host `devwp_mariadb`, creds hardcoded as constants (see Env / Config)
 
@@ -115,7 +115,7 @@ build args for the web image). The Rust code reads no app env vars.
 - **Fonts are pruned to the 4 weights the UI uses** (regular/medium/semibold/bold, ~5 MB total). No patched variable font exists upstream (Nerd Fonts ships static OTFs only), and the plain Monaspace variable font lacks the nerd glyphs the UI's icons depend on.
 - **Git submodules**: CI checks out with `submodules: recursive`; `.gitmodules` is present.
 - **`compose.yml` mounts host paths**: `~/www` (webroot), `~/.ssh`, `~/.config/composer` are bind-mounted — they must exist on the host for the stack to behave.
-- **FrankenPHP base tag is pinned** (`dunglas/frankenphp:1.13.6-php8.5-trixie`, recorded in `config/frankenphp/Dockerfile`); bump deliberately.
+- **FrankenPHP base tag is pinned** (`dunglas/frankenphp:1.14-php8.6-trixie`, recorded in `config/frankenphp/Dockerfile`); bump deliberately.
 - **`/usr/local/bin/php` inside `devwp_web` is a shim** (`config/frankenphp/php-shim.sh`): `frankenphp php-cli` rejects `-d`, so the shim strips `-d` pairs and applies the WP-CLI `error_reporting` via the `cli-extra` ini scan dir. WP-CLI/composer/`php -r` probes depend on it.
 - **`MAGICK_THREAD_LIMIT=1`** is baked into the image: imagick's OpenMP threads crash FrankenPHP (documented upstream known issue).
 - **Worker mode is experimental and opt-in per site** (multisite refused). Workers boot WordPress once and reset per-request state themselves (`config/frankenphp/template-worker.php`); `exit()` redirects recycle workers; step debugging requires worker mode off. Mutating wp-cli commands restart workers via `POST localhost:2019/frankenphp/workers/restart`.

@@ -4,7 +4,7 @@
 # Pinned base tag (check https://hub.docker.com/r/dunglas/frankenphp/tags when
 # bumping). Debian (glibc), not Alpine: musl builds are slower under ZTS —
 # see https://frankenphp.dev/docs/performance/
-ARG FRANKENPHP_IMAGE=dunglas/frankenphp:1.13.6-php8.5-trixie
+ARG FRANKENPHP_IMAGE=dunglas/frankenphp:1.14-php8.6-trixie
 
 FROM ${FRANKENPHP_IMAGE}
 
@@ -31,6 +31,11 @@ RUN apt-get update && \
 # install-php-extensions ships with the base image; it has no @wp-cli
 # special package, so WP-CLI is installed from its phar below.
 # imagick's OpenMP threads crash FrankenPHP — see MAGICK_THREAD_LIMIT below.
+# PHP 8.6 removed XtOffsetOf, which the stable releases of redis (6.3.0) and
+# imagick (3.8.1) still use, so they do not compile. redis is pinned to the
+# 6.4.0RC1 tag and imagick to a master commit carrying the fix (#795). xdebug
+# 3.5.x caps at PHP 8.5, so it is pinned to a master (3.6.0alpha1) commit that
+# allows 8.6. Switch all three back to plain names once stable releases land.
 RUN install-php-extensions \
         mysqli \
         pdo_mysql \
@@ -44,9 +49,9 @@ RUN install-php-extensions \
         bcmath \
         sodium \
         opcache \
-        redis \
-        imagick \
-        xdebug \
+        redis-6.4.0RC1 \
+        Imagick/imagick@55ed2e9fda264395636a2e27e51f31673f5566ab \
+        xdebug/xdebug@5e19866c1766e38c527f9f94faa170370dc4209f \
         @composer
 
 # WP-CLI, at the path DevWP execs (/usr/local/bin/wp).
